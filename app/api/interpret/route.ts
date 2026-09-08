@@ -1,6 +1,7 @@
 import { calculateBaziChart } from '@/lib/bazi/calculate';
 import type { BirthTimeConfidence } from '@/lib/bazi/types';
 import { generateInterpretation } from '@/lib/deepseek';
+import { getTestReading } from '@/lib/fixtures/test-readings';
 import { resolveBirthPlace } from '@/lib/geocode';
 
 const validConfidence = new Set<BirthTimeConfidence>([
@@ -355,6 +356,13 @@ export async function POST(request: Request) {
         { error: 'Please provide a valid date, place and birth-time choice.' },
         { status: 400 },
       );
+    }
+
+    const testReading = getTestReading(body.birthDate);
+    if (testReading) {
+      return Response.json(testReading, {
+        headers: { 'X-Ming-Test-Fixture': body.birthDate },
+      });
     }
 
     const resolvedPlace = await resolveBirthPlace(body.birthPlace);

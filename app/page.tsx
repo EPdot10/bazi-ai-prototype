@@ -76,7 +76,7 @@ interface Reading {
     reflectionQuestions: string[];
     limitations: string;
   };
-  interpretationSource: 'deepseek' | 'local';
+  interpretationSource: 'deepseek' | 'local' | 'fixture';
   modelNotice?: string;
 }
 
@@ -125,6 +125,14 @@ function friendlyTimeZone(value: string) {
   return value.replaceAll('_', ' ');
 }
 
+function birthDateKey(value: BirthWheelValue) {
+  return `${value.year}-${pad(value.month)}-${pad(value.day)}`;
+}
+
+function isTestDate(value: BirthWheelValue) {
+  return ['1000-01-01', '1000-01-02'].includes(birthDateKey(value));
+}
+
 export default function Home() {
   const [birthValue, setBirthValue] =
     useState<BirthWheelValue>(initialBirthValue);
@@ -158,6 +166,16 @@ export default function Home() {
   }
 
   async function confirmPlace() {
+    if (isTestDate(birthValue)) {
+      setBirthPlace('Melbourne, Australia');
+      setConfirmedPlace({
+        label: 'Melbourne, Victoria, Australia',
+        ianaTimeZone: 'Australia/Melbourne',
+      });
+      setError('');
+      return;
+    }
+
     setResolvingPlace(true);
     setError('');
     try {
@@ -472,7 +490,16 @@ export default function Home() {
                         !timeConfidence ||
                         (timeConfidence !== 'unknown' && !timeInteracted)
                       }
-                      onClick={() => setStep(3)}
+                      onClick={() => {
+                        if (isTestDate(birthValue)) {
+                          setBirthPlace('Melbourne, Australia');
+                          setConfirmedPlace({
+                            label: 'Melbourne, Victoria, Australia',
+                            ianaTimeZone: 'Australia/Melbourne',
+                          });
+                        }
+                        setStep(3);
+                      }}
                       type="button"
                     >
                       Continue <ArrowUpRight className="size-4" />
@@ -486,15 +513,15 @@ export default function Home() {
                   <label className="block" htmlFor="birthPlace">
                     <span className="field-label">Place of birth</span>
                     <span className="relative block">
-                      <MapPin className="absolute top-1/2 left-0 size-4 -translate-y-1/2 text-[#9d3027]" />
+                      <MapPin className="pointer-events-none absolute top-1/2 left-1 size-4 -translate-y-1/2 text-[#9d3027]" />
                       <Input
-                        className="minimal-input pl-7"
+                        className="minimal-input !pr-0 !pl-8"
                         id="birthPlace"
                         onChange={(event) => {
                           setBirthPlace(event.target.value);
                           setConfirmedPlace(null);
                         }}
-                        placeholder="Qujing, China"
+                        placeholder="Melbourne, Australia"
                         required
                         value={birthPlace}
                       />
@@ -775,7 +802,9 @@ function ReadingResult({
           <p className="mt-3 text-[9px] tracking-[0.12em] text-black/32 uppercase">
             {reading.interpretationSource === 'deepseek'
               ? 'DeepSeek interpretation · locally calculated chart'
-              : 'Locally calculated reading · AI fallback'}
+              : reading.interpretationSource === 'fixture'
+                ? 'Saved test fixture · no API request'
+                : 'Locally calculated reading · AI fallback'}
           </p>
         </div>
       </section>
