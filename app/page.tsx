@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -53,10 +53,16 @@ interface Reading {
   };
   interpretation: {
     summary: string;
+    pastOverview: {
+      characterSentence: string;
+      trajectorySentence: string;
+    };
     pastPatterns: Array<{
       period: string;
       headline: string;
+      narrative: string;
       possibilities: string[];
+      principle: string;
       basis: string;
       confidence: string;
     }>;
@@ -114,12 +120,15 @@ function pad(value: number) {
   return String(value).padStart(2, '0');
 }
 
+function friendlyTimeZone(value: string) {
+  if (value === 'Asia/Shanghai') return 'China Standard Time · UTC+8';
+  return value.replaceAll('_', ' ');
+}
+
 export default function Home() {
   const [birthValue, setBirthValue] =
     useState<BirthWheelValue>(initialBirthValue);
-  const [timeConfidence, setTimeConfidence] = useState<TimeConfidence | null>(
-    null,
-  );
+  const [timeConfidence, setTimeConfidence] = useState<TimeConfidence>('exact');
   const [birthPlace, setBirthPlace] = useState('');
   const [confirmedPlace, setConfirmedPlace] = useState<
     Reading['resolvedPlace'] | null
@@ -137,7 +146,7 @@ export default function Home() {
   function resetReading() {
     setReading(null);
     setBirthValue(initialBirthValue);
-    setTimeConfidence(null);
+    setTimeConfidence('exact');
     setBirthPlace('');
     setConfirmedPlace(null);
     setTier('free');
@@ -351,6 +360,10 @@ export default function Home() {
                     <legend className="field-label">
                       How certain is the time?
                     </legend>
+                    <p className="mb-4 text-xs leading-5 text-black/45">
+                      An exact birth time gives the most precise four-pillar
+                      reading.
+                    </p>
                     <div
                       className="grid grid-cols-3 border border-black/12"
                       role="radiogroup"
@@ -499,7 +512,7 @@ export default function Home() {
                       <p className="mt-2 text-sm leading-6 text-black/58">
                         {confirmedPlace.label}
                         <br />
-                        {confirmedPlace.ianaTimeZone}
+                        {friendlyTimeZone(confirmedPlace.ianaTimeZone)}
                       </p>
                     </div>
                   ) : (
@@ -586,6 +599,7 @@ export default function Home() {
           </div>
         </section>
       )}
+      {loading ? <ReadingLoading /> : null}
     </main>
   );
 }
@@ -606,6 +620,60 @@ function SiteHeader() {
   );
 }
 
+const loadingStages = [
+  ['定', 'Confirming the place and local time'],
+  ['曆', 'Aligning the date with the solar-term calendar'],
+  ['柱', 'Forming the visible pillars'],
+  ['象', 'Tracing earlier turning points'],
+  ['解', 'Composing your complete reading'],
+] as const;
+
+function ReadingLoading() {
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () =>
+        setStage((current) => Math.min(current + 1, loadingStages.length - 1)),
+      2400,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <output
+      aria-live="polite"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/92 px-6 text-[#f2efe8] backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md text-center">
+        <div className="relative mx-auto grid size-28 place-items-center">
+          <span className="absolute inset-0 animate-spin rounded-full border border-[#f2efe8]/10 border-t-[#b94a3e] [animation-duration:3s]" />
+          <span className="absolute inset-3 animate-[spin_5s_linear_infinite_reverse] rounded-full border border-dashed border-[#f2efe8]/16" />
+          <span className="font-serif text-4xl text-[#d86a5d] transition-all">
+            {loadingStages[stage][0]}
+          </span>
+        </div>
+        <p className="mt-9 text-[10px] font-semibold tracking-[0.22em] text-[#d86a5d] uppercase">
+          Reading the pattern · 0{stage + 1}
+        </p>
+        <p className="mt-4 font-serif text-3xl leading-9">
+          {loadingStages[stage][1]}
+        </p>
+        <div className="mt-9 h-px overflow-hidden bg-white/10">
+          <div
+            className="h-full bg-[#b94a3e] transition-all duration-700"
+            style={{ width: `${((stage + 1) / loadingStages.length) * 100}%` }}
+          />
+        </div>
+        <p className="mt-5 text-xs leading-5 text-white/35">
+          The chart is calculated first. The model interprets only the verified
+          pattern.
+        </p>
+      </div>
+    </output>
+  );
+}
+
 function ReadingResult({
   reading,
   onReset,
@@ -614,6 +682,7 @@ function ReadingResult({
   onReset: () => void;
 }) {
   const [view, setView] = useState<ResultView>('past');
+  const [relationshipUnlocked, setRelationshipUnlocked] = useState(false);
 
   function moveTab(direction: -1 | 1) {
     const currentIndex = resultTabs.findIndex((tab) => tab.value === view);
@@ -683,7 +752,7 @@ function ReadingResult({
           <p className="mt-4 text-xs leading-5 text-black/45">
             {reading.resolvedPlace.label}
             <br />
-            {reading.resolvedPlace.ianaTimeZone}
+            {friendlyTimeZone(reading.resolvedPlace.ianaTimeZone)}
           </p>
         </div>
 
@@ -723,13 +792,93 @@ function ReadingResult({
         {(['character', 'career', 'relationships', 'timing'] as const).includes(
           view as LifeAreaKey,
         ) ? (
-          <LifeAreaView
-            area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
-          />
+          view === 'relationships' && !relationshipUnlocked ? (
+            <LockedLifeArea
+              area={reading.interpretation.lifeAreas.relationships}
+              onUnlock={() => setRelationshipUnlocked(true)}
+            />
+          ) : (
+            <LifeAreaView
+              area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
+            />
+          )
         ) : null}
         {view === 'method' ? <MethodView reading={reading} /> : null}
       </div>
     </div>
+  );
+}
+
+function LockedLifeArea({
+  area,
+  onUnlock,
+}: {
+  area: LifeArea;
+  onUnlock: () => void;
+}) {
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+
+  function unlock() {
+    if (code === '666') {
+      setCodeError('');
+      onUnlock();
+      return;
+    }
+    setCodeError('That Jade Pass is not recognised.');
+  }
+
+  return (
+    <section className="relative overflow-hidden border border-black/10">
+      <div
+        className="pointer-events-none select-none p-8 blur-[7px]"
+        aria-hidden="true"
+      >
+        <LifeAreaView area={area} />
+      </div>
+      <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/72 p-6 backdrop-blur-[2px]">
+        <div className="w-full max-w-sm border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
+          <span className="mx-auto grid size-10 place-items-center rounded-full border border-[#9d3027]/30 text-[#9d3027]">
+            <LockKeyhole className="size-4" />
+          </span>
+          <p className="mt-5 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+            Private chamber
+          </p>
+          <h2 className="mt-2 font-serif text-3xl">Unlock Love & Bonds</h2>
+          <p className="mt-3 text-sm leading-6 text-black/50">
+            Enter your Jade Pass to reveal the full relationship reading.
+          </p>
+          <label className="mt-6 block text-left" htmlFor="jadePass">
+            <span className="field-label">Jade Pass</span>
+            <Input
+              className="minimal-input text-center tracking-[0.3em]"
+              id="jadePass"
+              onChange={(event) => setCode(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') unlock();
+              }}
+              placeholder="Enter code"
+              value={code}
+            />
+          </label>
+          <Button
+            className="mt-5 h-12 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
+            onClick={unlock}
+            type="button"
+          >
+            Open the chamber
+          </Button>
+          {codeError ? (
+            <p className="mt-3 text-xs text-[#9d3027]" role="alert">
+              {codeError}
+            </p>
+          ) : null}
+          <p className="mt-4 text-[10px] leading-4 text-black/30">
+            Prototype access only. Test code: 666
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -754,6 +903,25 @@ function PastView({ reading }: { reading: Reading }) {
         </span>
       </div>
 
+      <div className="grid gap-px bg-black/10 sm:grid-cols-2">
+        <div className="bg-[#f2efe8] py-7 sm:pr-8">
+          <p className="text-[10px] font-semibold tracking-[0.12em] text-black/35 uppercase">
+            Character in one line
+          </p>
+          <p className="mt-3 font-serif text-xl leading-7">
+            {reading.interpretation.pastOverview.characterSentence}
+          </p>
+        </div>
+        <div className="bg-[#f2efe8] py-7 sm:pl-8">
+          <p className="text-[10px] font-semibold tracking-[0.12em] text-black/35 uppercase">
+            The rhythm so far
+          </p>
+          <p className="mt-3 font-serif text-xl leading-7">
+            {reading.interpretation.pastOverview.trajectorySentence}
+          </p>
+        </div>
+      </div>
+
       <div className="divide-y divide-black/10">
         {reading.interpretation.pastPatterns.map((pattern, patternIndex) => (
           <article
@@ -770,6 +938,9 @@ function PastView({ reading }: { reading: Reading }) {
             </div>
             <div>
               <h3 className="text-sm font-semibold">{pattern.headline}</h3>
+              <p className="mt-3 text-[15px] leading-7 text-black/62">
+                {pattern.narrative}
+              </p>
               <ul className="mt-3 space-y-2">
                 {pattern.possibilities.map((possibility) => (
                   <li
@@ -781,8 +952,8 @@ function PastView({ reading }: { reading: Reading }) {
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-[10px] leading-4 text-black/30">
-                Basis: {pattern.basis}
+              <p className="mt-4 text-xs leading-5 text-black/34">
+                {pattern.principle || pattern.basis}
               </p>
               <div
                 className="mt-4 flex gap-2"

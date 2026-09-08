@@ -5,15 +5,53 @@ export interface ResolvedPlace {
   latitude: number;
   longitude: number;
   ianaTimeZone: string;
+  provider: 'google' | 'openstreetmap';
 }
 
 const placeCache = new Map<string, ResolvedPlace>();
+
+async function resolveWithGoogle(query: string) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
+
+  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+  url.searchParams.set('address', query);
+  url.searchParams.set('language', 'en');
+  url.searchParams.set('key', apiKey);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('PLACE_SERVICE_UNAVAILABLE');
+  const payload = (await response.json()) as {
+    status?: string;
+    results?: Array<{
+      formatted_address: string;
+      geometry: { location: { lat: number; lng: number } };
+    }>;
+  };
+  if (payload.status !== 'OK' || !payload.results?.[0]) return null;
+  const match = payload.results[0];
+  return {
+    label: match.formatted_address,
+    latitude: match.geometry.location.lat,
+    longitude: match.geometry.location.lng,
+    provider: 'google' as const,
+  };
+}
 
 export async function resolveBirthPlace(query: string): Promise<ResolvedPlace> {
   const normalized = query.trim();
   const cacheKey = normalized.toLocaleLowerCase();
   const cached = placeCache.get(cacheKey);
   if (cached) return cached;
+
+  const googleMatch = await resolveWithGoogle(normalized);
+  if (googleMatch) {
+    const resolved = {
+      ...googleMatch,
+      ianaTimeZone: tzlookup(googleMatch.latitude, googleMatch.longitude),
+    };
+    placeCache.set(cacheKey, resolved);
+    return resolved;
+  }
 
   const url = new URL('https://nominatim.openstreetmap.org/search');
   url.searchParams.set('format', 'jsonv2');
@@ -48,6 +86,7 @@ export async function resolveBirthPlace(query: string): Promise<ResolvedPlace> {
     latitude,
     longitude,
     ianaTimeZone: tzlookup(latitude, longitude),
+    provider: 'openstreetmap' as const,
   };
 
   placeCache.set(cacheKey, resolved);

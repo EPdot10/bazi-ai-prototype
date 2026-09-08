@@ -33,7 +33,13 @@ const minutes = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, '0'),
 );
 
-function WheelItem({ value }: { value: string }) {
+function WheelItem({
+  value,
+  label = value,
+}: {
+  value: string;
+  label?: string;
+}) {
   return (
     <Picker.Item value={value}>
       {({ selected }) => (
@@ -42,7 +48,7 @@ function WheelItem({ value }: { value: string }) {
             selected ? 'text-2xl text-[#181714]' : 'text-lg text-black/24'
           }`}
         >
-          {value}
+          {label}
         </span>
       )}
     </Picker.Item>
@@ -62,13 +68,27 @@ export function BirthWheel({
       String(index + 1).padStart(2, '0'),
     );
   }, [value.month, value.year]);
+  const loopMonths = useMemo(
+    () =>
+      ['previous', 'current', 'next'].flatMap((cycle) =>
+        months.map((month) => ({ value: `${cycle}:${month}`, label: month })),
+      ),
+    [],
+  );
+  const loopDays = useMemo(
+    () =>
+      ['previous', 'current', 'next'].flatMap((cycle) =>
+        days.map((day) => ({ value: `${cycle}:${day}`, label: day })),
+      ),
+    [days],
+  );
 
   const pickerValue: Record<string, string | number> =
     mode === 'date'
       ? {
           year: String(value.year),
-          month: String(value.month).padStart(2, '0'),
-          day: String(Math.min(value.day, days.length)).padStart(2, '0'),
+          month: `current:${String(value.month).padStart(2, '0')}`,
+          day: `current:${String(Math.min(value.day, days.length)).padStart(2, '0')}`,
         }
       : {
           hour: String(value.hour).padStart(2, '0'),
@@ -78,13 +98,17 @@ export function BirthWheel({
         };
 
   function handleChange(next: Record<string, string | number>) {
+    const numericPart = (input: string | number) =>
+      Number(String(input).split(':').at(-1));
     const updated = {
       ...value,
-      ...(next.year ? { year: Number(next.year) } : {}),
-      ...(next.month ? { month: Number(next.month) } : {}),
-      ...(next.day ? { day: Number(next.day) } : {}),
-      ...(next.hour !== undefined ? { hour: Number(next.hour) } : {}),
-      ...(next.minute !== undefined ? { minute: Number(next.minute) } : {}),
+      ...(next.year ? { year: numericPart(next.year) } : {}),
+      ...(next.month ? { month: numericPart(next.month) } : {}),
+      ...(next.day ? { day: numericPart(next.day) } : {}),
+      ...(next.hour !== undefined ? { hour: numericPart(next.hour) } : {}),
+      ...(next.minute !== undefined
+        ? { minute: numericPart(next.minute) }
+        : {}),
     };
     const dayCount = new Date(updated.year, updated.month, 0).getDate();
     updated.day = Math.min(updated.day, dayCount);
@@ -144,13 +168,21 @@ export function BirthWheel({
                 ))}
               </Picker.Column>
               <Picker.Column name="month">
-                {months.map((month) => (
-                  <WheelItem key={month} value={month} />
+                {loopMonths.map((month) => (
+                  <WheelItem
+                    key={month.value}
+                    label={month.label}
+                    value={month.value}
+                  />
                 ))}
               </Picker.Column>
               <Picker.Column name="day">
-                {days.map((day) => (
-                  <WheelItem key={day} value={day} />
+                {loopDays.map((day) => (
+                  <WheelItem
+                    key={day.value}
+                    label={day.label}
+                    value={day.value}
+                  />
                 ))}
               </Picker.Column>
             </>

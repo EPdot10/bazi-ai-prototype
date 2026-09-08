@@ -64,10 +64,11 @@ Use Chinese pillar characters exactly as supplied. Do not replace a branch with 
 The element balance counts visible stems and branches only. Never treat a zero count as proof that an element is absent from the full chart, and do not infer hidden stems that were not supplied.
 Do not predict death, illness, pregnancy, crime, legal outcomes, investment returns, disasters, or guaranteed events.
 Never claim scientific validation, statistical proof, a human expert review, or certainty about the future.
-Return valid JSON with keys: summary, pastPatterns, insights, lifeAreas, reflectionQuestions, limitations.
-pastPatterns must be an array of objects with period, headline, possibilities, basis, and confidence. possibilities must contain 2 to 3 short strings. The basis must cite only supplied timingSignals and pillars.
+Return valid JSON with keys: summary, pastOverview, pastPatterns, insights, lifeAreas, reflectionQuestions, limitations.
+pastOverview must contain exactly two fields. characterSentence is one vivid sentence summarising the person's core character. trajectorySentence is one vivid sentence summarising the broad rhythm of their life so far. Both must remain hypotheses rather than facts.
+pastPatterns must be an array of objects with period, headline, narrative, possibilities, principle, basis, and confidence. narrative should be 90 to 150 words and explain how that period may have felt, what could have changed, and what may have remained afterward. possibilities must contain 2 to 3 concrete, age-appropriate strings. principle must be one short plain-English sentence translating the traditional relation—for example “The annual 子 branch clashes with your natal 午 branch, traditionally read as movement and renegotiated boundaries.” The basis must cite only supplied timingSignals and pillars.
 Insights must be an array of 2 to 4 objects with title, interpretation, basis, and confidence. Avoid generic adjective lists.
-lifeAreas must be an object with exactly four keys: character, career, relationships, timing. Each value must contain headline, narrative, signals, guidance, basis, and confidence. signals must be an array of 2 to 4 concise strings. Cover all four areas in the same response; do not ask the user to choose a focus. For timing, discuss the current phase and near-term themes without guaranteed events. For relationships, do not assume relationship status, gender, or sexuality.
+lifeAreas must be an object with exactly four keys: character, career, relationships, timing. Each value must contain headline, narrative, signals, guidance, basis, and confidence. Each narrative should be 140 to 220 words, signals must contain 4 concrete observations, and guidance should contain 2 to 3 actionable sentences. Cover all four areas in the same response; do not ask the user to choose a focus. For timing, discuss the current phase and near-term themes without guaranteed events. For relationships, do not assume relationship status, gender, or sexuality.
 Summary should be vivid, direct, and under 80 words. Limitations must be one plain string, not an array.`;
 
 export async function generateInterpretation(
@@ -78,12 +79,14 @@ export async function generateInterpretation(
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not configured');
 
   const baseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com';
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 55_000);
-
-  try {
-    let lastStatus = 500;
-    for (const model of modelCandidatesForTier(tier)) {
+  let lastError = 'DeepSeek request failed';
+  for (const model of modelCandidatesForTier(tier)) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      model.startsWith('deepseek-v4-') ? 35_000 : 60_000,
+    );
+    try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -98,37 +101,62 @@ export async function generateInterpretation(
             { role: 'user', content: JSON.stringify(input) },
           ],
           temperature: 0.35,
-          max_tokens: 3200,
+          max_tokens: tier === 'premium' ? 7000 : 5200,
         }),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        lastStatus = response.status;
+        lastError = `DeepSeek request failed with status ${response.status}`;
         if (
           (response.status === 400 || response.status === 404) &&
           model.startsWith('deepseek-v4-')
         ) {
           continue;
         }
-        throw new Error(
-          `DeepSeek request failed with status ${response.status}`,
-        );
+        throw new Error(lastError);
       }
 
       const payload = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
       const content = payload.choices?.[0]?.message?.content;
-      if (!content) throw new Error('DeepSeek returned an empty response');
+      if (!content) {
+        lastError = `DeepSeek model ${model} returned an empty response`;
+        if (model.startsWith('deepseek-v4-')) continue;
+        throw new Error(lastError);
+      }
       const normalized = content
         .trim()
         .replace(/^```json\s*/i, '')
         .replace(/```$/, '');
-      return JSON.parse(normalized) as unknown;
+      try {
+        return JSON.parse(normalized) as unknown;
+      } catch {
+        const firstBrace = normalized.indexOf('{');
+        const lastBrace = normalized.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          try {
+            return JSON.parse(
+              normalized.slice(firstBrace, lastBrace + 1),
+            ) as unknown;
+          } catch {
+            // Try the compatible model below when a V4 alias returns partial JSON.
+          }
+        }
+        lastError = `DeepSeek model ${model} returned invalid JSON`;
+        if (model.startsWith('deepseek-v4-')) continue;
+        throw new Error(lastError);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        lastError = `DeepSeek model ${model} timed out`;
+        if (model.startsWith('deepseek-v4-')) continue;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-    throw new Error(`DeepSeek request failed with status ${lastStatus}`);
-  } finally {
-    clearTimeout(timeout);
   }
+  throw new Error(lastError);
 }

@@ -35,6 +35,10 @@ function localInterpretation(
   );
   return {
     summary: `Your ${missingHour ? 'three visible pillars' : 'four pillars'} are ${pillars}. Your Day Master is ${chart.dayMaster}. This is a reflective reading of traditional BaZi patterns, not a factual or scientific prediction.`,
+    pastOverview: {
+      characterSentence: `You may present as measured and self-controlled, while privately testing every rule against your own experience before you trust it.`,
+      trajectorySentence: `Your path so far may have moved through alternating periods of stability and sharp redirection, with each disruption asking for greater independence.`,
+    },
     pastPatterns: selectedSignals.map((signal) => {
       const hasClash = signal.relations.some((relation) =>
         relation.includes('clashes'),
@@ -90,7 +94,9 @@ function localInterpretation(
           : hasRepeat
             ? 'An existing theme became harder to ignore'
             : 'A new connection or direction',
+        narrative: `${possibilities.join(' ')} The lasting effect may have been less about the event itself and more about how you learned to respond: by clarifying priorities, relying on your own judgement, or changing the boundaries around a relationship or responsibility. Treat this as a period to check rather than a fixed claim; the useful question is whether the rhythm of change feels recognisable.`,
         possibilities,
+        principle: `${signal.annualPillar} activated your visible chart through ${signal.relations.join(' and ')}, traditionally read as a period when an existing pattern becomes harder to ignore.`,
         basis: `${signal.annualPillar}: ${signal.relations.join('; ')}`,
         confidence: signal.strength === 'strong' ? 'medium' : 'low',
       };
@@ -114,10 +120,12 @@ function localInterpretation(
     lifeAreas: {
       character: {
         headline: 'How you tend to meet the world',
-        narrative: `The ${chart.dayMaster} Day Master is the chart's central reference point. Your visible pillars suggest a preference for building clarity through experience rather than accepting a label at face value.`,
+        narrative: `The ${chart.dayMaster} Day Master is the chart's central reference point. Your visible pillars suggest a preference for building clarity through experience rather than accepting a label at face value. You may appear composed when the situation is uncertain, then process the real weight of it later and in private. Standards matter to you, but the deeper pattern is not rigidity—it is a need to understand what is dependable before committing your energy.`,
         signals: [
           'You may work best when expectations are explicit.',
           'Pressure can sharpen your decisions, but too much structure may feel restrictive.',
+          'You may reveal vulnerability selectively and value consistency over dramatic reassurance.',
+          'Once a decision feels internally settled, you can be difficult to redirect.',
         ],
         guidance:
           'Notice where principle helps you—and where flexibility would help more.',
@@ -127,10 +135,12 @@ function localInterpretation(
       career: {
         headline: 'Work, contribution, and resources',
         narrative:
-          'The visible chart points to a practical relationship with responsibility and resources. This is better read as a working tendency than as a fixed profession.',
+          'The visible chart points to a practical relationship with responsibility and resources. This is better read as a working tendency than as a fixed profession. You may be most convincing when you can turn a vague problem into a workable structure, especially where judgement and follow-through matter. Recognition may arrive later than effort because you tend to build credibility through repeated results rather than self-promotion. The risk is carrying responsibility long after the role has stopped rewarding growth.',
         signals: [
           'Roles with visible standards and room to improve systems may feel satisfying.',
           'You may prefer progress that can be measured over purely abstract status.',
+          'You may be trusted with difficult work before you are formally rewarded for it.',
+          'A clear boundary between responsibility and over-functioning is important.',
         ],
         guidance:
           'Choose environments that reward judgement as well as persistence.',
@@ -140,10 +150,12 @@ function localInterpretation(
       relationships: {
         headline: 'How closeness and independence interact',
         narrative:
-          'Your visible pillars suggest that reliability may matter as much as emotional intensity. Relationship status and private history cannot be inferred from the chart.',
+          'Your visible pillars suggest that reliability may matter as much as emotional intensity. Relationship status and private history cannot be inferred from the chart. You may take time to trust, then invest through practical attention, memory, and consistency. When disappointed, the first response may be to become more self-sufficient rather than ask directly for reassurance. This can make you look less affected than you really are and create distance precisely when greater clarity would help.',
         signals: [
           'You may show care through practical follow-through.',
           'Clear boundaries can make closeness feel safer rather than colder.',
+          'You may need respect and dependability before emotional intensity feels meaningful.',
+          'Silence can protect dignity, but it may also leave the other person guessing.',
         ],
         guidance:
           'Say what support looks like instead of expecting it to be inferred.',
@@ -153,10 +165,12 @@ function localInterpretation(
       timing: {
         headline: 'The phase you are moving through',
         narrative:
-          'Timing is presented as periods of emphasis, not promised events. The strongest available signals are shown in the retrospective section so they can be checked first.',
+          'Timing is presented as periods of emphasis, not promised events. The strongest available signals are shown in the retrospective section so they can be checked first. Repeating periods often bring an unfinished theme back in a more visible form; clashing periods tend to ask for movement, renegotiation, or a decision that cannot be postponed forever. The useful value is preparation: recognising which kind of pressure is increasing and deciding where you still have agency.',
         signals: [
           'Periods of repetition may intensify an unfinished theme.',
           'Periods of clash may coincide with decisions, movement, or renegotiated boundaries.',
+          'A quieter phase can be used to consolidate skills and relationships before expansion.',
+          'When several signals overlap, reduce irreversible decisions made only to escape pressure.',
         ],
         guidance:
           'Use timing themes to prepare options, not to surrender agency.',
@@ -200,19 +214,43 @@ function normalizeInterpretation(
         })
         .filter((item) => item.interpretation)
     : fallback.insights;
+  const rawPastOverview =
+    candidate.pastOverview && typeof candidate.pastOverview === 'object'
+      ? (candidate.pastOverview as Record<string, unknown>)
+      : {};
+  const pastOverview = {
+    characterSentence: textValue(
+      rawPastOverview.characterSentence,
+      fallback.pastOverview.characterSentence,
+    ),
+    trajectorySentence: textValue(
+      rawPastOverview.trajectorySentence,
+      fallback.pastOverview.trajectorySentence,
+    ),
+  };
   const pastPatterns = Array.isArray(candidate.pastPatterns)
     ? candidate.pastPatterns
         .filter((item) => item && typeof item === 'object')
-        .map((item) => {
+        .map((item, index) => {
           const pattern = item as Record<string, unknown>;
+          const fallbackPattern =
+            fallback.pastPatterns[index] ?? fallback.pastPatterns[0];
           return {
             period: textValue(pattern.period, 'Earlier period'),
             headline: textValue(pattern.headline, 'A period worth checking'),
+            narrative: textValue(
+              pattern.narrative,
+              fallbackPattern?.narrative ?? '',
+            ),
             possibilities: Array.isArray(pattern.possibilities)
               ? pattern.possibilities
                   .filter((possibility) => typeof possibility === 'string')
                   .slice(0, 3)
               : [],
+            principle: textValue(
+              pattern.principle,
+              fallbackPattern?.principle ?? '',
+            ),
             basis: textValue(pattern.basis, 'Supplied annual timing signal'),
             confidence: ['high', 'medium', 'low'].includes(
               textValue(pattern.confidence, 'low').toLowerCase(),
@@ -274,6 +312,7 @@ function normalizeInterpretation(
       typeof candidate.summary === 'string'
         ? candidate.summary
         : fallback.summary,
+    pastOverview,
     pastPatterns: pastPatterns.length ? pastPatterns : fallback.pastPatterns,
     insights: insights.length ? insights : fallback.insights,
     lifeAreas,
@@ -350,6 +389,10 @@ export async function POST(request: Request) {
       );
       interpretationSource = 'deepseek';
     } catch (error) {
+      console.warn(
+        '[interpretation-fallback]',
+        error instanceof Error ? error.message : 'unknown model error',
+      );
       modelNotice =
         error instanceof Error && error.message.includes('not configured')
           ? 'AI interpretation is not configured; showing the calculated local reading.'
