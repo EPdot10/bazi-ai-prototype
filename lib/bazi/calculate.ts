@@ -34,6 +34,96 @@ const elementByCharacter: Record<
   子: 'water',
 };
 
+const branchClashes: Record<string, string> = {
+  子: '午',
+  午: '子',
+  丑: '未',
+  未: '丑',
+  寅: '申',
+  申: '寅',
+  卯: '酉',
+  酉: '卯',
+  辰: '戌',
+  戌: '辰',
+  巳: '亥',
+  亥: '巳',
+};
+
+const branchCombinations: Record<string, string> = {
+  子: '丑',
+  丑: '子',
+  寅: '亥',
+  亥: '寅',
+  卯: '戌',
+  戌: '卯',
+  辰: '酉',
+  酉: '辰',
+  巳: '申',
+  申: '巳',
+  午: '未',
+  未: '午',
+};
+
+function calculateTimingSignals(
+  birthYear: number,
+  pillars: BaziChartFacts['pillars'],
+) {
+  const pillarEntries = Object.entries(pillars) as Array<
+    [keyof BaziChartFacts['pillars'], string]
+  >;
+  const currentYear = new Date().getUTCFullYear();
+  const signals: BaziChartFacts['timingSignals'] = [];
+
+  for (let year = birthYear + 6; year <= currentYear; year += 1) {
+    const annualPillar = Solar.fromYmdHms(year, 7, 1, 12, 0, 0)
+      .getLunar()
+      .getEightChar()
+      .getYear();
+    const annualBranch = annualPillar.slice(1);
+    const relations: string[] = [];
+    let score = 0;
+
+    pillarEntries.forEach(([pillarName, pillar]) => {
+      const natalBranch = pillar.slice(1);
+      if (annualBranch === natalBranch) {
+        relations.push(
+          `${annualBranch} repeats the ${pillarName} branch ${natalBranch}`,
+        );
+        score += 3;
+      } else if (branchClashes[annualBranch] === natalBranch) {
+        relations.push(
+          `${annualBranch} clashes with the ${pillarName} branch ${natalBranch}`,
+        );
+        score += 3;
+      } else if (branchCombinations[annualBranch] === natalBranch) {
+        relations.push(
+          `${annualBranch} combines with the ${pillarName} branch ${natalBranch}`,
+        );
+        score += 2;
+      }
+    });
+
+    if (score >= 2) {
+      signals.push({
+        year,
+        age: year - birthYear,
+        annualPillar,
+        relations,
+        strength: score >= 5 ? 'strong' : 'moderate',
+      });
+    }
+  }
+
+  return signals
+    .sort((left, right) => {
+      const strengthDifference =
+        Number(right.strength === 'strong') -
+        Number(left.strength === 'strong');
+      return strengthDifference || left.year - right.year;
+    })
+    .slice(0, 12);
+}
+
 function parseDate(value: string) {
   const [year, month, day] = value.split('-').map(Number);
   if (!year || !month || !day) throw new Error('INVALID_BIRTH_DATE');
@@ -107,5 +197,6 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
       `Day Master: ${eightChar.getDayGan()} (${elementByCharacter[eightChar.getDayGan()]}).`,
       `Visible pillars: ${Object.values(pillars).join(' · ')}.`,
     ],
+    timingSignals: calculateTimingSignals(year, pillars),
   };
 }

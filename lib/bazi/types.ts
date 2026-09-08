@@ -19,4 +19,11 @@ export interface BaziChartFacts {
   birthTimeConfidence: BirthTimeConfidence;
   calculationNotes: string[];
   verifiedObservations: string[];
+  timingSignals: Array<{
+    year: number;
+    age: number;
+    annualPillar: string;
+    relations: string[];
+    strength: 'strong' | 'moderate';
+  }>;
 }

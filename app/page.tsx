@@ -27,6 +27,13 @@ interface Reading {
   };
   interpretation: {
     summary: string;
+    pastPatterns: Array<{
+      period: string;
+      headline: string;
+      possibilities: string[];
+      basis: string;
+      confidence: string;
+    }>;
     insights: Array<{
       title: string;
       interpretation: string;
@@ -347,7 +354,63 @@ function ReadingResult({
           : 'Locally calculated reading · AI fallback'}
       </p>
 
+      {reading.interpretation.pastPatterns.length ? (
+        <section className="mt-10">
+          <div className="flex items-end justify-between gap-4 border-b border-black/10 pb-3">
+            <div>
+              <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+                Looking back
+              </p>
+              <h3 className="mt-2 font-serif text-2xl">
+                Do these periods match?
+              </h3>
+            </div>
+            <span className="text-[9px] text-black/32">
+              Match · Partial · Miss
+            </span>
+          </div>
+
+          <div className="divide-y divide-black/10">
+            {reading.interpretation.pastPatterns.map((pattern) => (
+              <article
+                className="py-6"
+                key={`${pattern.period}-${pattern.headline}`}
+              >
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
+                    {pattern.period}
+                  </p>
+                  <span className="text-[9px] tracking-[0.1em] text-black/30 uppercase">
+                    {pattern.confidence} confidence
+                  </span>
+                </div>
+                <h4 className="mt-2 text-sm font-semibold">
+                  {pattern.headline}
+                </h4>
+                <ul className="mt-3 space-y-2">
+                  {pattern.possibilities.map((possibility) => (
+                    <li
+                      className="grid grid-cols-[0.75rem_1fr] text-sm leading-6 text-black/58"
+                      key={possibility}
+                    >
+                      <span className="text-[#9d3027]">·</span>
+                      <span>{possibility}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[10px] leading-4 text-black/30">
+                  Basis: {pattern.basis}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="mt-9 space-y-8">
+        <p className="text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
+          Your underlying patterns
+        </p>
         {reading.interpretation.insights.map((insight) => (
           <section key={insight.title}>
             <div className="flex items-baseline justify-between gap-4">
@@ -371,7 +434,7 @@ function ReadingResult({
           <h3 className="text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
             Questions to take with you
           </h3>
-          <ol className="mt-4 space-y-3">
+          <ol className="mt-4 list-none space-y-3">
             {reading.interpretation.reflectionQuestions.map(
               (question, index) => (
                 <li
