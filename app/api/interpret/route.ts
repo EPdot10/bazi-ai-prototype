@@ -15,11 +15,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateInterpretation({
-      chart: body.chart,
-      topic: body.topic,
-      locale: 'en',
-    });
+    // Until authentication and payment entitlements are connected, this public
+    // prototype endpoint is deliberately restricted to the free/Flash tier.
+    const result = await generateInterpretation(
+      { chart: body.chart, topic: body.topic, locale: 'en' },
+      'free',
+    );
     return Response.json({ result });
   } catch (error) {
     const message =

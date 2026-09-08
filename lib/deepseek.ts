@@ -6,6 +6,29 @@ export interface InterpretationRequest {
   locale?: 'en' | 'zh';
 }
 
+export type InterpretationTier = 'free' | 'premium' | 'audit';
+
+const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'deepseek-v4-pro']);
+
+function configuredModel(name: string, fallback: string) {
+  const value = process.env[name] ?? fallback;
+  if (!ALLOWED_MODELS.has(value)) {
+    throw new Error(`${name} must be deepseek-v4-flash or deepseek-v4-pro`);
+  }
+  return value;
+}
+
+export function resolveModelForTier(tier: InterpretationTier) {
+  switch (tier) {
+    case 'premium':
+      return configuredModel('DEEPSEEK_PREMIUM_MODEL', 'deepseek-v4-pro');
+    case 'audit':
+      return configuredModel('DEEPSEEK_AUDIT_MODEL', 'deepseek-v4-flash');
+    default:
+      return configuredModel('DEEPSEEK_FREE_MODEL', 'deepseek-v4-flash');
+  }
+}
+
 const SYSTEM_PROMPT = `You are the interpretation layer of a culturally grounded BaZi product.
 The chart facts supplied by the server are authoritative. Never recalculate, alter, or invent a pillar.
 Explain the supplied facts in natural English, distinguish observation from interpretation, and attach high, medium, or low confidence to each major insight.
@@ -14,12 +37,15 @@ Do not predict death, illness, pregnancy, crime, legal outcomes, investment retu
 Never claim scientific validation, statistical proof, a human expert review, or certainty about the future.
 Return valid JSON with keys: summary, insights, reflectionQuestions, limitations. Insights must be an array of objects with title, interpretation, basis, and confidence.`;
 
-export async function generateInterpretation(input: InterpretationRequest) {
+export async function generateInterpretation(
+  input: InterpretationRequest,
+  tier: InterpretationTier = 'free',
+) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not configured');
 
   const baseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com';
-  const model = process.env.DEEPSEEK_MODEL ?? 'deepseek-v4-pro';
+  const model = resolveModelForTier(tier);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
