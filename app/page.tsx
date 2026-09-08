@@ -641,11 +641,11 @@ function ReadingLoading() {
   }, []);
 
   return (
-    <output
-      aria-live="polite"
-      className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/92 px-6 text-[#f2efe8] backdrop-blur-sm"
-    >
-      <div className="w-full max-w-md text-center">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/92 px-6 text-[#f2efe8] backdrop-blur-sm">
+      <output aria-live="polite" className="sr-only">
+        {loadingStages[stage][1]}
+      </output>
+      <div aria-hidden="true" className="w-full max-w-md text-center">
         <div className="relative mx-auto grid size-28 place-items-center">
           <span className="absolute inset-0 animate-spin rounded-full border border-[#f2efe8]/10 border-t-[#b94a3e] [animation-duration:3s]" />
           <span className="absolute inset-3 animate-[spin_5s_linear_infinite_reverse] rounded-full border border-dashed border-[#f2efe8]/16" />
@@ -670,7 +670,7 @@ function ReadingLoading() {
           pattern.
         </p>
       </div>
-    </output>
+    </div>
   );
 }
 

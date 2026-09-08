@@ -13,14 +13,19 @@ export const metadata: Metadata = {
   title: 'MING — Your Chinese Elemental Profile',
   description:
     'A private prototype for culturally grounded BaZi and Five Element interpretation.',
+  other: {
+    google: 'notranslate',
+  },
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${sans.variable} ${heading.variable} antialiased`}>
+    <html lang="en" translate="no">
+      <body
+        className={`${sans.variable} ${heading.variable} notranslate antialiased`}
+      >
         {children}
       </body>
     </html>
