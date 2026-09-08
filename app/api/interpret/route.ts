@@ -42,20 +42,47 @@ function localInterpretation(
       const hasRepeat = signal.relations.some((relation) =>
         relation.includes('repeats'),
       );
-      const possibilities = hasClash
-        ? [
-            'A change in school, work, home, or your usual social circle may have disrupted an established routine.',
-            'A disagreement, separation, or new pressure may have forced a more independent decision.',
-          ]
-        : hasRepeat
-          ? [
-              'An existing family, study, or work theme may have intensified and demanded more responsibility.',
-              'You may have become more visible or decisive, while also feeling that an old pattern was repeating.',
-            ]
-          : [
-              'A new friendship, team, mentor, or relationship may have opened a different direction.',
-              'An agreement or opportunity may have made progress easier, but required adapting to another person.',
-            ];
+      const lifeStage =
+        signal.age < 13
+          ? 'childhood'
+          : signal.age < 19
+            ? 'adolescence'
+            : 'adult';
+      const possibilities =
+        lifeStage === 'childhood'
+          ? hasClash
+            ? [
+                'A change involving school, home, caregivers, or close friends may have unsettled your usual routine.',
+                'You may have had to become more adaptable or self-reliant than before.',
+              ]
+            : [
+                'A teacher, friendship, family expectation, or new activity may have become especially important.',
+                'You may have received more attention or responsibility within your everyday world.',
+              ]
+          : lifeStage === 'adolescence'
+            ? hasClash
+              ? [
+                  'A shift in studies, friendships, family expectations, or identity may have broken an established rhythm.',
+                  'A disagreement or separation may have pushed you toward a more independent choice.',
+                ]
+              : [
+                  'A new friendship, mentor, study direction, or personal goal may have changed your priorities.',
+                  'You may have taken on a stronger identity or responsibility among peers or family.',
+                ]
+            : hasClash
+              ? [
+                  'A change in school, work, home, or your usual social circle may have disrupted an established routine.',
+                  'A disagreement, separation, or new pressure may have forced a more independent decision.',
+                ]
+              : hasRepeat
+                ? [
+                    'An existing family, study, or work theme may have intensified and demanded more responsibility.',
+                    'You may have become more visible or decisive, while also feeling that an old pattern was repeating.',
+                  ]
+                : [
+                    'A new friendship, team, mentor, or relationship may have opened a different direction.',
+                    'An agreement or opportunity may have made progress easier, but required adapting to another person.',
+                  ];
       return {
         period: `${signal.year} · around age ${signal.age}`,
         headline: hasClash
@@ -84,6 +111,59 @@ function localInterpretation(
         confidence: missingHour ? 'medium' : 'high',
       },
     ],
+    lifeAreas: {
+      character: {
+        headline: 'How you tend to meet the world',
+        narrative: `The ${chart.dayMaster} Day Master is the chart's central reference point. Your visible pillars suggest a preference for building clarity through experience rather than accepting a label at face value.`,
+        signals: [
+          'You may work best when expectations are explicit.',
+          'Pressure can sharpen your decisions, but too much structure may feel restrictive.',
+        ],
+        guidance:
+          'Notice where principle helps you—and where flexibility would help more.',
+        basis: `Day pillar ${chart.pillars.day}; visible three-pillar structure.`,
+        confidence: missingHour ? 'medium' : 'high',
+      },
+      career: {
+        headline: 'Work, contribution, and resources',
+        narrative:
+          'The visible chart points to a practical relationship with responsibility and resources. This is better read as a working tendency than as a fixed profession.',
+        signals: [
+          'Roles with visible standards and room to improve systems may feel satisfying.',
+          'You may prefer progress that can be measured over purely abstract status.',
+        ],
+        guidance:
+          'Choose environments that reward judgement as well as persistence.',
+        basis: `Visible element balance: ${JSON.stringify(chart.elementBalance)}.`,
+        confidence: 'medium',
+      },
+      relationships: {
+        headline: 'How closeness and independence interact',
+        narrative:
+          'Your visible pillars suggest that reliability may matter as much as emotional intensity. Relationship status and private history cannot be inferred from the chart.',
+        signals: [
+          'You may show care through practical follow-through.',
+          'Clear boundaries can make closeness feel safer rather than colder.',
+        ],
+        guidance:
+          'Say what support looks like instead of expecting it to be inferred.',
+        basis: `Visible pillars ${pillars}; hour pillar ${missingHour ? 'omitted' : 'included'}.`,
+        confidence: missingHour ? 'low' : 'medium',
+      },
+      timing: {
+        headline: 'The phase you are moving through',
+        narrative:
+          'Timing is presented as periods of emphasis, not promised events. The strongest available signals are shown in the retrospective section so they can be checked first.',
+        signals: [
+          'Periods of repetition may intensify an unfinished theme.',
+          'Periods of clash may coincide with decisions, movement, or renegotiated boundaries.',
+        ],
+        guidance:
+          'Use timing themes to prepare options, not to surrender agency.',
+        basis: `${chart.timingSignals.length} supplied annual branch-relation signals.`,
+        confidence: missingHour ? 'low' : 'medium',
+      },
+    },
     reflectionQuestions: [
       'Which parts of this description feel useful rather than merely familiar?',
       'What current decision would benefit from a slower, more structured reflection?',
@@ -149,6 +229,45 @@ function normalizeInterpretation(
     : typeof candidate.limitations === 'string'
       ? candidate.limitations
       : fallback.limitations;
+  const candidateAreas =
+    candidate.lifeAreas && typeof candidate.lifeAreas === 'object'
+      ? (candidate.lifeAreas as Record<string, unknown>)
+      : {};
+  const areaKeys = ['character', 'career', 'relationships', 'timing'] as const;
+  const lifeAreas = Object.fromEntries(
+    areaKeys.map((key) => {
+      const fallbackArea = fallback.lifeAreas[key];
+      const rawArea =
+        candidateAreas[key] && typeof candidateAreas[key] === 'object'
+          ? (candidateAreas[key] as Record<string, unknown>)
+          : {};
+      return [
+        key,
+        {
+          headline: textValue(rawArea.headline, fallbackArea.headline),
+          narrative: textValue(rawArea.narrative, fallbackArea.narrative),
+          signals: Array.isArray(rawArea.signals)
+            ? rawArea.signals
+                .filter((signal) => typeof signal === 'string')
+                .slice(0, 4)
+            : fallbackArea.signals,
+          guidance: textValue(rawArea.guidance, fallbackArea.guidance),
+          basis: textValue(rawArea.basis, fallbackArea.basis),
+          confidence: ['high', 'medium', 'low'].includes(
+            textValue(
+              rawArea.confidence,
+              fallbackArea.confidence,
+            ).toLowerCase(),
+          )
+            ? textValue(
+                rawArea.confidence,
+                fallbackArea.confidence,
+              ).toLowerCase()
+            : fallbackArea.confidence,
+        },
+      ];
+    }),
+  ) as typeof fallback.lifeAreas;
 
   return {
     summary:
@@ -157,6 +276,7 @@ function normalizeInterpretation(
         : fallback.summary,
     pastPatterns: pastPatterns.length ? pastPatterns : fallback.pastPatterns,
     insights: insights.length ? insights : fallback.insights,
+    lifeAreas,
     reflectionQuestions: Array.isArray(candidate.reflectionQuestions)
       ? candidate.reflectionQuestions.map(String).slice(0, 5)
       : fallback.reflectionQuestions,
@@ -177,9 +297,15 @@ export async function POST(request: Request) {
 
     const confidence = body.birthTimeConfidence;
     const topic = body.topic ?? 'overview';
+    const parsedBirthDate = body.birthDate
+      ? new Date(`${body.birthDate}T00:00:00Z`)
+      : null;
     if (
       !body.birthDate ||
       !/^\d{4}-\d{2}-\d{2}$/.test(body.birthDate) ||
+      !parsedBirthDate ||
+      Number.isNaN(parsedBirthDate.getTime()) ||
+      parsedBirthDate.getTime() > Date.now() ||
       !body.birthPlace?.trim() ||
       !confidence ||
       !validConfidence.has(confidence) ||
@@ -215,6 +341,7 @@ export async function POST(request: Request) {
             birthContext: {
               birthDate: body.birthDate,
               readingDate: new Date().toISOString().slice(0, 10),
+              resolvedPlace,
             },
           },
           body.tier === 'premium' ? 'premium' : 'free',

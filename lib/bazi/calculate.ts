@@ -74,7 +74,7 @@ function calculateTimingSignals(
   const currentYear = new Date().getUTCFullYear();
   const signals: BaziChartFacts['timingSignals'] = [];
 
-  for (let year = birthYear + 6; year <= currentYear; year += 1) {
+  for (let year = birthYear + 6; year < currentYear; year += 1) {
     const annualPillar = Solar.fromYmdHms(year, 7, 1, 12, 0, 0)
       .getLunar()
       .getEightChar()
@@ -139,13 +139,107 @@ function parseTime(value: string | undefined, confidence: BirthTimeConfidence) {
   return { hour, minute };
 }
 
+function offsetAt(timeZone: string, instant: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+  const representedAsUtc = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second),
+  );
+  return Math.round((representedAsUtc - instant.getTime()) / 60_000);
+}
+
+function calculateApparentSolarAdjustment(
+  year: number,
+  month: number,
+  day: number,
+  longitude: number,
+  timeZone: string,
+) {
+  const januaryOffset = offsetAt(
+    timeZone,
+    new Date(Date.UTC(year, 0, 15, 12, 0, 0)),
+  );
+  const julyOffset = offsetAt(
+    timeZone,
+    new Date(Date.UTC(year, 6, 15, 12, 0, 0)),
+  );
+  const standardOffsetMinutes = Math.min(januaryOffset, julyOffset);
+  const standardMeridian = (standardOffsetMinutes / 60) * 15;
+  const startOfYear = Date.UTC(year, 0, 1);
+  const currentDay = Date.UTC(year, month - 1, day);
+  const dayOfYear = Math.floor((currentDay - startOfYear) / 86_400_000) + 1;
+  const angle = ((2 * Math.PI) / 365) * (dayOfYear - 81);
+  const equationOfTime =
+    9.87 * Math.sin(2 * angle) - 7.53 * Math.cos(angle) - 1.5 * Math.sin(angle);
+  return Math.round(4 * (longitude - standardMeridian) + equationOfTime);
+}
+
+function adjustedClock(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  adjustmentMinutes: number,
+) {
+  const adjusted = new Date(
+    Date.UTC(year, month - 1, day, hour, minute) + adjustmentMinutes * 60_000,
+  );
+  return {
+    year: adjusted.getUTCFullYear(),
+    month: adjusted.getUTCMonth() + 1,
+    day: adjusted.getUTCDate(),
+    hour: adjusted.getUTCHours(),
+    minute: adjusted.getUTCMinutes(),
+    label: `${String(adjusted.getUTCHours()).padStart(2, '0')}:${String(adjusted.getUTCMinutes()).padStart(2, '0')}`,
+  };
+}
+
 export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
   const { year, month, day } = parseDate(profile.birthDate);
   const { hour, minute } = parseTime(
     profile.birthTime,
     profile.birthTimeConfidence,
   );
-  const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+  const adjustmentMinutes = calculateApparentSolarAdjustment(
+    year,
+    month,
+    day,
+    profile.birthPlace.longitude,
+    profile.birthPlace.ianaTimeZone,
+  );
+  const adjusted = adjustedClock(
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    adjustmentMinutes,
+  );
+  const solar = Solar.fromYmdHms(
+    adjusted.year,
+    adjusted.month,
+    adjusted.day,
+    adjusted.hour,
+    adjusted.minute,
+    0,
+  );
   const eightChar = solar.getLunar().getEightChar();
 
   const pillars: BaziChartFacts['pillars'] = {
@@ -176,6 +270,7 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
     `Birth place resolved as ${profile.birthPlace.label}.`,
     `Civil time zone: ${profile.birthPlace.ianaTimeZone}.`,
     'Pillars use the solar-term BaZi calendar; element counts cover visible stems and branches only.',
+    `Apparent solar-time adjustment: ${adjustmentMinutes >= 0 ? '+' : ''}${adjustmentMinutes} minutes, calculated from longitude and the equation of time.`,
   ];
   if (profile.birthTimeConfidence === 'unknown') {
     calculationNotes.push(
@@ -197,6 +292,12 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
       `Day Master: ${eightChar.getDayGan()} (${elementByCharacter[eightChar.getDayGan()]}).`,
       `Visible pillars: ${Object.values(pillars).join(' · ')}.`,
     ],
+    timeAdjustment: {
+      minutes: adjustmentMinutes,
+      adjustedLocalTime:
+        profile.birthTimeConfidence === 'unknown' ? undefined : adjusted.label,
+      method: 'longitude-and-equation-of-time',
+    },
     timingSignals: calculateTimingSignals(year, pillars),
   };
 }

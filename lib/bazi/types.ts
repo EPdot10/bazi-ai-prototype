@@ -19,6 +19,11 @@ export interface BaziChartFacts {
   birthTimeConfidence: BirthTimeConfidence;
   calculationNotes: string[];
   verifiedObservations: string[];
+  timeAdjustment?: {
+    minutes: number;
+    adjustedLocalTime?: string;
+    method: 'longitude-and-equation-of-time';
+  };
   timingSignals: Array<{
     year: number;
     age: number;
