@@ -13,6 +13,8 @@ export interface InterpretationRequest {
       longitude: number;
       ianaTimeZone: string;
     };
+    name?: string;
+    gender?: 'male' | 'female' | 'undisclosed';
   };
 }
 

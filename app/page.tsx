@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
+type Gender = 'male' | 'female' | 'undisclosed';
 type ResultView =
   | 'past'
   | 'character'
@@ -141,6 +142,8 @@ export default function Home() {
     useState<BirthWheelValue>(initialBirthValue);
   const [timeConfidence, setTimeConfidence] = useState<TimeConfidence>('exact');
   const [birthPlace, setBirthPlace] = useState('');
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState<Gender>('undisclosed');
   const [confirmedPlace, setConfirmedPlace] = useState<
     Reading['resolvedPlace'] | null
   >(null);
@@ -195,6 +198,8 @@ export default function Home() {
     setBirthValue(initialBirthValue);
     setTimeConfidence('exact');
     setBirthPlace('');
+    setName('');
+    setGender('undisclosed');
     setConfirmedPlace(null);
     setTier('free');
     setStep(1);
@@ -268,6 +273,8 @@ export default function Home() {
               : `${pad(birthValue.hour)}:${pad(birthValue.minute)}`,
           birthTimeConfidence: timeConfidence,
           birthPlace,
+          name: name.trim() || undefined,
+          gender,
           tier,
           turnstileToken,
           shareForImprovement,
@@ -592,6 +599,44 @@ export default function Home() {
 
               {step === 3 ? (
                 <div className="mt-10">
+                  <div className="mb-8 grid gap-6 sm:grid-cols-[1.1fr_0.9fr]">
+                    <label className="block" htmlFor="name">
+                      <span className="field-label">Name · optional</span>
+                      <Input
+                        className="minimal-input"
+                        id="name"
+                        maxLength={80}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="How should we address you?"
+                        value={name}
+                      />
+                    </label>
+                    <fieldset>
+                      <legend className="field-label">Gender · optional</legend>
+                      <div className="grid grid-cols-3 border border-black/12" role="radiogroup">
+                        {([
+                          ['male', 'Male'],
+                          ['female', 'Female'],
+                          ['undisclosed', 'Prefer not to say'],
+                        ] as const).map(([value, label]) => (
+                          <label
+                            className={`grid min-h-12 cursor-pointer place-items-center border-r border-black/10 px-1 text-center text-[10px] font-semibold tracking-[0.05em] uppercase transition last:border-r-0 ${gender === value ? 'bg-[#1b1a17] text-white' : 'text-black/42 hover:bg-black/[0.03]'}`}
+                            key={value}
+                          >
+                            <input
+                              checked={gender === value}
+                              className="sr-only"
+                              name="gender"
+                              onChange={() => setGender(value)}
+                              type="radio"
+                              value={value}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </div>
                   <label className="block" htmlFor="birthPlace">
                     <span className="field-label">Place of birth</span>
                     <span className="relative block">
@@ -674,8 +719,8 @@ export default function Home() {
                       </span>
                     </label>
                     <p className="text-[11px] leading-5 text-black/38">
-                      To generate your reading, your birth date and city are
-                      sent to our AI provider. We do not ask for your name.
+                      To generate your reading, your birth date, city, and any
+                      optional details you provide are sent to our AI provider.
                     </p>
                     <TurnstileField onToken={setTurnstileToken} />
                   </div>

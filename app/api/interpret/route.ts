@@ -348,6 +348,8 @@ export async function POST(request: Request) {
       birthTime?: string;
       birthTimeConfidence?: BirthTimeConfidence;
       birthPlace?: string;
+      name?: string;
+      gender?: 'male' | 'female' | 'undisclosed';
       topic?: 'overview' | 'career' | 'relationships' | 'year-ahead';
       tier?: 'free' | 'premium';
       turnstileToken?: string;
@@ -366,6 +368,8 @@ export async function POST(request: Request) {
       Number.isNaN(parsedBirthDate.getTime()) ||
       parsedBirthDate.getTime() > Date.now() ||
       !body.birthPlace?.trim() ||
+      (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length > 80)) ||
+      !['male', 'female', 'undisclosed'].includes(body.gender ?? 'undisclosed') ||
       !confidence ||
       !validConfidence.has(confidence) ||
       !validTopics.has(topic) ||
@@ -426,6 +430,8 @@ export async function POST(request: Request) {
               birthDate: body.birthDate,
               readingDate: new Date().toISOString().slice(0, 10),
               resolvedPlace,
+              name: body.name?.trim() || undefined,
+              gender: body.gender ?? 'undisclosed',
             },
           },
           body.tier === 'premium' ? 'premium' : 'free',
