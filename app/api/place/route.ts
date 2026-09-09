@@ -3,13 +3,14 @@ import {
   jsonWithRequestId,
   readJsonBody,
   requestId,
+  rateLimitsEnabled,
   withinRateLimit,
 } from '@/lib/request-guard';
 
 export async function POST(request: Request) {
   const id = requestId();
   try {
-    if (!withinRateLimit(request, 'place', 20, 60_000)) {
+    if (rateLimitsEnabled() && !withinRateLimit(request, 'place', 20, 60_000)) {
       return jsonWithRequestId(
         { error: 'Too many city lookups. Please wait a minute and try again.' },
         id,

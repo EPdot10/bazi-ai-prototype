@@ -94,6 +94,7 @@ The test dates branch immediately to a stored fixture before any external servic
 - JSON bodies are capped at 16 KB and city input at 100 characters.
 - Responses include an `X-Request-Id` for support and abuse investigation.
 - DeepSeek requests use a shared 45-second timeout, configurable with `DEEPSEEK_TIMEOUT_MS`.
+- Set `RATE_LIMIT_ENABLED=false` only for local or private testing to temporarily disable API rate limits; keep it `true` for public use.
 - Configure Cloudflare Turnstile with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at build time and `TURNSTILE_SECRET_KEY` at runtime. Local development skips verification when the secret is absent.
 - Protect the deployed Worker with Cloudflare Access for private testing; application-level limits remain necessary if the URL is public.
 

@@ -1,5 +1,9 @@
 const rateBuckets = new Map<string, { startedAt: number; count: number }>();
 
+export function rateLimitsEnabled() {
+  return process.env.RATE_LIMIT_ENABLED !== 'false';
+}
+
 export function requestId() {
   return crypto.randomUUID();
 }

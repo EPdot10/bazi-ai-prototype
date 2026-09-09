@@ -7,6 +7,7 @@ import {
   jsonWithRequestId,
   readJsonBody,
   requestId,
+  rateLimitsEnabled,
   withinRateLimit,
 } from '@/lib/request-guard';
 import { verifyTurnstile } from '@/lib/turnstile';
@@ -334,7 +335,7 @@ function normalizeInterpretation(
 export async function POST(request: Request) {
   const id = requestId();
   try {
-    if (!withinRateLimit(request, 'interpret', 4, 10 * 60_000)) {
+    if (rateLimitsEnabled() && !withinRateLimit(request, 'interpret', 4, 10 * 60_000)) {
       return jsonWithRequestId(
         { error: 'Too many readings. Please wait a few minutes and try again.' },
         id,
