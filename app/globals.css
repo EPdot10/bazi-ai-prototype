@@ -146,6 +146,8 @@ main {
 
 .birth-wheel {
   user-select: none;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .birth-wheel > div.relative {
@@ -157,6 +159,16 @@ main {
 .birth-wheel button,
 .birth-wheel [role='button'] {
   -webkit-tap-highlight-color: transparent;
+}
+
+.birth-wheel [data-wheel-column] {
+  cursor: ns-resize;
+}
+
+@media (hover: none) {
+  .birth-wheel [data-wheel-column] {
+    cursor: grab;
+  }
 }
 
 .hero-seal {

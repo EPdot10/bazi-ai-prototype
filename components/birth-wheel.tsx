@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import Picker from 'react-mobile-picker';
 
 export interface BirthWheelValue {
@@ -33,6 +33,8 @@ const minutes = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, '0'),
 );
 
+type WheelColumn = 'year' | 'month' | 'day' | 'hour' | 'minute';
+
 function WheelItem({
   value,
   label = value,
@@ -62,6 +64,11 @@ export function BirthWheel({
   approximateTime = false,
   onInteract,
 }: BirthWheelProps) {
+  const mouseDrag = useRef<{
+    column: WheelColumn;
+    lastY: number;
+    remainder: number;
+  } | null>(null);
   const days = useMemo(() => {
     const dayCount = new Date(value.year, value.month, 0).getDate();
     return Array.from({ length: dayCount }, (_, index) =>
@@ -115,13 +122,69 @@ export function BirthWheel({
     onChange(updated);
   }
 
+  function stepColumn(column: WheelColumn, direction: 1 | -1) {
+    const next = { ...value };
+    if (column === 'year') {
+      next.year = Math.min(currentYear, Math.max(1920, next.year + direction));
+    }
+    if (column === 'month') {
+      next.month = ((next.month - 1 + direction + 12) % 12) + 1;
+    }
+    if (column === 'day') {
+      const dayCount = new Date(next.year, next.month, 0).getDate();
+      next.day = ((next.day - 1 + direction + dayCount) % dayCount) + 1;
+    }
+    if (column === 'hour') next.hour = (next.hour + direction + 24) % 24;
+    if (column === 'minute') next.minute = (next.minute + direction + 60) % 60;
+    const dayCount = new Date(next.year, next.month, 0).getDate();
+    next.day = Math.min(next.day, dayCount);
+    onChange(next);
+  }
+
+  function handleMouseDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    const column = (event.target as HTMLElement).closest<HTMLElement>('[data-wheel-column]')
+      ?.dataset.wheelColumn as WheelColumn | undefined;
+    if (!column) return;
+    mouseDrag.current = { column, lastY: event.clientY, remainder: 0 };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onInteract?.();
+  }
+
+  function handleMouseMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = mouseDrag.current;
+    if (!drag || event.pointerType !== 'mouse') return;
+    event.preventDefault();
+    const delta = event.clientY - drag.lastY;
+    drag.lastY = event.clientY;
+    drag.remainder += delta;
+    while (Math.abs(drag.remainder) >= 24) {
+      const direction = drag.remainder < 0 ? 1 : -1;
+      stepColumn(drag.column, direction);
+      drag.remainder += direction * 24;
+    }
+  }
+
+  function handleMouseUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (mouseDrag.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    mouseDrag.current = null;
+  }
+
   return (
     <div
       className="birth-wheel"
       aria-label={mode === 'date' ? 'Birth date wheel' : 'Birth time wheel'}
       onKeyDownCapture={onInteract}
-      onPointerDownCapture={onInteract}
-      onWheelCapture={onInteract}
+      onPointerDownCapture={handleMouseDown}
+      onPointerMoveCapture={handleMouseMove}
+      onPointerUpCapture={handleMouseUp}
+      onPointerCancelCapture={handleMouseUp}
+      onWheelCapture={(event) => {
+        onInteract?.();
+        if (event.cancelable) event.preventDefault();
+      }}
     >
       <p className="sr-only">
         Use touch drag or the mouse wheel to change a column. A direct input
@@ -162,12 +225,12 @@ export function BirthWheel({
         >
           {mode === 'date' ? (
             <>
-              <Picker.Column name="year">
+              <Picker.Column name="year" data-wheel-column="year">
                 {years.map((year) => (
                   <WheelItem key={year} value={year} />
                 ))}
               </Picker.Column>
-              <Picker.Column name="month">
+              <Picker.Column name="month" data-wheel-column="month">
                 {loopMonths.map((month) => (
                   <WheelItem
                     key={month.value}
@@ -176,7 +239,7 @@ export function BirthWheel({
                   />
                 ))}
               </Picker.Column>
-              <Picker.Column name="day">
+              <Picker.Column name="day" data-wheel-column="day">
                 {loopDays.map((day) => (
                   <WheelItem
                     key={day.value}
@@ -188,13 +251,13 @@ export function BirthWheel({
             </>
           ) : (
             <>
-              <Picker.Column name="hour">
+              <Picker.Column name="hour" data-wheel-column="hour">
                 {hours.map((hour) => (
                   <WheelItem key={hour} value={hour} />
                 ))}
               </Picker.Column>
               {approximateTime ? null : (
-                <Picker.Column name="minute">
+                <Picker.Column name="minute" data-wheel-column="minute">
                   {minutes.map((minute) => (
                     <WheelItem key={minute} value={minute} />
                   ))}
