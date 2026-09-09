@@ -117,6 +117,8 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'method', label: 'Method' },
 ];
 
+const sessionReadingKey = 'ming:last-reading:v1';
+
 function pad(value: number) {
   return String(value).padStart(2, '0');
 }
@@ -153,6 +155,40 @@ export default function Home() {
   const [resolvingPlace, setResolvingPlace] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [shareForImprovement, setShareForImprovement] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
+
+  useEffect(() => {
+    let savedReading: Reading | null = null;
+    try {
+      const saved = window.sessionStorage.getItem(sessionReadingKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Reading;
+        if (parsed?.chart && parsed?.interpretation && parsed?.resolvedPlace) {
+          savedReading = parsed;
+        }
+      }
+    } catch {
+      // A blocked or malformed session entry should never prevent a new reading.
+    } finally {
+      queueMicrotask(() => {
+        if (savedReading) setReading(savedReading);
+        setSessionRestored(true);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestored) return;
+    try {
+      if (reading) {
+        window.sessionStorage.setItem(sessionReadingKey, JSON.stringify(reading));
+      } else {
+        window.sessionStorage.removeItem(sessionReadingKey);
+      }
+    } catch {
+      // Storage is an enhancement; the reading remains available in memory.
+    }
+  }, [reading, sessionRestored]);
 
   function resetReading() {
     setReading(null);
