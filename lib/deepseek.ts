@@ -25,6 +25,15 @@ const ALLOWED_MODELS = new Set([
   'deepseek-reasoner',
 ]);
 
+const DEFAULT_DEEPSEEK_TIMEOUT_MS = 45_000;
+
+function deepSeekTimeoutMs() {
+  const configured = Number(process.env.DEEPSEEK_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured >= 5_000 && configured <= 120_000
+    ? configured
+    : DEFAULT_DEEPSEEK_TIMEOUT_MS;
+}
+
 function configuredModel(name: string, fallback: string) {
   const value = process.env[name] ?? fallback;
   if (!ALLOWED_MODELS.has(value)) {
@@ -82,10 +91,7 @@ export async function generateInterpretation(
   let lastError = 'DeepSeek request failed';
   for (const model of modelCandidatesForTier(tier)) {
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      model.startsWith('deepseek-v4-') ? 35_000 : 60_000,
-    );
+    const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
     try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',

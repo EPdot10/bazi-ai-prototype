@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
+import { TurnstileField } from '@/components/turnstile-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -150,6 +151,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resolvingPlace, setResolvingPlace] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [shareForImprovement, setShareForImprovement] = useState(false);
 
   function resetReading() {
     setReading(null);
@@ -162,6 +165,8 @@ export default function Home() {
     setDirectInput(false);
     setDateInteracted(false);
     setTimeInteracted(false);
+    setTurnstileToken('');
+    setShareForImprovement(false);
     setError('');
   }
 
@@ -228,6 +233,8 @@ export default function Home() {
           birthTimeConfidence: timeConfidence,
           birthPlace,
           tier,
+          turnstileToken,
+          shareForImprovement,
         }),
       });
       const payload = (await response.json()) as Reading & { error?: string };
@@ -614,6 +621,28 @@ export default function Home() {
                       <option value="premium">Deep reading · slower</option>
                     </NativeSelect>
                   </label>
+
+                  <div className="mt-7 space-y-4 border-t border-black/10 pt-6">
+                    <label className="flex items-start gap-3 text-xs leading-5 text-black/52">
+                      <input
+                        checked={shareForImprovement}
+                        className="mt-1 accent-[#9d3027]"
+                        onChange={(event) =>
+                          setShareForImprovement(event.target.checked)
+                        }
+                        type="checkbox"
+                      />
+                      <span>
+                        I’m willing to share anonymous feedback to help us make
+                        this prototype better. This is optional.
+                      </span>
+                    </label>
+                    <p className="text-[11px] leading-5 text-black/38">
+                      To generate your reading, your birth date and city are
+                      sent to our AI provider. We do not ask for your name.
+                    </p>
+                    <TurnstileField onToken={setTurnstileToken} />
+                  </div>
 
                   <div className="sticky bottom-0 -mx-6 mt-8 grid grid-cols-[0.7fr_1.3fr] gap-3 border-t border-black/10 bg-[#f2efe8]/95 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
                     <Button

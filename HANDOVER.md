@@ -81,6 +81,9 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 ## Known limitations and debt
 
+- Request protection is best-effort in-memory per Worker isolate. For public launch, add Cloudflare Rate Limiting/KV or Durable Objects so limits are shared across isolates and regions.
+- Turnstile is optional until both site and secret keys are configured; Cloudflare Access should protect the private beta URL first.
+- `shareForImprovement` is currently an explicit consent signal for the prototype UI; there is no durable feedback store yet.
 - Full `npm run lint` reports pre-existing accessibility/type rules in unused generated `components/ui` primitives. Active files pass targeted lint.
 - The fixed Jade Pass `666` is visible in browser code and is not an entitlement system.
 - Feedback buttons are session-only and do not persist analytics.

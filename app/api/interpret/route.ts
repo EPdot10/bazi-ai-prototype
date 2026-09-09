@@ -3,6 +3,13 @@ import type { BirthTimeConfidence } from '@/lib/bazi/types';
 import { generateInterpretation } from '@/lib/deepseek';
 import { getTestReading } from '@/lib/fixtures/test-readings';
 import { resolveBirthPlace } from '@/lib/geocode';
+import {
+  jsonWithRequestId,
+  readJsonBody,
+  requestId,
+  withinRateLimit,
+} from '@/lib/request-guard';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 const validConfidence = new Set<BirthTimeConfidence>([
   'exact',
@@ -325,15 +332,27 @@ function normalizeInterpretation(
 }
 
 export async function POST(request: Request) {
+  const id = requestId();
   try {
-    const body = (await request.json()) as {
+    if (!withinRateLimit(request, 'interpret', 4, 10 * 60_000)) {
+      return jsonWithRequestId(
+        { error: 'Too many readings. Please wait a few minutes and try again.' },
+        id,
+        429,
+        { 'Retry-After': '600' },
+      );
+    }
+
+    const body = await readJsonBody<{
       birthDate?: string;
       birthTime?: string;
       birthTimeConfidence?: BirthTimeConfidence;
       birthPlace?: string;
       topic?: 'overview' | 'career' | 'relationships' | 'year-ahead';
       tier?: 'free' | 'premium';
-    };
+      turnstileToken?: string;
+      shareForImprovement?: boolean;
+    }>(request);
 
     const confidence = body.birthTimeConfidence;
     const topic = body.topic ?? 'overview';
@@ -352,16 +371,34 @@ export async function POST(request: Request) {
       !validTopics.has(topic) ||
       (confidence !== 'unknown' && !/^\d{2}:\d{2}$/.test(body.birthTime ?? ''))
     ) {
-      return Response.json(
+      return jsonWithRequestId(
         { error: 'Please provide a valid date, place and birth-time choice.' },
-        { status: 400 },
+        id,
+        400,
+      );
+    }
+
+    if (body.birthPlace.trim().length > 100) {
+      return jsonWithRequestId(
+        { error: 'Please keep the city name under 100 characters.' },
+        id,
+        400,
+      );
+    }
+
+    const turnstile = await verifyTurnstile(body.turnstileToken, request);
+    if (!turnstile.ok) {
+      return jsonWithRequestId(
+        { error: 'Please complete the bot-protection check and try again.' },
+        id,
+        403,
       );
     }
 
     const testReading = getTestReading(body.birthDate);
     if (testReading) {
-      return Response.json(testReading, {
-        headers: { 'X-Ming-Test-Fixture': body.birthDate },
+      return jsonWithRequestId(testReading, id, 200, {
+        'X-Ming-Test-Fixture': body.birthDate,
       });
     }
 
@@ -407,30 +444,39 @@ export async function POST(request: Request) {
           : 'The AI interpretation was unavailable; showing the calculated local reading.';
     }
 
-    return Response.json({
+    return jsonWithRequestId({
       resolvedPlace,
       chart,
       interpretation,
       interpretationSource,
       modelNotice,
-    });
+    }, id);
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
+    if (message === 'REQUEST_TOO_LARGE') {
+      return jsonWithRequestId({ error: 'Request is too large.' }, id, 413);
+    }
+    if (message.includes('JSON')) {
+      return jsonWithRequestId({ error: 'Invalid request body.' }, id, 400);
+    }
     if (message === 'PLACE_NOT_FOUND') {
-      return Response.json(
+      return jsonWithRequestId(
         { error: 'We could not find that place. Try “City, State, Country”.' },
-        { status: 422 },
+        id,
+        422,
       );
     }
     if (message === 'PLACE_SERVICE_UNAVAILABLE') {
-      return Response.json(
+      return jsonWithRequestId(
         { error: 'Place lookup is temporarily unavailable. Please try again.' },
-        { status: 503 },
+        id,
+        503,
       );
     }
-    return Response.json(
+    return jsonWithRequestId(
       { error: 'We could not create this reading. Please check the details.' },
-      { status: 500 },
+      id,
+      500,
     );
   }
 }
