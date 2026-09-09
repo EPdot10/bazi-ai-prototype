@@ -291,6 +291,17 @@ export default function Home() {
           </div>
 
           <div className="reading-intake-panel animate-rise-delayed px-6 py-10 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+            <div className="mb-10 lg:hidden">
+              <div className="hero-seal mb-7 size-16">
+                <span className="font-serif text-2xl">命</span>
+              </div>
+              <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
+                A quiet reading of your pattern
+              </p>
+              <p className="mt-3 max-w-sm font-serif text-3xl leading-9">
+                Discover the patterns Chinese astrology sees in your life.
+              </p>
+            </div>
             <form
               className="mx-auto max-w-xl"
               onSubmit={(event) => {
@@ -388,7 +399,7 @@ export default function Home() {
                       : 'Type the date instead'}
                   </button>
                   <Button
-                    className="mt-8 h-14 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.14em] uppercase hover:bg-[#9d3027]"
+                    className="glow-control mt-8 h-14 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.14em] uppercase hover:bg-[#9d3027]"
                     disabled={!dateInteracted}
                     onClick={() => setStep(2)}
                     type="button"
@@ -513,7 +524,7 @@ export default function Home() {
                       Back
                     </Button>
                     <Button
-                      className="h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
+                      className="glow-control h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
                       disabled={
                         !timeConfidence ||
                         (timeConfidence !== 'unknown' && !timeInteracted)
@@ -572,7 +583,7 @@ export default function Home() {
                     </div>
                   ) : (
                     <Button
-                      className="mt-6 h-12 w-full rounded-none border-black/15 bg-transparent text-xs tracking-[0.11em] uppercase hover:bg-black/[0.03]"
+                      className="glow-control mt-6 h-12 w-full rounded-none border-black/15 bg-transparent text-xs tracking-[0.11em] uppercase hover:bg-black/[0.03]"
                       disabled={!birthPlace.trim() || resolvingPlace}
                       onClick={() => void confirmPlace()}
                       type="button"
@@ -604,7 +615,7 @@ export default function Home() {
                     </NativeSelect>
                   </label>
 
-                  <div className="sticky bottom-0 -mx-6 mt-8 grid grid-cols-[0.7fr_1.3fr] gap-3 border-t border-black/10 bg-[#f2efe8]/95 px-6 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+                  <div className="sticky bottom-0 -mx-6 mt-8 grid grid-cols-[0.7fr_1.3fr] gap-3 border-t border-black/10 bg-[#f2efe8]/95 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
                     <Button
                       className="h-14 rounded-none border-black/15 bg-transparent text-xs tracking-[0.12em] uppercase hover:bg-black/[0.03]"
                       onClick={() => setStep(2)}
@@ -614,7 +625,7 @@ export default function Home() {
                       Back
                     </Button>
                     <Button
-                      className="h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.11em] uppercase hover:bg-[#9d3027]"
+                      className="glow-control h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.11em] uppercase hover:bg-[#9d3027]"
                       disabled={loading || !confirmedPlace}
                       type="submit"
                     >
@@ -670,7 +681,7 @@ function SiteHeader() {
       </div>
       <div className="flex items-center gap-4">
         <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
-        <p className="text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase">
+        <p className="max-[420px]:hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase">
           Private beta · Four Pillars
         </p>
       </div>
@@ -769,7 +780,7 @@ function ReadingResult({
       >
         {resultTabs.map((tab) => (
           <button
-            className={`shrink-0 snap-start border-b-2 px-4 py-4 text-[10px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase transition first:pl-0 sm:text-xs ${
+            className={`glow-control shrink-0 snap-start border-b-2 px-4 py-4 text-[10px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase transition first:pl-0 sm:text-xs ${
               view === tab.value
                 ? 'border-[#9d3027] text-[#9d3027]'
                 : 'border-transparent text-black/42 hover:text-black/70'
@@ -931,7 +942,7 @@ function LockedLifeArea({
             />
           </label>
           <Button
-            className="mt-5 h-12 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
+            className="glow-control mt-5 h-12 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
             onClick={unlock}
             type="button"
           >
@@ -1030,7 +1041,7 @@ function PastView({ reading }: { reading: Reading }) {
                 {['Match', 'Partial', 'Miss'].map((choice) => (
                   <button
                     aria-pressed={matches[patternIndex] === choice}
-                    className={`border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
+                    className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
                     key={choice}
                     onClick={() =>
                       setMatches((current) => ({
