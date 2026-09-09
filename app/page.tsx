@@ -18,6 +18,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
 type Gender = 'male' | 'female' | 'undisclosed';
+type ReadingLocale = 'en' | 'zh';
 type ResultView =
   | 'past'
   | 'character'
@@ -79,6 +80,8 @@ interface Reading {
     limitations: string;
   };
   interpretationSource: 'deepseek' | 'local' | 'fixture';
+  locale?: ReadingLocale;
+  testFixture?: boolean;
   modelNotice?: string;
 }
 
@@ -144,6 +147,7 @@ export default function Home() {
   const [birthPlace, setBirthPlace] = useState('');
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('undisclosed');
+  const [locale, setLocale] = useState<ReadingLocale>('en');
   const [confirmedPlace, setConfirmedPlace] = useState<
     Reading['resolvedPlace'] | null
   >(null);
@@ -200,6 +204,7 @@ export default function Home() {
     setBirthPlace('');
     setName('');
     setGender('undisclosed');
+    setLocale('en');
     setConfirmedPlace(null);
     setTier('free');
     setStep(1);
@@ -275,6 +280,7 @@ export default function Home() {
           birthPlace,
           name: name.trim() || undefined,
           gender,
+          locale,
           tier,
           turnstileToken,
           shareForImprovement,
@@ -283,7 +289,11 @@ export default function Home() {
       const payload = (await response.json()) as Reading & { error?: string };
       if (!response.ok)
         throw new Error(payload.error ?? 'Unable to create reading.');
-      setReading(payload);
+      setReading({
+        ...payload,
+        locale,
+        testFixture: response.headers.has('X-Ming-Test-Fixture'),
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (caught) {
       setError(
@@ -688,20 +698,38 @@ export default function Home() {
                     </Button>
                   )}
 
-                  <label className="mt-7 block" htmlFor="tier">
-                    <span className="field-label">Reading depth</span>
-                    <NativeSelect
-                      className="minimal-select"
-                      id="tier"
-                      onChange={(event) =>
-                        setTier(event.target.value as 'free' | 'premium')
-                      }
-                      value={tier}
-                    >
-                      <option value="free">Essential · quicker</option>
-                      <option value="premium">Deep reading · slower</option>
-                    </NativeSelect>
-                  </label>
+                  <div className="mt-7 block">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <span>
+                        <span className="field-label">Reading depth</span>
+                        <NativeSelect
+                          className="minimal-select"
+                          id="tier"
+                          onChange={(event) =>
+                            setTier(event.target.value as 'free' | 'premium')
+                          }
+                          value={tier}
+                        >
+                          <option value="free">Essential · quicker</option>
+                          <option value="premium">Deep reading · slower</option>
+                        </NativeSelect>
+                      </span>
+                      <span>
+                        <span className="field-label">Language</span>
+                        <NativeSelect
+                          className="minimal-select"
+                          id="locale"
+                          onChange={(event) =>
+                            setLocale(event.target.value as ReadingLocale)
+                          }
+                          value={locale}
+                        >
+                          <option value="en">English</option>
+                          <option value="zh">简体中文</option>
+                        </NativeSelect>
+                      </span>
+                    </div>
+                  </div>
 
                   <div className="mt-7 space-y-4 border-t border-black/10 pt-6">
                     <label className="flex items-start gap-3 text-xs leading-5 text-black/52">
@@ -876,13 +904,20 @@ function ReadingResult({
 
   return (
     <div className="animate-rise mx-auto max-w-[1180px] px-6 py-12 sm:px-10 sm:py-16">
-      <button
-        className="mb-8 flex items-center gap-2 text-[10px] font-semibold tracking-[0.16em] text-black/42 uppercase transition hover:gap-3 hover:text-[#9d3027]"
-        onClick={onReset}
-        type="button"
-      >
-        <ArrowLeft className="size-3.5" /> New reading
-      </button>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <button
+          className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.16em] text-black/42 uppercase transition hover:gap-3 hover:text-[#9d3027]"
+          onClick={onReset}
+          type="button"
+        >
+          <ArrowLeft className="size-3.5" /> New reading
+        </button>
+        {reading.testFixture ? (
+          <span className="rounded-full border border-[#9d3027]/30 bg-[#9d3027]/[0.07] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
+            Test fixture data
+          </span>
+        ) : null}
+      </div>
 
       <nav
         aria-label="Reading sections"

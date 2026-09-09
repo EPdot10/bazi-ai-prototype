@@ -350,6 +350,7 @@ export async function POST(request: Request) {
       birthPlace?: string;
       name?: string;
       gender?: 'male' | 'female' | 'undisclosed';
+      locale?: 'en' | 'zh';
       topic?: 'overview' | 'career' | 'relationships' | 'year-ahead';
       tier?: 'free' | 'premium';
       turnstileToken?: string;
@@ -370,6 +371,7 @@ export async function POST(request: Request) {
       !body.birthPlace?.trim() ||
       (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length > 80)) ||
       !['male', 'female', 'undisclosed'].includes(body.gender ?? 'undisclosed') ||
+      !['en', 'zh'].includes(body.locale ?? 'en') ||
       !confidence ||
       !validConfidence.has(confidence) ||
       !validTopics.has(topic) ||
@@ -425,7 +427,7 @@ export async function POST(request: Request) {
           {
             chart,
             topic,
-            locale: 'en',
+            locale: body.locale ?? 'en',
             birthContext: {
               birthDate: body.birthDate,
               readingDate: new Date().toISOString().slice(0, 10),
