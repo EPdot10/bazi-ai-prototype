@@ -37,6 +37,8 @@ export interface BaziChartFacts {
     relations: string[];
     relationTypes: string[];
     themes: string[];
+    domains: string[];
+    signature: string;
     strength: 'strong' | 'moderate';
   }>;
   eventCandidates: Array<{
@@ -44,6 +46,8 @@ export interface BaziChartFacts {
     age: number;
     window: string;
     themes: string[];
+    domains: string[];
+    signature: string;
     evidence: string[];
     confidence: 'high' | 'medium' | 'low';
   }>;

@@ -64,6 +64,7 @@ The chart facts supplied by the server are authoritative. Never recalculate, alt
 The server has already resolved the place and calculated any supplied apparent solar-time adjustment. Explain it when useful, but never recalculate coordinates, time-zone offsets, or solar time yourself.
 Your first job is recognition: give the user concrete, easy-to-understand hypotheses about their earlier life that they can honestly confirm or reject. Then explain broader patterns in plain language.
 The chart includes seasonalStrength, hiddenStems, tenGods, structuralRelations, timingSignals, and ranked eventCandidates. Treat these as server-calculated evidence, not as decoration. Start with eventCandidates when selecting retrospective periods; use timingSignals to explain the mechanism behind each candidate. Select 4 to 6 distinct past periods, spread across childhood, adolescence, and adulthood when available. Prefer periods with different mechanisms (repeat, clash, combination, or annual-stem theme) instead of producing five versions of the same generic change story.
+Each event candidate may include a signature and domains such as family/origin, school/authority/career formation, close relationships/self-regulation, or private ambition/projects. Use those domains to make the reading distinctive: describe how one structural signal could show up in two or three different life areas, then ask the user which one actually fits. Do not collapse every clash into “a major change” and do not turn a domain into a guaranteed event.
 For each period provide 2 to 3 plausible event patterns in concrete everyday language—for example a school or work transition, relocation, family responsibility, friendship or relationship restructuring, financial pressure, a change in study direction, or a shift in identity and independence. Mention the specific year or short window first, then the likely life area, then the possible lived experience. This ordering is important for scanability.
 Make every possibility age-appropriate. Never mention work, adult romance, independent finances, or relocation by choice for a young child. Never put the current or a future year in pastPatterns.
 Never say an event definitely happened. Use language such as “may have,” “one possibility,” or “this period often points to.” Do not combine unrelated possibilities into a statement that becomes impossible to reject. Invite the user to mark each period as a match, partial match, or miss.
@@ -76,7 +77,7 @@ Do not predict death, illness, pregnancy, crime, legal outcomes, investment retu
 Never claim scientific validation, statistical proof, a human expert review, or certainty about the future.
 Return valid JSON with keys: summary, pastOverview, pastPatterns, insights, lifeAreas, reflectionQuestions, limitations.
 pastOverview must contain exactly two fields. characterSentence is one vivid sentence summarising the person's core character. trajectorySentence is one vivid sentence summarising the broad rhythm of their life so far. Both must remain hypotheses rather than facts.
-pastPatterns must be an array of objects with period, headline, narrative, possibilities, principle, basis, and confidence. narrative should be 90 to 150 words and explain how that period may have felt, what could have changed, and what may have remained afterward. possibilities must contain 2 to 3 concrete, age-appropriate strings. principle must be one short plain-English sentence translating the supplied relation and annual-stem theme—for example “The annual 子 branch clashes with your natal 午 branch, traditionally read as movement and renegotiated boundaries; its stem also highlights responsibility and standards.” The basis must cite only supplied eventCandidates, timingSignals, tenGods, structuralRelations, and pillars. Never invent a Da Yun, Ziwei Dou Shu palace, star, or Four Transformations: those systems are not yet supplied by the server.
+pastPatterns must be an array of objects with period, headline, narrative, possibilities, principle, basis, and confidence. narrative should be 110 to 180 words and explain how that period may have felt, what could have changed, what may have remained afterward, and why the pattern is more specific than a generic “transition.” possibilities must contain 2 to 3 concrete, age-appropriate strings. principle must be one short plain-English sentence translating the supplied relation and annual-stem theme—for example “The annual 子 branch clashes with your natal 午 branch, traditionally read as movement and renegotiated boundaries; its stem also highlights responsibility and standards.” The basis must cite only supplied eventCandidates, timingSignals, tenGods, structuralRelations, and pillars. Never invent a Da Yun, Ziwei Dou Shu palace, star, or Four Transformations: those systems are not yet supplied by the server.
 Insights must be an array of 2 to 4 objects with title, interpretation, basis, and confidence. Avoid generic adjective lists.
 lifeAreas must be an object with exactly four keys: character, career, relationships, timing. Each value must contain headline, narrative, signals, guidance, basis, and confidence. Each narrative should be 140 to 220 words, signals must contain 4 concrete observations, and guidance should contain 2 to 3 actionable sentences. Cover all four areas in the same response; do not ask the user to choose a focus. For timing, discuss the current phase and near-term themes without guaranteed events. For relationships, do not assume relationship status, gender, or sexuality.
 Summary should be vivid, direct, and under 80 words. Limitations must be one plain string, not an array.`;
@@ -106,7 +107,16 @@ export async function generateInterpretation(
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: JSON.stringify(input) },
+            {
+              role: 'user',
+              content: JSON.stringify({
+                ...input,
+                outputLanguageInstruction:
+                  input.locale === 'zh'
+                    ? 'MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese.'
+                    : 'MANDATORY: every user-visible field in the JSON must be written in English.',
+              }),
+            },
           ],
           temperature: 0.35,
           max_tokens: tier === 'premium' ? 7000 : 5200,

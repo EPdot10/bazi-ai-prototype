@@ -65,6 +65,8 @@ interface Reading {
       age: number;
       window: string;
       themes: string[];
+      domains?: string[];
+      signature?: string;
       evidence: string[];
       confidence: string;
     }>;
@@ -146,7 +148,7 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'method', label: '方法' },
 ];
 
-const sessionReadingKey = 'ming:last-reading:v1';
+const sessionReadingKey = 'ming:last-reading:v2';
 
 function pad(value: number) {
   return String(value).padStart(2, '0');
@@ -203,7 +205,12 @@ export default function Home() {
       // A blocked or malformed session entry should never prevent a new reading.
     } finally {
       queueMicrotask(() => {
-        if (savedReading) setReading(savedReading);
+        if (savedReading) {
+          setReading(savedReading);
+          if (savedReading.locale === 'zh' || savedReading.locale === 'en') {
+            setLocale(savedReading.locale);
+          }
+        }
         setSessionRestored(true);
       });
     }
@@ -1020,6 +1027,7 @@ function ReadingResult({
       </nav>
 
       <ReadingSummary reading={reading} locale={locale} />
+      <InsightStrip reading={reading} locale={locale} />
 
       <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
@@ -1223,6 +1231,60 @@ function ReadingSummary({
   );
 }
 
+function InsightStrip({
+  reading,
+  locale,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+}) {
+  return (
+    <section className="mb-12 border-y border-black/10 py-8">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.18em] text-[#9d3027] uppercase">
+            {locale === 'zh' ? '独特结构线索' : 'Distinctive signatures'}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-black/45">
+            {locale === 'zh'
+              ? '这些是从命盘结构推导出的可核对假设，不是星座式的通用标签。'
+              : 'These are checkable hypotheses from the chart structure, not generic horoscope labels.'}
+          </p>
+        </div>
+        <span className="hidden text-[9px] tracking-[0.12em] text-black/30 uppercase sm:block">
+          {reading.interpretation.insights.length} signals
+        </span>
+      </div>
+      <div className="mt-6 grid gap-px bg-black/10 sm:grid-cols-2">
+        {reading.interpretation.insights.map((insight, index) => (
+          <article
+            className="bg-[#f2efe8] p-6"
+            key={`${insight.title}-${index}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-serif text-2xl text-[#9d3027]">
+                0{index + 1}
+              </span>
+              <span className="text-[9px] tracking-[0.1em] text-black/30 uppercase">
+                {locale === 'zh'
+                  ? `${insight.confidence} 置信度`
+                  : `${insight.confidence} confidence`}
+              </span>
+            </div>
+            <h2 className="mt-4 text-sm font-semibold">{insight.title}</h2>
+            <p className="mt-3 text-sm leading-6 text-black/58">
+              {insight.interpretation}
+            </p>
+            <p className="mt-4 text-[10px] leading-5 text-black/32">
+              {insight.basis}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PastView({
   reading,
   locale,
@@ -1367,6 +1429,16 @@ function PastView({
               <p className="mt-4 text-xs leading-5 text-black/34">
                 {pattern.principle || pattern.basis}
               </p>
+              {pattern.basis && pattern.basis !== pattern.principle ? (
+                <details className="mt-3 text-[10px] leading-5 text-black/32">
+                  <summary className="cursor-pointer tracking-[0.08em] uppercase">
+                    {locale === 'zh'
+                      ? '查看计算依据'
+                      : 'View calculation basis'}
+                  </summary>
+                  <p className="mt-2">{pattern.basis}</p>
+                </details>
+              ) : null}
               <div
                 className="mt-5 flex flex-wrap gap-2"
                 aria-label={`Does ${pattern.period} match your experience?`}

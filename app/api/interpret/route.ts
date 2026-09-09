@@ -27,6 +27,7 @@ const validTopics = new Set([
 function localInterpretation(
   chart: ReturnType<typeof calculateBaziChart>,
   topic: string,
+  locale: 'en' | 'zh' = 'en',
 ) {
   const pillars = Object.values(chart.pillars).join(' · ');
   const missingHour = chart.birthTimeConfidence === 'unknown';
@@ -42,7 +43,7 @@ function localInterpretation(
     },
     [] as typeof chart.eventCandidates,
   );
-  return {
+  const result = {
     summary: `Your ${missingHour ? 'three visible pillars' : 'four pillars'} are ${pillars}. ${chart.dayMaster} is your Day Master, read here as ${chart.seasonalStrength} in its seasonal context. This is a reflective reading of traditional BaZi patterns, not a factual or scientific prediction.`,
     pastOverview: {
       characterSentence: `You may present as measured and self-controlled, while privately testing every rule against your own experience before you trust it; the chart's ${chart.dayMasterElement} Day Master makes clarity and inner standards especially important themes.`,
@@ -196,6 +197,122 @@ function localInterpretation(
       ? 'The hour pillar is omitted. Timing claims and hour-sensitive themes are not included.'
       : 'BaZi is a traditional interpretive practice and should not replace professional advice.',
   };
+
+  if (locale === 'zh') {
+    return {
+      ...result,
+      summary: `你的${missingHour ? '三柱' : '四柱'}为 ${pillars}。日主为${chart.dayMaster}，在当前季节格局中属于${chart.seasonalStrength === 'supported' ? '得势' : chart.seasonalStrength === 'balanced' ? '中和' : '受制'}。以下内容是传统八字的反思性解读，不是事实或科学预测。`,
+      pastOverview: {
+        characterSentence: `你可能外表克制、做事讲原则，但会在真正信任一套规则之前反复用自己的经历验证它；${chart.dayMasterElement}日主让“看清结构、守住内在标准”成为重要主题。`,
+        trajectorySentence:
+          '你过去的轨迹可能不是单纯一路上升，而是在几次环境、关系或责任重新排列之后，逐渐把主动权收回到自己手里。',
+      },
+      pastPatterns: result.pastPatterns.map((pattern, index) => {
+        const candidate = selectedSignals[index];
+        const hasClash =
+          candidate?.domains?.some((domain) => domain.includes('career')) ||
+          candidate?.themes.some((theme) => theme.includes('movement'));
+        const domain = candidate?.domains?.[0] ?? '生活中的一个重要领域';
+        return {
+          ...pattern,
+          headline: hasClash
+            ? '旧节奏被打破，必须重新选择'
+            : '一个原有主题被放大',
+          narrative: `在${pattern.period}前后，命盘中的${candidate?.signature ?? '流年关系'}可能让“${domain}”变得更显眼。它未必对应单一事件，更像是你开始发现：原来的安排、关系或自我定位已经不能完全容纳现在的你。可能表现为学习方向变化、家庭规则重新协商、朋友圈重组，或对未来计划产生更强的自主要求。最值得核对的不是事情有多戏剧化，而是你是否从那段时间开始改变了做决定的方式。`,
+          possibilities: [
+            `你可能在${domain}上遇到一次需要重新适应或重新分配责任的经历。`,
+            '某段关系、学习安排或生活规则可能从“默认如此”变成需要明确谈判。',
+            '这段经历之后，你可能更重视自主权、边界或可执行的计划。',
+          ],
+          principle: `依据${candidate?.signature ?? '流年与命盘关系'}，传统上更像“${candidate?.themes?.join('、') ?? '主题被激活'}”的窗口，而不是一个保证发生的事件。`,
+          basis: candidate?.evidence?.join('；') ?? pattern.basis,
+        };
+      }),
+      insights: [
+        {
+          title: '日主与季节的张力',
+          interpretation: `八字以${chart.dayMaster}日主作为观察中心。当前结构显示它与出生月份的力量并非简单强弱标签，而是会让你在压力、资源与自主之间不断寻找可持续的平衡。`,
+          basis: chart.strengthNotes?.join('；') ?? `日柱 ${chart.pillars.day}`,
+          confidence: 'high',
+        },
+        {
+          title: '重复结构带来的“回声”',
+          interpretation: chart.structuralRelations?.length
+            ? `命盘中出现${chart.structuralRelations.join('、')}。这类结构常让某些主题在不同年龄阶段以不同形式回来，值得用真实经历逐段核对。`
+            : '当前命盘没有被计算出的重复或冲合结构，因此历史窗口应以较低确定性阅读。',
+          basis: chart.structuralRelations?.join('；') ?? '结构关系为空',
+          confidence: chart.structuralRelations?.length ? 'medium' : 'low',
+        },
+      ],
+      lifeAreas: {
+        character: {
+          headline: '你如何面对世界',
+          narrative: `你可能习惯先观察规则是否可靠，再决定投入多少自己。${chart.dayMaster}日主并不等于固定性格，但结合季节强弱与藏干后，可以看到你更在意判断是否站得住，而不是马上得到别人的认可。`,
+          signals: [
+            '你可能在标准明确时发挥更稳定。',
+            '压力会逼出判断力，但过度控制会让你疲惫。',
+            '你倾向用持续行动而不是即时表达证明在乎。',
+            '一旦内在判断完成，你通常不容易被轻易改变。',
+          ],
+          guidance: '区分真正的原则与暂时的防御。为自己留下试错和调整的空间。',
+          basis: `日柱 ${chart.pillars.day}；季节强弱 ${chart.seasonalStrength ?? '未提供'}`,
+          confidence: missingHour ? '中' : '高',
+        },
+        career: {
+          headline: '工作、贡献与资源',
+          narrative:
+            '你可能更适合把模糊问题变成可执行结构的环境。真正的优势不一定是抢先表现，而是持续把复杂事情理顺。需要留意的是，不要因为别人信任你处理难题，就长期承担没有回报的责任。',
+          signals: [
+            '适合有标准又允许改善流程的环境。',
+            '你可能更重视可验证的进展，而不是抽象头衔。',
+            '责任常常先于正式回报到来。',
+            '资源和边界需要被明确写出来。',
+          ],
+          guidance:
+            '选择同时奖励判断力与持续性的环境。把责任、时间和回报提前说清楚。',
+          basis: `可见五行分布：${JSON.stringify(chart.elementBalance)}`,
+          confidence: '中',
+        },
+        relationships: {
+          headline: '亲密与独立如何共存',
+          narrative:
+            '你可能需要可靠、清晰和可持续的相处方式，才会真正放下防备。失望时，你的第一反应可能是变得更自立，而不是直接提出需要，这会让别人误以为你并不在意。',
+          signals: [
+            '你常用实际行动表达关心。',
+            '清楚的边界反而会让亲密更安全。',
+            '尊重和稳定可能比强烈情绪更重要。',
+            '沉默能保护体面，也可能制造误解。',
+          ],
+          guidance: '把“我需要什么支持”说出来，不要要求对方猜。',
+          basis: `可见柱：${pillars}；时柱${missingHour ? '未提供' : '已纳入'}`,
+          confidence: missingHour ? '低' : '中',
+        },
+        timing: {
+          headline: '你正在经历的阶段',
+          narrative:
+            '时机只表示某类主题更容易被看见，不代表事件必然发生。重复通常放大旧问题，冲突通常迫使你移动、谈判或重新划边界。真正有用的是提前准备选择，而不是把决定权交给年份。',
+          signals: [
+            '重复年份可能让未完成的主题重新出现。',
+            '冲合年份可能对应移动、协商或关系重组。',
+            '安静阶段适合积累能力和资源。',
+            '当多个信号叠加时，避免只为逃离压力而做不可逆决定。',
+          ],
+          guidance: '把年份当作检查清单，不要当作命令。',
+          basis: `${chart.timingSignals.length} 个流年结构信号；${chart.eventCandidates.length} 个候选窗口`,
+          confidence: missingHour ? '低' : '中',
+        },
+      },
+      reflectionQuestions: [
+        '哪些年份的主题最接近你的真实经历？',
+        '哪一个结构关系值得你提供更多背景来继续核对？',
+      ],
+      limitations: missingHour
+        ? '出生时辰未知，时柱相关判断不纳入。八字属于传统解释体系，不替代专业建议。'
+        : '八字属于传统解释体系，不替代专业建议。',
+    };
+  }
+
+  return result;
 }
 
 function normalizeInterpretation(
@@ -426,7 +543,7 @@ export async function POST(request: Request) {
       birthPlace: resolvedPlace,
     });
 
-    const localReading = localInterpretation(chart, topic);
+    const localReading = localInterpretation(chart, topic, body.locale ?? 'en');
     let interpretation = localReading;
     let interpretationSource: 'deepseek' | 'local' = 'local';
     let modelNotice: string | undefined;

@@ -173,6 +173,13 @@ function tenGodTheme(god: string) {
   }
 }
 
+const pillarDomains: Record<string, string> = {
+  year: 'family, origin, and belonging',
+  month: 'school, authority, and career formation',
+  day: 'close relationships and self-regulation',
+  hour: 'private ambition, future plans, and personal projects',
+};
+
 function structuralRelations(pillars: BaziChartFacts['pillars']) {
   const branches = Object.values(pillars).map((pillar) => pillar.slice(1));
   const relations: string[] = [];
@@ -212,6 +219,7 @@ function calculateTimingSignals(
     const relations: string[] = [];
     const relationTypes: string[] = [];
     const themes: string[] = [];
+    const domains: string[] = [];
     let score = 0;
 
     // The annual stem gives a second, independent clue about the kind of
@@ -226,6 +234,7 @@ function calculateTimingSignals(
         );
         relationTypes.push('repeat');
         themes.push('an existing theme becomes more visible');
+        domains.push(pillarDomains[pillarName]);
         score += 3;
       } else if (branchClashes[annualBranch] === natalBranch) {
         relations.push(
@@ -233,6 +242,7 @@ function calculateTimingSignals(
         );
         relationTypes.push('clash');
         themes.push('movement, renegotiation, or a break from routine');
+        domains.push(pillarDomains[pillarName]);
         score += 3;
       } else if (branchCombinations[annualBranch] === natalBranch) {
         relations.push(
@@ -240,6 +250,7 @@ function calculateTimingSignals(
         );
         relationTypes.push('combination');
         themes.push('connection, agreement, or cooperation');
+        domains.push(pillarDomains[pillarName]);
         score += 2;
       }
     });
@@ -250,13 +261,17 @@ function calculateTimingSignals(
       relations.push(
         `${annualStem} is read as ${annualTenGod} in relation to the Day Master`,
       );
+      const uniqueDomains = [...new Set(domains)];
+      const uniqueRelationTypes = [...new Set(relationTypes)];
       signals.push({
         year,
         age: year - birthYear,
         annualPillar,
         relations,
-        relationTypes: [...new Set(relationTypes)],
+        relationTypes: uniqueRelationTypes,
         themes: [...new Set(themes)],
+        domains: uniqueDomains,
+        signature: `${annualPillar} activates ${uniqueDomains.join(' and ') || 'a visible chart theme'} through ${uniqueRelationTypes.join(', ')}.`,
         strength: score >= 5 ? 'strong' : 'moderate',
       });
     }
@@ -278,6 +293,8 @@ function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
     age: signal.age,
     window: `${signal.year} · around age ${signal.age}`,
     themes: signal.themes,
+    domains: signal.domains,
+    signature: signal.signature,
     evidence: [signal.annualPillar, ...signal.relations],
     confidence:
       signal.strength === 'strong' ? ('high' as const) : ('medium' as const),
