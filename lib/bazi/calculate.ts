@@ -64,9 +64,136 @@ const branchCombinations: Record<string, string> = {
   未: '午',
 };
 
+const stemElements: Record<string, keyof BaziChartFacts['elementBalance']> = {
+  甲: 'wood',
+  乙: 'wood',
+  丙: 'fire',
+  丁: 'fire',
+  戊: 'earth',
+  己: 'earth',
+  庚: 'metal',
+  辛: 'metal',
+  壬: 'water',
+  癸: 'water',
+};
+
+const stemPolarity: Record<string, 'yang' | 'yin'> = {
+  甲: 'yang',
+  乙: 'yin',
+  丙: 'yang',
+  丁: 'yin',
+  戊: 'yang',
+  己: 'yin',
+  庚: 'yang',
+  辛: 'yin',
+  壬: 'yang',
+  癸: 'yin',
+};
+
+const hiddenStemsByBranch: Record<string, string[]> = {
+  子: ['癸'],
+  丑: ['己', '癸', '辛'],
+  寅: ['甲', '丙', '戊'],
+  卯: ['乙'],
+  辰: ['戊', '乙', '癸'],
+  巳: ['丙', '戊', '庚'],
+  午: ['丁', '己'],
+  未: ['己', '丁', '乙'],
+  申: ['庚', '壬', '戊'],
+  酉: ['辛'],
+  戌: ['戊', '辛', '丁'],
+  亥: ['壬', '甲'],
+};
+
+const relationNames = {
+  same: '比肩',
+  peer: '劫财',
+  output: '食神',
+  challenge: '伤官',
+  wealth: '偏财',
+  directWealth: '正财',
+  pressure: '七杀',
+  authority: '正官',
+  resource: '偏印',
+  directResource: '正印',
+};
+
+function tenGod(dayMaster: string, stem: string) {
+  const dayElement = stemElements[dayMaster];
+  const element = stemElements[stem];
+  const samePolarity = stemPolarity[dayMaster] === stemPolarity[stem];
+  if (dayElement === element)
+    return samePolarity ? relationNames.same : relationNames.peer;
+  const generates: Record<string, string> = {
+    wood: 'fire',
+    fire: 'earth',
+    earth: 'metal',
+    metal: 'water',
+    water: 'wood',
+  };
+  const controls: Record<string, string> = {
+    wood: 'earth',
+    fire: 'metal',
+    earth: 'water',
+    metal: 'wood',
+    water: 'fire',
+  };
+  const controlledBy: Record<string, string> = {
+    wood: 'metal',
+    fire: 'water',
+    earth: 'wood',
+    metal: 'fire',
+    water: 'earth',
+  };
+  if (generates[dayElement] === element)
+    return samePolarity ? relationNames.output : relationNames.challenge;
+  if (controls[dayElement] === element)
+    return samePolarity ? relationNames.wealth : relationNames.directWealth;
+  if (controlledBy[dayElement] === element)
+    return samePolarity ? relationNames.pressure : relationNames.authority;
+  return samePolarity ? relationNames.resource : relationNames.directResource;
+}
+
+function tenGodTheme(god: string) {
+  switch (god) {
+    case relationNames.same:
+    case relationNames.peer:
+      return 'autonomy, peers, and how resources are shared';
+    case relationNames.output:
+    case relationNames.challenge:
+      return 'learning, expression, and making something visible';
+    case relationNames.wealth:
+    case relationNames.directWealth:
+      return 'resources, opportunity, and practical commitments';
+    case relationNames.pressure:
+    case relationNames.authority:
+      return 'standards, responsibility, and pressure to choose';
+    default:
+      return 'support, study, and the people or systems that sustain you';
+  }
+}
+
+function structuralRelations(pillars: BaziChartFacts['pillars']) {
+  const branches = Object.values(pillars).map((pillar) => pillar.slice(1));
+  const relations: string[] = [];
+  branches.forEach((branch, index) => {
+    branches.slice(index + 1).forEach((other) => {
+      if (branchClashes[branch] === other)
+        relations.push(`${branch}${other} clash`);
+      if (branchCombinations[branch] === other)
+        relations.push(`${branch}${other} combination`);
+    });
+    if (branches.filter((item) => item === branch).length > 1) {
+      relations.push(`${branch} repeats in the natal branches`);
+    }
+  });
+  return [...new Set(relations)];
+}
+
 function calculateTimingSignals(
   birthYear: number,
   pillars: BaziChartFacts['pillars'],
+  dayMaster: string,
 ) {
   const pillarEntries = Object.entries(pillars) as Array<
     [keyof BaziChartFacts['pillars'], string]
@@ -80,8 +207,16 @@ function calculateTimingSignals(
       .getEightChar()
       .getYear();
     const annualBranch = annualPillar.slice(1);
+    const annualStem = annualPillar.slice(0, 1);
+    const annualTenGod = tenGod(dayMaster, annualStem);
     const relations: string[] = [];
+    const relationTypes: string[] = [];
+    const themes: string[] = [];
     let score = 0;
+
+    // The annual stem gives a second, independent clue about the kind of
+    // pressure or opportunity present in a year. It is only surfaced when
+    // the branch also creates a timing signal, so the output stays selective.
 
     pillarEntries.forEach(([pillarName, pillar]) => {
       const natalBranch = pillar.slice(1);
@@ -89,26 +224,39 @@ function calculateTimingSignals(
         relations.push(
           `${annualBranch} repeats the ${pillarName} branch ${natalBranch}`,
         );
+        relationTypes.push('repeat');
+        themes.push('an existing theme becomes more visible');
         score += 3;
       } else if (branchClashes[annualBranch] === natalBranch) {
         relations.push(
           `${annualBranch} clashes with the ${pillarName} branch ${natalBranch}`,
         );
+        relationTypes.push('clash');
+        themes.push('movement, renegotiation, or a break from routine');
         score += 3;
       } else if (branchCombinations[annualBranch] === natalBranch) {
         relations.push(
           `${annualBranch} combines with the ${pillarName} branch ${natalBranch}`,
         );
+        relationTypes.push('combination');
+        themes.push('connection, agreement, or cooperation');
         score += 2;
       }
     });
 
     if (score >= 2) {
+      relationTypes.push('annual-stem');
+      themes.push(tenGodTheme(annualTenGod));
+      relations.push(
+        `${annualStem} is read as ${annualTenGod} in relation to the Day Master`,
+      );
       signals.push({
         year,
         age: year - birthYear,
         annualPillar,
         relations,
+        relationTypes: [...new Set(relationTypes)],
+        themes: [...new Set(themes)],
         strength: score >= 5 ? 'strong' : 'moderate',
       });
     }
@@ -122,6 +270,18 @@ function calculateTimingSignals(
       return strengthDifference || left.year - right.year;
     })
     .slice(0, 12);
+}
+
+function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
+  return signals.slice(0, 8).map((signal) => ({
+    year: signal.year,
+    age: signal.age,
+    window: `${signal.year} · around age ${signal.age}`,
+    themes: signal.themes,
+    evidence: [signal.annualPillar, ...signal.relations],
+    confidence:
+      signal.strength === 'strong' ? ('high' as const) : ('medium' as const),
+  }));
 }
 
 function parseDate(value: string) {
@@ -282,22 +442,68 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
     );
   }
 
+  const dayMaster = eightChar.getDayGan();
+  const dayMasterElement = stemElements[dayMaster];
+  const hiddenStems = Object.fromEntries(
+    Object.values(pillars).map((pillar) => [
+      pillar.slice(1),
+      hiddenStemsByBranch[pillar.slice(1)] ?? [],
+    ]),
+  );
+  const tenGods = Object.fromEntries(
+    Object.entries(pillars).flatMap(([pillarName, pillar]) => {
+      const stem = pillar.slice(0, 1);
+      const hidden = hiddenStems[pillar.slice(1)] ?? [];
+      return [
+        [`${pillarName} stem ${stem}`, tenGod(dayMaster, stem)],
+        ...hidden.map((hiddenStem) => [
+          `${pillarName} hidden ${hiddenStem}`,
+          tenGod(dayMaster, hiddenStem),
+        ]),
+      ];
+    }),
+  );
+  const seasonalElement = elementByCharacter[pillars.month.slice(1)];
+  const supportingElements = [dayMasterElement, seasonalElement];
+  const supportScore =
+    supportingElements.filter((element) => element === dayMasterElement)
+      .length + (elementBalance[dayMasterElement] >= 3 ? 1 : 0);
+  const seasonalStrength =
+    supportScore >= 3
+      ? ('supported' as const)
+      : supportScore === 2
+        ? ('balanced' as const)
+        : ('challenged' as const);
+  const strengthNotes = [
+    `Day Master ${dayMaster} is ${dayMasterElement}; month branch ${pillars.month.slice(1)} is ${seasonalElement}.`,
+    `Visible ${dayMasterElement} count is ${elementBalance[dayMasterElement]}; hidden stems are included separately.`,
+    `Seasonal strength is treated as ${seasonalStrength}, not as a fixed personality verdict.`,
+  ];
+  const signals = calculateTimingSignals(year, pillars, dayMaster);
+
   return {
     pillars,
-    dayMaster: eightChar.getDayGan(),
+    dayMaster,
     elementBalance,
     birthTimeConfidence: profile.birthTimeConfidence,
     calculationNotes,
     verifiedObservations: [
-      `Day Master: ${eightChar.getDayGan()} (${elementByCharacter[eightChar.getDayGan()]}).`,
+      `Day Master: ${dayMaster} (${dayMasterElement}).`,
       `Visible pillars: ${Object.values(pillars).join(' · ')}.`,
     ],
+    dayMasterElement,
+    seasonalStrength,
+    strengthNotes,
+    hiddenStems,
+    tenGods,
+    structuralRelations: structuralRelations(pillars),
     timeAdjustment: {
       minutes: adjustmentMinutes,
       adjustedLocalTime:
         profile.birthTimeConfidence === 'unknown' ? undefined : adjusted.label,
       method: 'longitude-and-equation-of-time',
     },
-    timingSignals: calculateTimingSignals(year, pillars),
+    timingSignals: signals,
+    eventCandidates: deriveEventCandidates(signals),
   };
 }

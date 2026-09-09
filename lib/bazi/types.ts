@@ -19,6 +19,12 @@ export interface BaziChartFacts {
   birthTimeConfidence: BirthTimeConfidence;
   calculationNotes: string[];
   verifiedObservations: string[];
+  dayMasterElement: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
+  seasonalStrength: 'supported' | 'balanced' | 'challenged';
+  strengthNotes: string[];
+  hiddenStems: Record<string, string[]>;
+  tenGods: Record<string, string>;
+  structuralRelations: string[];
   timeAdjustment?: {
     minutes: number;
     adjustedLocalTime?: string;
@@ -29,6 +35,16 @@ export interface BaziChartFacts {
     age: number;
     annualPillar: string;
     relations: string[];
+    relationTypes: string[];
+    themes: string[];
     strength: 'strong' | 'moderate';
+  }>;
+  eventCandidates: Array<{
+    year: number;
+    age: number;
+    window: string;
+    themes: string[];
+    evidence: string[];
+    confidence: 'high' | 'medium' | 'low';
   }>;
 }

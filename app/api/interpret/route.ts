@@ -30,7 +30,7 @@ function localInterpretation(
 ) {
   const pillars = Object.values(chart.pillars).join(' · ');
   const missingHour = chart.birthTimeConfidence === 'unknown';
-  const selectedSignals = chart.timingSignals.reduce(
+  const selectedSignals = chart.eventCandidates.reduce(
     (selected, signal) => {
       if (
         selected.length < 5 &&
@@ -40,32 +40,33 @@ function localInterpretation(
       }
       return selected;
     },
-    [] as typeof chart.timingSignals,
+    [] as typeof chart.eventCandidates,
   );
   return {
-    summary: `Your ${missingHour ? 'three visible pillars' : 'four pillars'} are ${pillars}. Your Day Master is ${chart.dayMaster}. This is a reflective reading of traditional BaZi patterns, not a factual or scientific prediction.`,
+    summary: `Your ${missingHour ? 'three visible pillars' : 'four pillars'} are ${pillars}. ${chart.dayMaster} is your Day Master, read here as ${chart.seasonalStrength} in its seasonal context. This is a reflective reading of traditional BaZi patterns, not a factual or scientific prediction.`,
     pastOverview: {
-      characterSentence: `You may present as measured and self-controlled, while privately testing every rule against your own experience before you trust it.`,
-      trajectorySentence: `Your path so far may have moved through alternating periods of stability and sharp redirection, with each disruption asking for greater independence.`,
+      characterSentence: `You may present as measured and self-controlled, while privately testing every rule against your own experience before you trust it; the chart's ${chart.dayMasterElement} Day Master makes clarity and inner standards especially important themes.`,
+      trajectorySentence: `Your path so far may have moved through alternating periods of consolidation and redirection, with the strongest candidate windows pointing to moments when an old pattern had to be renegotiated.`,
     },
-    pastPatterns: selectedSignals.map((signal) => {
-      const hasClash = signal.relations.some((relation) =>
-        relation.includes('clashes'),
+    pastPatterns: selectedSignals.map((candidate) => {
+      const signal = chart.timingSignals.find(
+        (item) => item.year === candidate.year,
       );
-      const hasRepeat = signal.relations.some((relation) =>
-        relation.includes('repeats'),
-      );
+      const relations = signal?.relations ?? candidate.evidence;
+      const hasClash = signal?.relationTypes.includes('clash') ?? false;
+      const hasRepeat = signal?.relationTypes.includes('repeat') ?? false;
       const lifeStage =
-        signal.age < 13
+        candidate.age < 13
           ? 'childhood'
-          : signal.age < 19
+          : candidate.age < 19
             ? 'adolescence'
             : 'adult';
+      const themeHint = candidate.themes[0] ?? 'a change in priorities';
       const possibilities =
         lifeStage === 'childhood'
           ? hasClash
             ? [
-                'A change involving school, home, caregivers, or close friends may have unsettled your usual routine.',
+                `A change involving school, home, caregivers, or close friends may have unsettled your usual routine, especially around ${themeHint}.`,
                 'You may have had to become more adaptable or self-reliant than before.',
               ]
             : [
@@ -75,7 +76,7 @@ function localInterpretation(
           : lifeStage === 'adolescence'
             ? hasClash
               ? [
-                  'A shift in studies, friendships, family expectations, or identity may have broken an established rhythm.',
+                  `A shift in studies, friendships, family expectations, or identity may have broken an established rhythm, with ${themeHint} becoming harder to ignore.`,
                   'A disagreement or separation may have pushed you toward a more independent choice.',
                 ]
               : [
@@ -84,7 +85,7 @@ function localInterpretation(
                 ]
             : hasClash
               ? [
-                  'A change in school, work, home, or your usual social circle may have disrupted an established routine.',
+                  `A change in school, work, home, or your usual social circle may have disrupted an established routine, particularly around ${themeHint}.`,
                   'A disagreement, separation, or new pressure may have forced a more independent decision.',
                 ]
               : hasRepeat
@@ -97,7 +98,7 @@ function localInterpretation(
                     'An agreement or opportunity may have made progress easier, but required adapting to another person.',
                   ];
       return {
-        period: `${signal.year} · around age ${signal.age}`,
+        period: candidate.window,
         headline: hasClash
           ? 'A break from the previous rhythm'
           : hasRepeat
@@ -105,9 +106,9 @@ function localInterpretation(
             : 'A new connection or direction',
         narrative: `${possibilities.join(' ')} The lasting effect may have been less about the event itself and more about how you learned to respond: by clarifying priorities, relying on your own judgement, or changing the boundaries around a relationship or responsibility. Treat this as a period to check rather than a fixed claim; the useful question is whether the rhythm of change feels recognisable.`,
         possibilities,
-        principle: `${signal.annualPillar} activated your visible chart through ${signal.relations.join(' and ')}, traditionally read as a period when an existing pattern becomes harder to ignore.`,
-        basis: `${signal.annualPillar}: ${signal.relations.join('; ')}`,
-        confidence: signal.strength === 'strong' ? 'medium' : 'low',
+        principle: `${candidate.evidence[0]} activated the chart through ${relations.join(' and ')}, traditionally read as a period when ${themeHint} becomes harder to ignore.`,
+        basis: `${candidate.evidence.join('; ')}${candidate.themes.length ? ` · themes: ${candidate.themes.join(', ')}` : ''}`,
+        confidence: candidate.confidence === 'high' ? 'medium' : 'low',
       };
     }),
     insights: [
@@ -335,9 +336,14 @@ function normalizeInterpretation(
 export async function POST(request: Request) {
   const id = requestId();
   try {
-    if (rateLimitsEnabled() && !withinRateLimit(request, 'interpret', 4, 10 * 60_000)) {
+    if (
+      rateLimitsEnabled() &&
+      !withinRateLimit(request, 'interpret', 4, 10 * 60_000)
+    ) {
       return jsonWithRequestId(
-        { error: 'Too many readings. Please wait a few minutes and try again.' },
+        {
+          error: 'Too many readings. Please wait a few minutes and try again.',
+        },
         id,
         429,
         { 'Retry-After': '600' },
@@ -370,8 +376,11 @@ export async function POST(request: Request) {
       Number.isNaN(parsedBirthDate.getTime()) ||
       parsedBirthDate.getTime() > Date.now() ||
       !body.birthPlace?.trim() ||
-      (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length > 80)) ||
-      !['male', 'female', 'undisclosed'].includes(body.gender ?? 'undisclosed') ||
+      (body.name !== undefined &&
+        (typeof body.name !== 'string' || body.name.trim().length > 80)) ||
+      !['male', 'female', 'undisclosed'].includes(
+        body.gender ?? 'undisclosed',
+      ) ||
       !['en', 'zh'].includes(body.locale ?? 'en') ||
       !confidence ||
       !validConfidence.has(confidence) ||
@@ -453,13 +462,16 @@ export async function POST(request: Request) {
           : 'The AI interpretation was unavailable; showing the calculated local reading.';
     }
 
-    return jsonWithRequestId({
-      resolvedPlace,
-      chart,
-      interpretation,
-      interpretationSource,
-      modelNotice,
-    }, id);
+    return jsonWithRequestId(
+      {
+        resolvedPlace,
+        chart,
+        interpretation,
+        interpretationSource,
+        modelNotice,
+      },
+      id,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'REQUEST_TOO_LARGE') {
