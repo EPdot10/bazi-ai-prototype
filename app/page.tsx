@@ -121,6 +121,15 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'method', label: 'Method' },
 ];
 
+const resultTabsZh: Array<{ value: ResultView; label: string }> = [
+  { value: 'past', label: '回望过去' },
+  { value: 'character', label: '性格' },
+  { value: 'career', label: '事业' },
+  { value: 'relationships', label: '关系' },
+  { value: 'timing', label: '时机' },
+  { value: 'method', label: '方法' },
+];
+
 const sessionReadingKey = 'ming:last-reading:v1';
 
 function pad(value: number) {
@@ -308,7 +317,7 @@ export default function Home() {
     <main className="min-h-screen bg-[#f2efe8] text-[#181714]">
       <SiteHeader />
       {reading ? (
-        <ReadingResult reading={reading} onReset={resetReading} />
+        <ReadingResult reading={reading} locale={reading.locale ?? locale} onReset={resetReading} />
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
@@ -374,21 +383,21 @@ export default function Home() {
                   <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
                     0{step} ·{' '}
                     {step === 1
-                      ? 'Birth date'
+                      ? locale === 'zh' ? '出生日期' : 'Birth date'
                       : step === 2
-                        ? 'Birth time'
-                        : 'Birth place'}
+                        ? locale === 'zh' ? '出生时间' : 'Birth time'
+                        : locale === 'zh' ? '出生地点' : 'Birth place'}
                   </p>
                   <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em] sm:text-5xl">
                     {step === 1
-                      ? 'Set the date.'
+                      ? locale === 'zh' ? '设定日期' : 'Set the date.'
                       : step === 2
-                        ? 'Set the hour.'
-                        : 'Confirm the city.'}
+                        ? locale === 'zh' ? '设定时间' : 'Set the hour.'
+                        : locale === 'zh' ? '确认城市' : 'Confirm the city.'}
                   </h2>
                 </div>
                 <span className="pb-2 text-[10px] font-semibold tracking-[0.16em] text-black/32 uppercase">
-                  {step} of 3
+                  {locale === 'zh' ? `第 ${step} 步，共 3 步` : `${step} of 3`}
                 </span>
               </div>
 
@@ -701,7 +710,7 @@ export default function Home() {
                   <div className="mt-7 block">
                     <div className="grid gap-5 sm:grid-cols-2">
                       <span>
-                        <span className="field-label">Reading depth</span>
+                        <span className="field-label">{locale === 'zh' ? '解读深度' : 'Reading depth'}</span>
                         <NativeSelect
                           className="minimal-select"
                           id="tier"
@@ -710,12 +719,12 @@ export default function Home() {
                           }
                           value={tier}
                         >
-                          <option value="free">Essential · quicker</option>
-                          <option value="premium">Deep reading · slower</option>
+                          <option value="free">{locale === 'zh' ? '基础 · 更快' : 'Essential · quicker'}</option>
+                          <option value="premium">{locale === 'zh' ? '深度 · 较慢' : 'Deep reading · slower'}</option>
                         </NativeSelect>
                       </span>
                       <span>
-                        <span className="field-label">Language</span>
+                        <span className="field-label">{locale === 'zh' ? '语言' : 'Language'}</span>
                         <NativeSelect
                           className="minimal-select"
                           id="locale"
@@ -883,19 +892,22 @@ function ReadingLoading() {
 
 function ReadingResult({
   reading,
+  locale,
   onReset,
 }: {
   reading: Reading;
+  locale: ReadingLocale;
   onReset: () => void;
 }) {
   const [view, setView] = useState<ResultView>('past');
   const [relationshipUnlocked, setRelationshipUnlocked] = useState(false);
+  const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
 
   function moveTab(direction: -1 | 1) {
-    const currentIndex = resultTabs.findIndex((tab) => tab.value === view);
+    const currentIndex = tabs.findIndex((tab) => tab.value === view);
     const nextIndex =
-      (currentIndex + direction + resultTabs.length) % resultTabs.length;
-    const next = resultTabs[nextIndex];
+      (currentIndex + direction + tabs.length) % tabs.length;
+    const next = tabs[nextIndex];
     setView(next.value);
     requestAnimationFrame(() =>
       document.getElementById(`reading-tab-${next.value}`)?.focus(),
@@ -910,7 +922,7 @@ function ReadingResult({
           onClick={onReset}
           type="button"
         >
-          <ArrowLeft className="size-3.5" /> New reading
+        <ArrowLeft className="size-3.5" /> {locale === 'zh' ? '重新开始' : 'New reading'}
         </button>
         {reading.testFixture ? (
           <span className="rounded-full border border-[#9d3027]/30 bg-[#9d3027]/[0.07] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
@@ -923,7 +935,7 @@ function ReadingResult({
         aria-label="Reading sections"
         className="result-tabs mb-10 flex snap-x snap-mandatory overflow-x-auto border-y border-black/10"
       >
-        {resultTabs.map((tab) => (
+        {tabs.map((tab) => (
           <button
             className={`glow-control shrink-0 snap-start border-b-2 px-4 py-4 text-[10px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase transition first:pl-0 sm:text-xs ${
               view === tab.value
