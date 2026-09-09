@@ -262,7 +262,10 @@ export default function Home() {
               <h1 className="max-w-xl font-serif text-[clamp(3.5rem,6.5vw,6.7rem)] leading-[0.9] font-medium tracking-[-0.055em]">
                 Begin where your story began.
               </h1>
-              <p className="mt-8 max-w-md text-sm leading-7 text-black/55">
+              <p className="mt-8 max-w-md font-serif text-2xl leading-8 text-black/72">
+                Discover the patterns Chinese astrology sees in your life.
+              </p>
+              <p className="mt-4 max-w-md text-sm leading-7 text-black/55">
                 Set the moment and city of your birth. MING translates an old
                 Chinese method into a quiet, modern reflection on the pattern
                 you carry.
@@ -313,15 +316,32 @@ export default function Home() {
                         : 'Confirm the city.'}
                   </h2>
                 </div>
-                <div className="flex gap-1.5 pb-2" aria-label={`Step ${step} of 3`}>
-                  {[1, 2, 3].map((item) => (
-                    <span
-                      className={`h-1 w-8 transition-all duration-500 ${item <= step ? 'bg-[#9d3027]' : 'bg-black/10'}`}
-                      key={item}
-                    />
-                  ))}
-                </div>
+                <span className="pb-2 text-[10px] font-semibold tracking-[0.16em] text-black/32 uppercase">
+                  {step} of 3
+                </span>
               </div>
+
+              <ol
+                aria-label="Birth reading steps"
+                className="mt-8 grid grid-cols-3 border-y border-black/10"
+              >
+                {(['Date', 'Time', 'City'] as const).map((label, index) => {
+                  const item = index + 1;
+                  return (
+                    <li
+                      className={`relative flex items-center gap-2 py-3 text-[10px] font-semibold tracking-[0.14em] uppercase transition-colors ${item <= step ? 'text-[#9d3027]' : 'text-black/30'} ${index > 0 ? 'border-l border-black/10 pl-3 sm:pl-5' : ''}`}
+                      key={label}
+                    >
+                      <span
+                        className={`grid size-5 place-items-center rounded-full border text-[9px] transition-colors ${item <= step ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/15 text-black/35'}`}
+                      >
+                        {item}
+                      </span>
+                      {label}
+                    </li>
+                  );
+                })}
+              </ol>
 
               {step === 1 ? (
                 <div className="mt-8">
@@ -778,6 +798,8 @@ function ReadingResult({
         ))}
       </nav>
 
+      <ReadingSummary reading={reading} />
+
       <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
           <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
@@ -929,6 +951,24 @@ function LockedLifeArea({
   );
 }
 
+function ReadingSummary({ reading }: { reading: Reading }) {
+  return (
+    <section className="mb-12 max-w-3xl border-l-2 border-[#9d3027] pl-5 sm:pl-7">
+      <p className="text-[10px] font-semibold tracking-[0.18em] text-[#9d3027] uppercase">
+        Your reading in two lines
+      </p>
+      <div className="mt-4 grid gap-5 sm:grid-cols-2 sm:gap-8">
+        <p className="font-serif text-2xl leading-8 text-black/80">
+          {reading.interpretation.pastOverview.characterSentence}
+        </p>
+        <p className="font-serif text-2xl leading-8 text-black/60">
+          {reading.interpretation.pastOverview.trajectorySentence}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function PastView({ reading }: { reading: Reading }) {
   const [matches, setMatches] = useState<Record<number, string>>({});
 
@@ -948,25 +988,6 @@ function PastView({ reading }: { reading: Reading }) {
         <span className="hidden text-[9px] text-black/32 sm:block">
           Match · Partial · Miss
         </span>
-      </div>
-
-      <div className="grid gap-px bg-black/10 sm:grid-cols-2">
-        <div className="bg-[#f2efe8] py-7 sm:pr-8">
-          <p className="text-[10px] font-semibold tracking-[0.12em] text-black/35 uppercase">
-            Character in one line
-          </p>
-          <p className="mt-3 font-serif text-xl leading-7">
-            {reading.interpretation.pastOverview.characterSentence}
-          </p>
-        </div>
-        <div className="bg-[#f2efe8] py-7 sm:pl-8">
-          <p className="text-[10px] font-semibold tracking-[0.12em] text-black/35 uppercase">
-            The rhythm so far
-          </p>
-          <p className="mt-3 font-serif text-xl leading-7">
-            {reading.interpretation.pastOverview.trajectorySentence}
-          </p>
-        </div>
       </div>
 
       <div className="divide-y divide-black/10">
