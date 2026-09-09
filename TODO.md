@@ -26,22 +26,24 @@ Acceptance check: a reading shows several distinct, scannable past windows with 
 
 ## Phase 3 — Feedback calibration loop
 
-Status: **next**
+Status: **implemented as a privacy-safe prototype**
 
 - Add match / partial / miss feedback to each retrospective window.
-- Store only consented, privacy-safe feedback and generate an internal calibration report.
+- Store only consented, privacy-safe feedback locally; the optional feedback endpoint accepts only period, choice, and language, never birth details.
+- Export an anonymous JSON calibration sample for internal review.
+- Keep the feedback path separate from the reading request so a user can use the product without sharing feedback.
 - Compare candidate precision, repetition, and unsupported-claim rate across real test readings.
 - Tune ranking and wording from observed feedback instead of increasing certainty.
 
-Acceptance check: the same chart can be rerun with a versioned prompt/calculation profile, and feedback can show which evidence types are useful.
+Acceptance check: the same chart can be rerun with a versioned prompt/calculation profile, and feedback can show which evidence types are useful. Durable aggregate storage still needs to be connected before public launch.
 
 ## Phase 4 — Full interpretation and product layer
 
-Status: **planned**
+Status: **partially implemented; narrative/UX foundation complete**
 
-- Add a separately validated Da Yun and Ziwei Dou Shu facts layer before asking the model to discuss those systems.
+- Add a separately validated Da Yun and Ziwei Dou Shu facts layer before asking the model to discuss those systems. The current UI explicitly marks them as not yet supplied, and the prompt forbids invented palaces, stars, or transformations.
 - Improve Chinese/English narrative parity, premium lock states, and method/basis disclosure.
-- Add regression fixtures for the two fixed test dates and the owner's reference chart.
+- Keep regression fixtures for the two fixed test dates and the owner's reference chart; the method view now exposes the calculation facts used by the result.
 - Measure latency, model fallback rate, and cost per reading before opening paid access.
 
-Acceptance check: every premium claim can be traced to supplied structured facts, and language/UX changes do not change the underlying chart.
+Acceptance check: every premium claim can be traced to supplied structured facts, and language/UX changes do not change the underlying chart. Da Yun/Ziwei remain blocked until their calculators are validated independently.

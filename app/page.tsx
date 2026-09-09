@@ -19,6 +19,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
 type Gender = 'male' | 'female' | 'undisclosed';
 type ReadingLocale = 'en' | 'zh';
+type FeedbackChoice = 'Match' | 'Partial' | 'Miss';
 type ResultView =
   | 'past'
   | 'character'
@@ -53,6 +54,20 @@ interface Reading {
       adjustedLocalTime?: string;
       method: string;
     };
+    dayMasterElement?: string;
+    seasonalStrength?: string;
+    strengthNotes?: string[];
+    hiddenStems?: Record<string, string[]>;
+    tenGods?: Record<string, string>;
+    structuralRelations?: string[];
+    eventCandidates?: Array<{
+      year: number;
+      age: number;
+      window: string;
+      themes: string[];
+      evidence: string[];
+      confidence: string;
+    }>;
   };
   interpretation: {
     summary: string;
@@ -82,6 +97,7 @@ interface Reading {
   interpretationSource: 'deepseek' | 'local' | 'fixture';
   locale?: ReadingLocale;
   testFixture?: boolean;
+  feedbackConsent?: boolean;
   modelNotice?: string;
 }
 
@@ -197,7 +213,10 @@ export default function Home() {
     if (!sessionRestored) return;
     try {
       if (reading) {
-        window.sessionStorage.setItem(sessionReadingKey, JSON.stringify(reading));
+        window.sessionStorage.setItem(
+          sessionReadingKey,
+          JSON.stringify(reading),
+        );
       } else {
         window.sessionStorage.removeItem(sessionReadingKey);
       }
@@ -302,6 +321,7 @@ export default function Home() {
         ...payload,
         locale,
         testFixture: response.headers.has('X-Ming-Test-Fixture'),
+        feedbackConsent: shareForImprovement,
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (caught) {
@@ -317,7 +337,11 @@ export default function Home() {
     <main className="min-h-screen bg-[#f2efe8] text-[#181714]">
       <SiteHeader />
       {reading ? (
-        <ReadingResult reading={reading} locale={reading.locale ?? locale} onReset={resetReading} />
+        <ReadingResult
+          reading={reading}
+          locale={reading.locale ?? locale}
+          onReset={resetReading}
+        />
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
@@ -383,17 +407,29 @@ export default function Home() {
                   <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
                     0{step} ·{' '}
                     {step === 1
-                      ? locale === 'zh' ? '出生日期' : 'Birth date'
+                      ? locale === 'zh'
+                        ? '出生日期'
+                        : 'Birth date'
                       : step === 2
-                        ? locale === 'zh' ? '出生时间' : 'Birth time'
-                        : locale === 'zh' ? '出生地点' : 'Birth place'}
+                        ? locale === 'zh'
+                          ? '出生时间'
+                          : 'Birth time'
+                        : locale === 'zh'
+                          ? '出生地点'
+                          : 'Birth place'}
                   </p>
                   <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em] sm:text-5xl">
                     {step === 1
-                      ? locale === 'zh' ? '设定日期' : 'Set the date.'
+                      ? locale === 'zh'
+                        ? '设定日期'
+                        : 'Set the date.'
                       : step === 2
-                        ? locale === 'zh' ? '设定时间' : 'Set the hour.'
-                        : locale === 'zh' ? '确认城市' : 'Confirm the city.'}
+                        ? locale === 'zh'
+                          ? '设定时间'
+                          : 'Set the hour.'
+                        : locale === 'zh'
+                          ? '确认城市'
+                          : 'Confirm the city.'}
                   </h2>
                 </div>
                 <span className="pb-2 text-[10px] font-semibold tracking-[0.16em] text-black/32 uppercase">
@@ -632,12 +668,17 @@ export default function Home() {
                     </label>
                     <fieldset>
                       <legend className="field-label">Gender · optional</legend>
-                      <div className="grid grid-cols-3 border border-black/12" role="radiogroup">
-                        {([
-                          ['male', 'Male'],
-                          ['female', 'Female'],
-                          ['undisclosed', 'Prefer not to say'],
-                        ] as const).map(([value, label]) => (
+                      <div
+                        className="grid grid-cols-3 border border-black/12"
+                        role="radiogroup"
+                      >
+                        {(
+                          [
+                            ['male', 'Male'],
+                            ['female', 'Female'],
+                            ['undisclosed', 'Prefer not to say'],
+                          ] as const
+                        ).map(([value, label]) => (
                           <label
                             className={`grid min-h-12 cursor-pointer place-items-center border-r border-black/10 px-1 text-center text-[10px] font-semibold tracking-[0.05em] uppercase transition last:border-r-0 ${gender === value ? 'bg-[#1b1a17] text-white' : 'text-black/42 hover:bg-black/[0.03]'}`}
                             key={value}
@@ -710,7 +751,9 @@ export default function Home() {
                   <div className="mt-7 block">
                     <div className="grid gap-5 sm:grid-cols-2">
                       <span>
-                        <span className="field-label">{locale === 'zh' ? '解读深度' : 'Reading depth'}</span>
+                        <span className="field-label">
+                          {locale === 'zh' ? '解读深度' : 'Reading depth'}
+                        </span>
                         <NativeSelect
                           className="minimal-select"
                           id="tier"
@@ -719,12 +762,22 @@ export default function Home() {
                           }
                           value={tier}
                         >
-                          <option value="free">{locale === 'zh' ? '基础 · 更快' : 'Essential · quicker'}</option>
-                          <option value="premium">{locale === 'zh' ? '深度 · 较慢' : 'Deep reading · slower'}</option>
+                          <option value="free">
+                            {locale === 'zh'
+                              ? '基础 · 更快'
+                              : 'Essential · quicker'}
+                          </option>
+                          <option value="premium">
+                            {locale === 'zh'
+                              ? '深度 · 较慢'
+                              : 'Deep reading · slower'}
+                          </option>
                         </NativeSelect>
                       </span>
                       <span>
-                        <span className="field-label">{locale === 'zh' ? '语言' : 'Language'}</span>
+                        <span className="field-label">
+                          {locale === 'zh' ? '语言' : 'Language'}
+                        </span>
                         <NativeSelect
                           className="minimal-select"
                           id="locale"
@@ -905,8 +958,7 @@ function ReadingResult({
 
   function moveTab(direction: -1 | 1) {
     const currentIndex = tabs.findIndex((tab) => tab.value === view);
-    const nextIndex =
-      (currentIndex + direction + tabs.length) % tabs.length;
+    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
     const next = tabs[nextIndex];
     setView(next.value);
     requestAnimationFrame(() =>
@@ -922,11 +974,12 @@ function ReadingResult({
           onClick={onReset}
           type="button"
         >
-        <ArrowLeft className="size-3.5" /> {locale === 'zh' ? '重新开始' : 'New reading'}
+          <ArrowLeft className="size-3.5" />{' '}
+          {locale === 'zh' ? '重新开始' : 'New reading'}
         </button>
         {reading.testFixture ? (
           <span className="rounded-full border border-[#9d3027]/30 bg-[#9d3027]/[0.07] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
-            Test fixture data
+            {locale === 'zh' ? '测试虚构数据' : 'Test fixture data'}
           </span>
         ) : null}
       </div>
@@ -966,7 +1019,7 @@ function ReadingResult({
         ))}
       </nav>
 
-      <ReadingSummary reading={reading} />
+      <ReadingSummary reading={reading} locale={locale} />
 
       <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
@@ -983,11 +1036,16 @@ function ReadingResult({
             {friendlyTimeZone(reading.resolvedPlace.ianaTimeZone)}
           </p>
           <div className="mt-7 flex flex-wrap gap-2 text-[9px] font-semibold tracking-[0.1em] text-black/42 uppercase">
-            {Object.entries(reading.chart.elementBalance).map(([element, count]) => (
-              <span className="border border-black/10 px-2.5 py-1.5" key={element}>
-                {elementNames[element]} {count}
-              </span>
-            ))}
+            {Object.entries(reading.chart.elementBalance).map(
+              ([element, count]) => (
+                <span
+                  className="border border-black/10 px-2.5 py-1.5"
+                  key={element}
+                >
+                  {elementNames[element]} {count}
+                </span>
+              ),
+            )}
           </div>
         </div>
 
@@ -1008,11 +1066,17 @@ function ReadingResult({
             {reading.interpretation.summary}
           </p>
           <p className="mt-5 text-[9px] tracking-[0.12em] text-black/32 uppercase">
-            {reading.interpretationSource === 'deepseek'
-              ? 'DeepSeek interpretation · locally calculated chart'
-              : reading.interpretationSource === 'fixture'
-                ? 'Saved test fixture · no API request'
-                : 'Locally calculated reading · AI fallback'}
+            {locale === 'zh'
+              ? reading.interpretationSource === 'deepseek'
+                ? 'DeepSeek 解读 · 命盘由本地计算'
+                : reading.interpretationSource === 'fixture'
+                  ? '已保存测试结果 · 未调用 API'
+                  : '本地计算结果 · AI 备用解读'
+              : reading.interpretationSource === 'deepseek'
+                ? 'DeepSeek interpretation · locally calculated chart'
+                : reading.interpretationSource === 'fixture'
+                  ? 'Saved test fixture · no API request'
+                  : 'Locally calculated reading · AI fallback'}
           </p>
         </div>
       </section>
@@ -1025,22 +1089,28 @@ function ReadingResult({
         role="tabpanel"
         tabIndex={0}
       >
-        {view === 'past' ? <PastView reading={reading} /> : null}
+        {view === 'past' ? (
+          <PastView reading={reading} locale={locale} />
+        ) : null}
         {(['character', 'career', 'relationships', 'timing'] as const).includes(
           view as LifeAreaKey,
         ) ? (
           view === 'relationships' && !relationshipUnlocked ? (
             <LockedLifeArea
               area={reading.interpretation.lifeAreas.relationships}
+              locale={locale}
               onUnlock={() => setRelationshipUnlocked(true)}
             />
           ) : (
             <LifeAreaView
               area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
+              locale={locale}
             />
           )
         ) : null}
-        {view === 'method' ? <MethodView reading={reading} /> : null}
+        {view === 'method' ? (
+          <MethodView reading={reading} locale={locale} />
+        ) : null}
       </div>
     </div>
   );
@@ -1048,9 +1118,11 @@ function ReadingResult({
 
 function LockedLifeArea({
   area,
+  locale,
   onUnlock,
 }: {
   area: LifeArea;
+  locale: ReadingLocale;
   onUnlock: () => void;
 }) {
   const [code, setCode] = useState('');
@@ -1071,7 +1143,7 @@ function LockedLifeArea({
         className="pointer-events-none select-none p-8 blur-[7px]"
         aria-hidden="true"
       >
-        <LifeAreaView area={area} />
+        <LifeAreaView area={area} locale={locale} />
       </div>
       <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/72 p-6 backdrop-blur-[2px]">
         <div className="w-full max-w-sm border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
@@ -1079,14 +1151,20 @@ function LockedLifeArea({
             <LockKeyhole className="size-4" />
           </span>
           <p className="mt-5 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
-            Private chamber
+            {locale === 'zh' ? '私密章节' : 'Private chamber'}
           </p>
-          <h2 className="mt-2 font-serif text-3xl">Unlock Love & Bonds</h2>
+          <h2 className="mt-2 font-serif text-3xl">
+            {locale === 'zh' ? '解锁关系与连接' : 'Unlock Love & Bonds'}
+          </h2>
           <p className="mt-3 text-sm leading-6 text-black/50">
-            Enter your Jade Pass to reveal the full relationship reading.
+            {locale === 'zh'
+              ? '输入 Jade Pass 查看完整的关系解读。'
+              : 'Enter your Jade Pass to reveal the full relationship reading.'}
           </p>
           <label className="mt-6 block text-left" htmlFor="jadePass">
-            <span className="field-label">Jade Pass</span>
+            <span className="field-label">
+              {locale === 'zh' ? 'Jade Pass' : 'Jade Pass'}
+            </span>
             <Input
               className="minimal-input text-center tracking-[0.3em]"
               id="jadePass"
@@ -1094,7 +1172,7 @@ function LockedLifeArea({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') unlock();
               }}
-              placeholder="Enter code"
+              placeholder={locale === 'zh' ? '输入密码' : 'Enter code'}
               value={code}
             />
           </label>
@@ -1103,7 +1181,7 @@ function LockedLifeArea({
             onClick={unlock}
             type="button"
           >
-            Open the chamber
+            {locale === 'zh' ? '打开章节' : 'Open the chamber'}
           </Button>
           {codeError ? (
             <p className="mt-3 text-xs text-[#9d3027]" role="alert">
@@ -1111,7 +1189,9 @@ function LockedLifeArea({
             </p>
           ) : null}
           <p className="mt-4 text-[10px] leading-4 text-black/30">
-            Prototype access only. Test code: 666
+            {locale === 'zh'
+              ? '原型测试专用。测试密码：666'
+              : 'Prototype access only. Test code: 666'}
           </p>
         </div>
       </div>
@@ -1119,11 +1199,17 @@ function LockedLifeArea({
   );
 }
 
-function ReadingSummary({ reading }: { reading: Reading }) {
+function ReadingSummary({
+  reading,
+  locale,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+}) {
   return (
     <section className="mb-12 max-w-3xl border-l-2 border-[#9d3027] pl-5 sm:pl-7">
       <p className="text-[10px] font-semibold tracking-[0.18em] text-[#9d3027] uppercase">
-        Your reading in two lines
+        {locale === 'zh' ? '两句话总结' : 'Your reading in two lines'}
       </p>
       <div className="mt-4 grid gap-5 sm:grid-cols-2 sm:gap-8">
         <p className="font-serif text-2xl leading-8 text-black/80">
@@ -1137,24 +1223,114 @@ function ReadingSummary({ reading }: { reading: Reading }) {
   );
 }
 
-function PastView({ reading }: { reading: Reading }) {
-  const [matches, setMatches] = useState<Record<number, string>>({});
+function PastView({
+  reading,
+  locale,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+}) {
+  const [matches, setMatches] = useState<Record<number, FeedbackChoice>>({});
+  const [savedFeedback, setSavedFeedback] = useState(false);
+  const feedbackKey = `ming:feedback:v1:${Object.values(reading.chart.pillars).join('')}`;
+
+  useEffect(() => {
+    if (!reading.feedbackConsent) return;
+    try {
+      const saved = window.localStorage.getItem(feedbackKey);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Record<string, FeedbackChoice>;
+      const restored = Object.fromEntries(
+        reading.interpretation.pastPatterns.flatMap((pattern, index) =>
+          parsed[pattern.period] ? [[index, parsed[pattern.period]]] : [],
+        ),
+      ) as Record<number, FeedbackChoice>;
+      queueMicrotask(() => {
+        setMatches(restored);
+        setSavedFeedback(Object.keys(restored).length > 0);
+      });
+    } catch {
+      // Feedback is an enhancement; a malformed local entry is ignored.
+    }
+  }, [
+    feedbackKey,
+    reading.feedbackConsent,
+    reading.interpretation.pastPatterns,
+  ]);
+
+  function recordFeedback(
+    period: string,
+    index: number,
+    choice: FeedbackChoice,
+  ) {
+    setMatches((current) => ({ ...current, [index]: choice }));
+    if (!reading.feedbackConsent) return;
+    try {
+      const saved = window.localStorage.getItem(feedbackKey);
+      const current = saved
+        ? (JSON.parse(saved) as Record<string, FeedbackChoice>)
+        : {};
+      current[period] = choice;
+      window.localStorage.setItem(feedbackKey, JSON.stringify(current));
+      setSavedFeedback(true);
+      void fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent: true,
+          period,
+          choice,
+          locale,
+        }),
+      }).catch(() => {
+        // Local storage remains the source of truth if the network is unavailable.
+      });
+    } catch {
+      // Do not block the reading if storage is unavailable.
+    }
+  }
+
+  function exportFeedback() {
+    if (!reading.feedbackConsent || !Object.keys(matches).length) return;
+    const records = reading.interpretation.pastPatterns.flatMap(
+      (pattern, index) =>
+        matches[index]
+          ? [{ period: pattern.period, choice: matches[index] }]
+          : [],
+    );
+    const blob = new Blob([JSON.stringify({ version: 1, records }, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ming-calibration-feedback.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <section>
       <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
-        Recognition before prediction
+        {locale === 'zh' ? '先验证，再谈预测' : 'Recognition before prediction'}
       </p>
       <div className="mt-3 flex items-end justify-between gap-6 border-b border-black/10 pb-6">
         <div>
-          <h2 className="font-serif text-4xl">Do these periods match?</h2>
+          <h2 className="font-serif text-4xl">
+            {locale === 'zh'
+              ? '这些阶段符合你的经历吗？'
+              : 'Do these periods match?'}
+          </h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-black/48">
-            Treat each as a hypothesis. A miss is useful information—not
-            something the reading should explain away.
+            {locale === 'zh'
+              ? '把每一段都当作待验证的假设。不符合也是有价值的信息，不需要勉强解释。'
+              : 'Treat each as a hypothesis. A miss is useful information—not something the reading should explain away.'}
           </p>
         </div>
         <span className="hidden text-[9px] text-black/32 sm:block">
-          Match · Partial · Miss
+          {locale === 'zh'
+            ? '符合 · 部分符合 · 不符合'
+            : 'Match · Partial · Miss'}
         </span>
       </div>
 
@@ -1195,20 +1371,23 @@ function PastView({ reading }: { reading: Reading }) {
                 className="mt-5 flex flex-wrap gap-2"
                 aria-label={`Does ${pattern.period} match your experience?`}
               >
-                {['Match', 'Partial', 'Miss'].map((choice) => (
+                {(['Match', 'Partial', 'Miss'] as const).map((choice) => (
                   <button
                     aria-pressed={matches[patternIndex] === choice}
                     className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
                     key={choice}
                     onClick={() =>
-                      setMatches((current) => ({
-                        ...current,
-                        [patternIndex]: choice,
-                      }))
+                      recordFeedback(pattern.period, patternIndex, choice)
                     }
                     type="button"
                   >
-                    {choice}
+                    {locale === 'zh'
+                      ? choice === 'Match'
+                        ? '符合'
+                        : choice === 'Partial'
+                          ? '部分符合'
+                          : '不符合'
+                      : choice}
                   </button>
                 ))}
               </div>
@@ -1216,11 +1395,41 @@ function PastView({ reading }: { reading: Reading }) {
           </article>
         ))}
       </div>
+      <p className="mt-7 text-[11px] leading-5 text-black/35">
+        {reading.feedbackConsent
+          ? savedFeedback
+            ? locale === 'zh'
+              ? '你的反馈已保存在本设备，并可匿名提交用于校准。不会上传生日、姓名或城市。'
+              : 'Your feedback is saved on this device and may be submitted anonymously for calibration. Birth date, name, and city are not uploaded.'
+            : locale === 'zh'
+              ? '选择一段经历进行标记，帮助我们校准候选事件。'
+              : 'Mark a period to help calibrate future event candidates.'
+          : locale === 'zh'
+            ? '你未同意分享反馈，因此这些标记不会保存。'
+            : 'Feedback sharing was not enabled, so these marks will not be saved.'}
+      </p>
+      {reading.feedbackConsent && Object.keys(matches).length ? (
+        <button
+          className="mt-3 text-[10px] font-semibold tracking-[0.1em] text-[#9d3027] uppercase underline underline-offset-4"
+          onClick={exportFeedback}
+          type="button"
+        >
+          {locale === 'zh'
+            ? '导出匿名校准样本'
+            : 'Export anonymous calibration sample'}
+        </button>
+      ) : null}
     </section>
   );
 }
 
-function LifeAreaView({ area }: { area: LifeArea }) {
+function LifeAreaView({
+  area,
+  locale,
+}: {
+  area: LifeArea;
+  locale: ReadingLocale;
+}) {
   return (
     <section>
       <div className="flex items-baseline justify-between gap-5">
@@ -1228,7 +1437,9 @@ function LifeAreaView({ area }: { area: LifeArea }) {
           {area.headline}
         </h2>
         <span className="shrink-0 text-[9px] tracking-[0.1em] text-black/30 uppercase">
-          {area.confidence} confidence
+          {locale === 'zh'
+            ? `${area.confidence} 置信度`
+            : `${area.confidence} confidence`}
         </span>
       </div>
       <p className="mt-8 font-serif text-2xl leading-9 text-black/78">
@@ -1244,24 +1455,131 @@ function LifeAreaView({ area }: { area: LifeArea }) {
       </div>
       <div className="mt-9 border-l-2 border-[#9d3027] pl-5">
         <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
-          Take with you
+          {locale === 'zh' ? '带走这一点' : 'Take with you'}
         </p>
         <p className="mt-2 text-sm leading-6 text-black/62">{area.guidance}</p>
       </div>
       <p className="mt-8 text-[10px] leading-5 text-black/30">
-        Basis: {area.basis}
+        {locale === 'zh' ? '依据：' : 'Basis: '}
+        {area.basis}
       </p>
     </section>
   );
 }
 
-function MethodView({ reading }: { reading: Reading }) {
+function MethodView({
+  reading,
+  locale,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+}) {
   return (
     <section>
       <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
-        Calculation and limits
+        {locale === 'zh' ? '计算与边界' : 'Calculation and limits'}
       </p>
-      <h2 className="mt-3 font-serif text-4xl">What the reading used.</h2>
+      <h2 className="mt-3 font-serif text-4xl">
+        {locale === 'zh' ? '这次解读使用了什么。' : 'What the reading used.'}
+      </h2>
+
+      <div className="mt-6 border border-black/10 bg-black/[0.015] p-5 text-sm leading-6 text-black/52">
+        <p className="font-semibold text-black/65">
+          {locale === 'zh' ? '系统范围' : 'System scope'}
+        </p>
+        <p className="mt-2">
+          {locale === 'zh'
+            ? '本次结果使用八字、节气、真太阳时、藏干、十神与流年冲合。大运和紫微斗数尚未接入结构化计算，因此模型不会对它们作出假设。'
+            : 'This reading uses BaZi, solar terms, apparent solar time, hidden stems, Ten Gods, and annual branch relations. Da Yun and Ziwei Dou Shu are not yet structured here, so the model is instructed not to guess them.'}
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-px bg-black/10 sm:grid-cols-3">
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
+            {locale === 'zh' ? '日主元素' : 'Day Master element'}
+          </p>
+          <p className="mt-2 font-serif text-2xl">
+            {reading.chart.dayMasterElement ?? '—'}
+          </p>
+        </div>
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
+            {locale === 'zh' ? '季节强弱' : 'Seasonal strength'}
+          </p>
+          <p className="mt-2 font-serif text-2xl">
+            {reading.chart.seasonalStrength ?? '—'}
+          </p>
+        </div>
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
+            {locale === 'zh' ? '事件候选' : 'Event candidates'}
+          </p>
+          <p className="mt-2 font-serif text-2xl">
+            {reading.chart.eventCandidates?.length ?? 0}
+          </p>
+        </div>
+      </div>
+
+      {reading.chart.strengthNotes?.length ? (
+        <div className="mt-7 border-l-2 border-[#9d3027] pl-4">
+          <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
+            {locale === 'zh' ? '强弱说明' : 'Strength notes'}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm leading-6 text-black/52">
+            {reading.chart.strengthNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {reading.chart.structuralRelations?.length ? (
+        <div className="mt-7">
+          <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
+            {locale === 'zh' ? '命盘结构关系' : 'Natal structural relations'}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-black/52">
+            {reading.chart.structuralRelations.join(' · ')}
+          </p>
+        </div>
+      ) : null}
+
+      {reading.chart.hiddenStems ? (
+        <details className="mt-7 border-y border-black/10 py-4">
+          <summary className="cursor-pointer text-[10px] font-semibold tracking-[0.12em] text-black/48 uppercase">
+            {locale === 'zh'
+              ? '查看藏干与十神依据'
+              : 'View hidden stems and Ten Gods'}
+          </summary>
+          <div className="mt-4 grid gap-5 text-xs leading-6 text-black/48 sm:grid-cols-2">
+            <div>
+              <p className="font-semibold text-black/60">
+                {locale === 'zh' ? '藏干' : 'Hidden stems'}
+              </p>
+              {Object.entries(reading.chart.hiddenStems).map(
+                ([branch, stems]) => (
+                  <p key={branch}>
+                    {branch}: {stems.join(' · ')}
+                  </p>
+                ),
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-black/60">
+                {locale === 'zh' ? '十神' : 'Ten Gods'}
+              </p>
+              {Object.entries(reading.chart.tenGods ?? {})
+                .slice(0, 8)
+                .map(([key, value]) => (
+                  <p key={key}>
+                    {key}: {value}
+                  </p>
+                ))}
+            </div>
+          </div>
+        </details>
+      ) : null}
 
       <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 border-y border-black/10 py-5 text-[10px] tracking-[0.08em] text-black/45 uppercase">
         {Object.entries(reading.chart.elementBalance).map(
@@ -1292,7 +1610,7 @@ function MethodView({ reading }: { reading: Reading }) {
         <div className="mt-8 grid gap-4 border border-black/10 p-5 sm:grid-cols-2">
           <div>
             <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
-              Apparent solar offset
+              {locale === 'zh' ? '真太阳时修正' : 'Apparent solar offset'}
             </p>
             <p className="mt-2 font-serif text-2xl">
               {reading.chart.timeAdjustment.minutes >= 0 ? '+' : ''}
@@ -1301,11 +1619,11 @@ function MethodView({ reading }: { reading: Reading }) {
           </div>
           <div>
             <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
-              Adjusted birth time
+              {locale === 'zh' ? '修正后出生时间' : 'Adjusted birth time'}
             </p>
             <p className="mt-2 font-serif text-2xl">
               {reading.chart.timeAdjustment.adjustedLocalTime ??
-                'Not available'}
+                (locale === 'zh' ? '不可用' : 'Not available')}
             </p>
           </div>
         </div>
