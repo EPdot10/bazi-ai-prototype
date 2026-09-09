@@ -252,20 +252,28 @@ export default function Home() {
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
-            <div>
+            <div className="animate-rise">
+              <div className="hero-seal mb-10">
+                <span className="font-serif text-3xl">命</span>
+              </div>
               <p className="mb-7 text-[10px] font-semibold tracking-[0.24em] text-[#9d3027] uppercase">
-                Four Pillars · One moment in time
+                Four pillars · one moment in time
               </p>
               <h1 className="max-w-xl font-serif text-[clamp(3.5rem,6.5vw,6.7rem)] leading-[0.9] font-medium tracking-[-0.055em]">
                 Begin where your story began.
               </h1>
               <p className="mt-8 max-w-md text-sm leading-7 text-black/55">
-                Set the moment and city of your birth. We calculate the chart
-                first, then ask the model to interpret—not invent—the pattern.
+                Set the moment and city of your birth. MING translates an old
+                Chinese method into a quiet, modern reflection on the pattern
+                you carry.
               </p>
+              <div className="mt-10 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
+                <span className="h-px w-10 bg-[#9d3027]/55" />
+                No prophecy · a pattern to consider
+              </div>
             </div>
 
-            <div className="mt-16 space-y-4 border-t border-black/10 pt-6 text-xs text-black/42">
+            <div className="animate-rise-delayed mt-16 space-y-4 border-t border-black/10 pt-6 text-xs text-black/42">
               {[
                 'Your city confirms location and civil time zone',
                 'Unknown birth time remains a valid path',
@@ -279,7 +287,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="px-6 py-10 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+          <div className="reading-intake-panel animate-rise-delayed px-6 py-10 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
             <form
               className="mx-auto max-w-xl"
               onSubmit={(event) => {
@@ -289,7 +297,7 @@ export default function Home() {
             >
               <div className="flex items-end justify-between gap-6">
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.16em] text-black/38 uppercase">
+                  <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
                     0{step} ·{' '}
                     {step === 1
                       ? 'Birth date'
@@ -297,7 +305,7 @@ export default function Home() {
                         ? 'Birth time'
                         : 'Birth place'}
                   </p>
-                  <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em]">
+                  <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em] sm:text-5xl">
                     {step === 1
                       ? 'Set the date.'
                       : step === 2
@@ -305,10 +313,10 @@ export default function Home() {
                         : 'Confirm the city.'}
                   </h2>
                 </div>
-                <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>
+                <div className="flex gap-1.5 pb-2" aria-label={`Step ${step} of 3`}>
                   {[1, 2, 3].map((item) => (
                     <span
-                      className={`h-1 w-8 ${item <= step ? 'bg-[#9d3027]' : 'bg-black/10'}`}
+                      className={`h-1 w-8 transition-all duration-500 ${item <= step ? 'bg-[#9d3027]' : 'bg-black/10'}`}
                       key={item}
                     />
                   ))}
@@ -379,8 +387,8 @@ export default function Home() {
                       How certain is the time?
                     </legend>
                     <p className="mb-4 text-xs leading-5 text-black/45">
-                      An exact birth time gives the most precise four-pillar
-                      reading.
+                      Exact is recommended. A precise birth time gives the
+                      clearest four-pillar reading; unknown is still valid.
                     </p>
                     <div
                       className="grid grid-cols-3 border border-black/12"
@@ -633,16 +641,19 @@ export default function Home() {
 
 function SiteHeader() {
   return (
-    <header className="mx-auto flex h-20 max-w-[1280px] items-center justify-between border-b border-black/10 px-6 sm:px-10 lg:px-14">
+    <header className="sticky top-0 z-30 mx-auto flex h-20 max-w-[1280px] items-center justify-between border-b border-black/10 bg-[#f2efe8]/88 px-6 backdrop-blur-md sm:px-10 lg:px-14">
       <div className="flex items-center gap-3">
-        <span className="grid size-8 place-items-center bg-[#9d3027] font-serif text-sm text-white">
+        <span className="grid size-8 place-items-center bg-[#9d3027] font-serif text-sm text-white shadow-[0_5px_18px_rgb(157_48_39_/_18%)]">
           命
         </span>
         <span className="font-serif text-xl tracking-[0.2em]">MING</span>
       </div>
-      <p className="text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase">
-        BaZi · Four Pillars
-      </p>
+      <div className="flex items-center gap-4">
+        <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
+        <p className="text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase">
+          Private beta · Four Pillars
+        </p>
+      </div>
     </header>
   );
 }
@@ -668,15 +679,15 @@ function ReadingLoading() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/92 px-6 text-[#f2efe8] backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/94 px-6 text-[#f2efe8] backdrop-blur-sm">
       <output aria-live="polite" className="sr-only">
         {loadingStages[stage][1]}
       </output>
       <div aria-hidden="true" className="w-full max-w-md text-center">
-        <div className="relative mx-auto grid size-28 place-items-center">
+        <div className="relative mx-auto grid size-28 place-items-center animate-breathe">
           <span className="absolute inset-0 animate-spin rounded-full border border-[#f2efe8]/10 border-t-[#b94a3e] [animation-duration:3s]" />
           <span className="absolute inset-3 animate-[spin_5s_linear_infinite_reverse] rounded-full border border-dashed border-[#f2efe8]/16" />
-          <span className="font-serif text-4xl text-[#d86a5d] transition-all">
+          <span className="font-serif text-4xl text-[#d86a5d] transition-all duration-700">
             {loadingStages[stage][0]}
           </span>
         </div>
@@ -688,7 +699,7 @@ function ReadingLoading() {
         </p>
         <div className="mt-9 h-px overflow-hidden bg-white/10">
           <div
-            className="h-full bg-[#b94a3e] transition-all duration-700"
+            className="h-full bg-[#b94a3e] transition-all duration-700 animate-draw"
             style={{ width: `${((stage + 1) / loadingStages.length) * 100}%` }}
           />
         </div>
@@ -723,9 +734,9 @@ function ReadingResult({
   }
 
   return (
-    <div className="mx-auto max-w-[1180px] px-6 py-12 sm:px-10 sm:py-16">
+    <div className="animate-rise mx-auto max-w-[1180px] px-6 py-12 sm:px-10 sm:py-16">
       <button
-        className="mb-10 flex items-center gap-2 text-[10px] font-semibold tracking-[0.16em] text-black/42 uppercase hover:text-[#9d3027]"
+        className="mb-8 flex items-center gap-2 text-[10px] font-semibold tracking-[0.16em] text-black/42 uppercase transition hover:gap-3 hover:text-[#9d3027]"
         onClick={onReset}
         type="button"
       >
@@ -734,11 +745,11 @@ function ReadingResult({
 
       <nav
         aria-label="Reading sections"
-        className="mb-10 grid grid-cols-2 border-y border-black/10 sm:flex"
+        className="result-tabs mb-10 flex snap-x snap-mandatory overflow-x-auto border-y border-black/10"
       >
         {resultTabs.map((tab) => (
           <button
-            className={`shrink-0 border-b-2 px-4 py-4 text-xs font-semibold tracking-[0.08em] uppercase transition first:pl-0 ${
+            className={`shrink-0 snap-start border-b-2 px-4 py-4 text-[10px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase transition first:pl-0 sm:text-xs ${
               view === tab.value
                 ? 'border-[#9d3027] text-[#9d3027]'
                 : 'border-transparent text-black/42 hover:text-black/70'
@@ -767,23 +778,30 @@ function ReadingResult({
         ))}
       </nav>
 
-      <section className="grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
+      <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
           <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-            Your chart
+            Your elemental profile
           </p>
-          <h1 className="mt-3 font-serif text-5xl tracking-[-0.04em]">
-            {reading.chart.dayMaster} · {stemNames[reading.chart.dayMaster]} Day
-            Master
+          <h1 className="relative z-10 mt-3 max-w-lg font-serif text-5xl tracking-[-0.04em] sm:text-6xl">
+            {reading.chart.dayMaster} ·{' '}
+            {stemNames[reading.chart.dayMaster] ?? 'Elemental'} Day Master
           </h1>
-          <p className="mt-4 text-xs leading-5 text-black/45">
+          <p className="mt-5 max-w-sm text-xs leading-5 text-black/45">
             {reading.resolvedPlace.label}
             <br />
             {friendlyTimeZone(reading.resolvedPlace.ianaTimeZone)}
           </p>
+          <div className="mt-7 flex flex-wrap gap-2 text-[9px] font-semibold tracking-[0.1em] text-black/42 uppercase">
+            {Object.entries(reading.chart.elementBalance).map(([element, count]) => (
+              <span className="border border-black/10 px-2.5 py-1.5" key={element}>
+                {elementNames[element]} {count}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div>
+        <div className="relative z-10">
           <div className="grid grid-cols-4 border-y border-black/10 py-5">
             {(['year', 'month', 'day', 'hour'] as const).map((key) => (
               <div key={key} className="text-center">
@@ -796,10 +814,10 @@ function ReadingResult({
               </div>
             ))}
           </div>
-          <p className="mt-5 font-serif text-2xl leading-8">
+          <p className="mt-6 max-w-xl font-serif text-2xl leading-8 sm:text-3xl sm:leading-10">
             {reading.interpretation.summary}
           </p>
-          <p className="mt-3 text-[9px] tracking-[0.12em] text-black/32 uppercase">
+          <p className="mt-5 text-[9px] tracking-[0.12em] text-black/32 uppercase">
             {reading.interpretationSource === 'deepseek'
               ? 'DeepSeek interpretation · locally calculated chart'
               : reading.interpretationSource === 'fixture'
@@ -812,7 +830,7 @@ function ReadingResult({
       {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role -- WAI-ARIA tabs require a labelled tabpanel. */}
       <div
         aria-labelledby={`reading-tab-${view}`}
-        className="mx-auto min-h-[520px] max-w-3xl py-12"
+        className="mx-auto min-h-[520px] max-w-3xl animate-rise-delayed py-12"
         id="reading-panel"
         role="tabpanel"
         tabIndex={0}
@@ -985,7 +1003,7 @@ function PastView({ reading }: { reading: Reading }) {
                 {pattern.principle || pattern.basis}
               </p>
               <div
-                className="mt-4 flex gap-2"
+                className="mt-5 flex flex-wrap gap-2"
                 aria-label={`Does ${pattern.period} match your experience?`}
               >
                 {['Match', 'Partial', 'Miss'].map((choice) => (

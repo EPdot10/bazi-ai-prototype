@@ -58,13 +58,172 @@
 
 html {
   background: #f2efe8;
+  scroll-behavior: smooth;
 }
 
 body {
+  position: relative;
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-manrope), sans-serif;
+  overflow-x: hidden;
+}
+
+body::before {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle at 12% 4%, rgb(157 48 39 / 10%), transparent 27rem),
+    radial-gradient(circle at 88% 58%, rgb(191 148 86 / 8%), transparent 25rem),
+    linear-gradient(115deg, transparent 0 49.8%, rgb(0 0 0 / 2%) 50%, transparent 50.2%);
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes ming-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ming-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ming-draw {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+.animate-rise {
+  animation: ming-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-rise-delayed {
+  animation: ming-rise 800ms 120ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-breathe {
+  animation: ming-breathe 4s ease-in-out infinite;
+}
+
+.animate-draw {
+  animation: ming-draw 900ms 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reading-intake-panel {
+  position: relative;
+  background: rgb(255 255 255 / 13%);
+  box-shadow: -24px 0 70px rgb(95 55 30 / 3%);
+}
+
+.birth-wheel {
+  user-select: none;
+}
+
+.birth-wheel > div.relative {
+  overflow: hidden;
+  border-color: rgb(0 0 0 / 15%);
+  background: linear-gradient(90deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 38%), rgb(255 255 255 / 6%));
+}
+
+.birth-wheel button,
+.birth-wheel [role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-seal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 5rem;
+  height: 5rem;
+  border: 1px solid rgb(157 48 39 / 28%);
+  border-radius: 999px;
+  color: #9d3027;
+}
+
+.hero-seal::before,
+.hero-seal::after {
+  position: absolute;
+  inset: 0.45rem;
+  border: 1px solid rgb(157 48 39 / 14%);
+  border-radius: inherit;
+  content: '';
+}
+
+.hero-seal::after {
+  inset: -0.4rem;
+  border-style: dashed;
+  opacity: 0.55;
+  animation: spin 18s linear infinite;
+}
+
+.result-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(115deg, rgb(255 255 255 / 18%), transparent 55%);
+}
+
+.result-hero::after {
+  position: absolute;
+  right: -5rem;
+  bottom: -7rem;
+  width: 20rem;
+  height: 20rem;
+  border: 1px solid rgb(157 48 39 / 14%);
+  border-radius: 999px;
+  content: '';
+  box-shadow: 0 0 0 2rem rgb(157 48 39 / 3%), 0 0 0 4rem rgb(157 48 39 / 2%);
+}
+
+.result-tabs {
+  scrollbar-width: none;
+}
+
+.result-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 button,
