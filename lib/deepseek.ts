@@ -101,6 +101,7 @@ export async function generateInterpretation(
         },
         body: JSON.stringify({
           model,
+          thinking: { type: tier === 'premium' ? 'enabled' : 'disabled' },
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
