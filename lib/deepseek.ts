@@ -23,8 +23,6 @@ export type InterpretationTier = 'free' | 'premium' | 'audit';
 const ALLOWED_MODELS = new Set([
   'deepseek-v4-flash',
   'deepseek-v4-pro',
-  'deepseek-chat',
-  'deepseek-reasoner',
 ]);
 
 const DEFAULT_DEEPSEEK_TIMEOUT_MS = 45_000;
@@ -57,7 +55,7 @@ export function resolveModelForTier(tier: InterpretationTier) {
 
 function modelCandidatesForTier(tier: InterpretationTier) {
   const configured = resolveModelForTier(tier);
-  const compatible = tier === 'premium' ? 'deepseek-reasoner' : 'deepseek-chat';
+  const compatible = tier === 'premium' ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
   return configured === compatible ? [configured] : [configured, compatible];
 }
 
