@@ -120,6 +120,10 @@ export function BirthWheel({
     const dayCount = new Date(updated.year, updated.month, 0).getDate();
     updated.day = Math.min(updated.day, dayCount);
     onChange(updated);
+    // The mobile picker updates its controlled value from touch gestures, but
+    // touch pointer events do not go through the mouse-drag handler. Mark the
+    // wheel as interacted here so the parent can enable the next step.
+    onInteract?.();
   }
 
   function stepColumn(column: WheelColumn, direction: 1 | -1) {
@@ -142,9 +146,14 @@ export function BirthWheel({
   }
 
   function handleMouseDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.pointerType !== 'mouse' || event.button !== 0) return;
-    const column = (event.target as HTMLElement).closest<HTMLElement>('[data-wheel-column]')
-      ?.dataset.wheelColumn as WheelColumn | undefined;
+    if (event.pointerType !== 'mouse') {
+      onInteract?.();
+      return;
+    }
+    if (event.button !== 0) return;
+    const column = (event.target as HTMLElement).closest<HTMLElement>(
+      '[data-wheel-column]',
+    )?.dataset.wheelColumn as WheelColumn | undefined;
     if (!column) return;
     mouseDrag.current = { column, lastY: event.clientY, remainder: 0 };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -166,7 +175,10 @@ export function BirthWheel({
   }
 
   function handleMouseUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (mouseDrag.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      mouseDrag.current &&
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     mouseDrag.current = null;
