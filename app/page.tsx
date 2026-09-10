@@ -150,6 +150,98 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
 
 const sessionReadingKey = 'ming:last-reading:v2';
 
+const intakeCopy = {
+  en: {
+    stepLabels: ['Date', 'Time', 'City'],
+    birthDate: 'Birth date',
+    birthTime: 'Birth time',
+    birthPlace: 'Birth place',
+    setDate: 'Set the date.',
+    setTime: 'Set the hour.',
+    confirmCity: 'Confirm the city.',
+    exactHint:
+      'Exact is recommended. A precise birth time gives the clearest four-pillar reading; unknown is still valid.',
+    timeQuestion: 'How certain is the time?',
+    exact: 'Exact',
+    approximate: 'Approximate',
+    unknown: 'Unknown',
+    unknownHint:
+      'No hour will be guessed. The reading will use three pillars and lower confidence where time matters.',
+    birthDateWheel: 'Use the birth wheel',
+    typeDate: 'Type the date instead',
+    birthTimeWheel: 'Use the birth wheel',
+    typeTime: 'Type the time instead',
+    confirm: 'Confirm',
+    back: 'Back',
+    continue: 'Continue',
+    optionalName: 'Name · optional',
+    optionalGender: 'Gender · optional',
+    namePlaceholder: 'How should we address you?',
+    male: 'Male',
+    female: 'Female',
+    undisclosed: 'Prefer not to say',
+    placeOfBirth: 'Place of birth',
+    cityHint: 'City is enough. Add the country when cities share a name.',
+    locationConfirmed: 'Location confirmed',
+    confirmThisCity: 'Confirm this city',
+    confirmingCity: 'Confirming city',
+    readingDepth: 'Reading depth',
+    essential: 'Essential · quicker',
+    deep: 'Deep reading · slower',
+    share:
+      "I'm willing to share anonymous feedback to help us make this prototype better. This is optional.",
+    provider:
+      'To generate your reading, your birth date, city, and any optional details you provide are sent to our AI provider.',
+    reveal: 'Reveal my reading',
+    privacy:
+      'Birth details are processed to create this reading and are not stored by this prototype. Interpretation is for reflection, not professional advice.',
+  },
+  zh: {
+    stepLabels: ['日期', '时间', '城市'],
+    birthDate: '出生日期',
+    birthTime: '出生时间',
+    birthPlace: '出生地点',
+    setDate: '设定日期',
+    setTime: '设定时间',
+    confirmCity: '确认城市',
+    exactHint:
+      '建议输入 Exact time（准确时间）。时间越准确，四柱解读越清晰；不知道也可以继续。',
+    timeQuestion: '出生时间的准确程度',
+    exact: '准确',
+    approximate: '大概',
+    unknown: '未知',
+    unknownHint:
+      '不会猜测时辰。本次将使用三柱，并降低所有依赖时间的判断置信度。',
+    birthDateWheel: '使用日期滚轮',
+    typeDate: '改为手动输入日期',
+    birthTimeWheel: '使用时间滚轮',
+    typeTime: '改为手动输入时间',
+    confirm: '确认',
+    back: '返回',
+    continue: '继续',
+    optionalName: '姓名 · 选填',
+    optionalGender: '性别 · 选填',
+    namePlaceholder: '希望我们如何称呼你？',
+    male: '男',
+    female: '女',
+    undisclosed: '不透露',
+    placeOfBirth: '出生地点',
+    cityHint: '填写城市即可；同名城市请补充国家或地区。',
+    locationConfirmed: '地点已确认',
+    confirmThisCity: '确认这个城市',
+    confirmingCity: '正在确认城市',
+    readingDepth: '解读深度',
+    essential: '基础 · 更快',
+    deep: '深度 · 较慢',
+    share: '我愿意分享匿名反馈，帮助我们改进这个原型。此项为自愿选择。',
+    provider:
+      '为了生成解读，你提供的生日、城市和其他选填信息会发送给 AI 服务。',
+    reveal: '查看我的解读',
+    privacy:
+      '出生信息只用于生成本次解读，不会由本原型保存。解读仅供自我反思，不替代专业建议。',
+  },
+} as const;
+
 function pad(value: number) {
   return String(value).padStart(2, '0');
 }
@@ -342,9 +434,15 @@ export default function Home() {
     }
   }
 
+  const copy = locale === 'zh' ? intakeCopy.zh : intakeCopy.en;
+
   return (
     <main className="min-h-screen bg-[#f2efe8] text-[#181714]">
-      <SiteHeader />
+      <SiteHeader
+        locale={locale}
+        onLocaleChange={setLocale}
+        showLanguageToggle={!reading}
+      />
       {reading ? (
         <ReadingResult
           reading={reading}
@@ -352,7 +450,7 @@ export default function Home() {
           onReset={resetReading}
         />
       ) : !hasStarted ? (
-        <LandingPage onBegin={() => setHasStarted(true)} />
+        <LandingPage locale={locale} onBegin={() => setHasStarted(true)} />
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
@@ -361,31 +459,46 @@ export default function Home() {
                 <span className="font-serif text-3xl">命</span>
               </div>
               <p className="mb-7 text-[10px] font-semibold tracking-[0.24em] text-[#9d3027] uppercase">
-                Four pillars · one moment in time
+                {locale === 'zh'
+                  ? '四柱 · 一个出生时刻'
+                  : 'Four pillars · one moment in time'}
               </p>
               <h1 className="max-w-xl font-serif text-[clamp(3.5rem,6.5vw,6.7rem)] leading-[0.9] font-medium tracking-[-0.055em]">
-                Begin where your story began.
+                {locale === 'zh'
+                  ? '从故事开始的地方开始。'
+                  : 'Begin where your story began.'}
               </h1>
               <p className="mt-8 max-w-md font-serif text-2xl leading-8 text-black/72">
-                Discover the patterns Chinese astrology sees in your life.
+                {locale === 'zh'
+                  ? '看看中国传统命理如何描述你的人生结构。'
+                  : 'Discover the patterns Chinese astrology sees in your life.'}
               </p>
               <p className="mt-4 max-w-md text-sm leading-7 text-black/55">
-                Set the moment and city of your birth. MING translates an old
-                Chinese method into a quiet, modern reflection on the pattern
-                you carry.
+                {locale === 'zh'
+                  ? '设定出生的日期与城市，MING 会把古老的中国方法转化为一份安静、现代的结构反思。'
+                  : 'Set the moment and city of your birth. MING translates an old Chinese method into a quiet, modern reflection on the pattern you carry.'}
               </p>
               <div className="mt-10 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
                 <span className="h-px w-10 bg-[#9d3027]/55" />
-                No prophecy · a pattern to consider
+                {locale === 'zh'
+                  ? '不是预言 · 是一份可核对的结构'
+                  : 'No prophecy · a pattern to consider'}
               </div>
             </div>
 
             <div className="animate-rise-delayed mt-16 space-y-4 border-t border-black/10 pt-6 text-xs text-black/42">
-              {[
-                'Your city confirms location and civil time zone',
-                'Unknown birth time remains a valid path',
-                'One reading covers character, work, love, and timing',
-              ].map((item) => (
+              {(locale === 'zh'
+                ? [
+                    '城市用于确认当地时区',
+                    '不知道时辰也可以继续',
+                    '一份解读覆盖性格、事业、关系与时机',
+                  ]
+                : [
+                    'Your city confirms location and civil time zone',
+                    'Unknown birth time remains a valid path',
+                    'One reading covers character, work, love, and timing',
+                  ]
+              ).map((item) => (
                 <p className="flex items-start gap-3" key={item}>
                   <Check className="mt-0.5 size-3.5 text-[#9d3027]" />
                   {item}
@@ -400,10 +513,14 @@ export default function Home() {
                 <span className="font-serif text-2xl">命</span>
               </div>
               <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-                A quiet reading of your pattern
+                {locale === 'zh'
+                  ? '一份安静的命盘解读'
+                  : 'A quiet reading of your pattern'}
               </p>
               <p className="mt-3 max-w-sm font-serif text-3xl leading-9">
-                Discover the patterns Chinese astrology sees in your life.
+                {locale === 'zh'
+                  ? '看看中国传统命理如何描述你的人生结构。'
+                  : 'Discover the patterns Chinese astrology sees in your life.'}
               </p>
             </div>
             <form
@@ -431,16 +548,10 @@ export default function Home() {
                   </p>
                   <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em] sm:text-5xl">
                     {step === 1
-                      ? locale === 'zh'
-                        ? '设定日期'
-                        : 'Set the date.'
+                      ? copy.setDate
                       : step === 2
-                        ? locale === 'zh'
-                          ? '设定时间'
-                          : 'Set the hour.'
-                        : locale === 'zh'
-                          ? '确认城市'
-                          : 'Confirm the city.'}
+                        ? copy.setTime
+                        : copy.confirmCity}
                   </h2>
                 </div>
                 <span className="pb-2 text-[10px] font-semibold tracking-[0.16em] text-black/32 uppercase">
@@ -449,10 +560,12 @@ export default function Home() {
               </div>
 
               <ol
-                aria-label="Birth reading steps"
+                aria-label={
+                  locale === 'zh' ? '出生信息步骤' : 'Birth reading steps'
+                }
                 className="mt-8 grid grid-cols-3 border-y border-black/10"
               >
-                {(['Date', 'Time', 'City'] as const).map((label, index) => {
+                {copy.stepLabels.map((label, index) => {
                   const item = index + 1;
                   return (
                     <li
@@ -474,7 +587,7 @@ export default function Home() {
                 <div className="mt-8">
                   {directInput ? (
                     <label className="block" htmlFor="directDate">
-                      <span className="field-label">Birth date</span>
+                      <span className="field-label">{copy.birthDate}</span>
                       <Input
                         className="minimal-input"
                         id="directDate"
@@ -510,9 +623,7 @@ export default function Home() {
                     onClick={() => setDirectInput((value) => !value)}
                     type="button"
                   >
-                    {directInput
-                      ? 'Use the birth wheel'
-                      : 'Type the date instead'}
+                    {directInput ? copy.birthDateWheel : copy.typeDate}
                   </button>
                   <Button
                     className="glow-control mt-8 h-14 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.14em] uppercase hover:bg-[#9d3027]"
@@ -520,7 +631,7 @@ export default function Home() {
                     onClick={() => setStep(2)}
                     type="button"
                   >
-                    Confirm {birthValue.year} · {pad(birthValue.month)} ·{' '}
+                    {copy.confirm} {birthValue.year} · {pad(birthValue.month)} ·{' '}
                     {pad(birthValue.day)}
                     <ArrowUpRight className="size-4" />
                   </Button>
@@ -530,12 +641,9 @@ export default function Home() {
               {step === 2 ? (
                 <div className="mt-8">
                   <fieldset>
-                    <legend className="field-label">
-                      How certain is the time?
-                    </legend>
+                    <legend className="field-label">{copy.timeQuestion}</legend>
                     <p className="mb-4 text-xs leading-5 text-black/45">
-                      Exact is recommended. A precise birth time gives the
-                      clearest four-pillar reading; unknown is still valid.
+                      {copy.exactHint}
                     </p>
                     <div
                       className="grid grid-cols-3 border border-black/12"
@@ -543,9 +651,9 @@ export default function Home() {
                     >
                       {(
                         [
-                          ['exact', 'Exact'],
-                          ['approximate', 'Approximate'],
-                          ['unknown', 'Unknown'],
+                          ['exact', copy.exact],
+                          ['approximate', copy.approximate],
+                          ['unknown', copy.unknown],
                         ] as const
                       ).map(([value, label]) => (
                         <label
@@ -576,12 +684,11 @@ export default function Home() {
 
                   {timeConfidence === 'unknown' ? (
                     <p className="mt-8 border-l-2 border-[#9d3027] pl-4 text-sm leading-6 text-black/52">
-                      No hour will be guessed. The reading will use three
-                      pillars and lower confidence where time matters.
+                      {copy.unknownHint}
                     </p>
                   ) : directInput ? (
                     <label className="mt-8 block" htmlFor="directTime">
-                      <span className="field-label">Birth time</span>
+                      <span className="field-label">{copy.birthTime}</span>
                       <Input
                         className="minimal-input"
                         id="directTime"
@@ -624,9 +731,7 @@ export default function Home() {
                       onClick={() => setDirectInput((value) => !value)}
                       type="button"
                     >
-                      {directInput
-                        ? 'Use the birth wheel'
-                        : 'Type the time instead'}
+                      {directInput ? copy.birthTimeWheel : copy.typeTime}
                     </button>
                   ) : null}
 
@@ -637,7 +742,7 @@ export default function Home() {
                       type="button"
                       variant="outline"
                     >
-                      Back
+                      {copy.back}
                     </Button>
                     <Button
                       className="glow-control h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
@@ -657,7 +762,7 @@ export default function Home() {
                       }}
                       type="button"
                     >
-                      Continue <ArrowUpRight className="size-4" />
+                      {copy.continue} <ArrowUpRight className="size-4" />
                     </Button>
                   </div>
                 </div>
@@ -667,27 +772,29 @@ export default function Home() {
                 <div className="mt-10">
                   <div className="mb-8 grid gap-6 sm:grid-cols-[1.1fr_0.9fr]">
                     <label className="block" htmlFor="name">
-                      <span className="field-label">Name · optional</span>
+                      <span className="field-label">{copy.optionalName}</span>
                       <Input
                         className="minimal-input"
                         id="name"
                         maxLength={80}
                         onChange={(event) => setName(event.target.value)}
-                        placeholder="How should we address you?"
+                        placeholder={copy.namePlaceholder}
                         value={name}
                       />
                     </label>
                     <fieldset>
-                      <legend className="field-label">Gender · optional</legend>
+                      <legend className="field-label">
+                        {copy.optionalGender}
+                      </legend>
                       <div
                         className="grid grid-cols-3 border border-black/12"
                         role="radiogroup"
                       >
                         {(
                           [
-                            ['male', 'Male'],
-                            ['female', 'Female'],
-                            ['undisclosed', 'Prefer not to say'],
+                            ['male', copy.male],
+                            ['female', copy.female],
+                            ['undisclosed', copy.undisclosed],
                           ] as const
                         ).map(([value, label]) => (
                           <label
@@ -709,7 +816,7 @@ export default function Home() {
                     </fieldset>
                   </div>
                   <label className="block" htmlFor="birthPlace">
-                    <span className="field-label">Place of birth</span>
+                    <span className="field-label">{copy.placeOfBirth}</span>
                     <span className="relative block">
                       <MapPin className="pointer-events-none absolute top-1/2 left-1 size-4 -translate-y-1/2 text-[#9d3027]" />
                       <Input
@@ -719,20 +826,24 @@ export default function Home() {
                           setBirthPlace(event.target.value);
                           setConfirmedPlace(null);
                         }}
-                        placeholder="Melbourne, Australia"
+                        placeholder={
+                          locale === 'zh'
+                            ? '例如：墨尔本，澳大利亚'
+                            : 'Melbourne, Australia'
+                        }
                         required
                         value={birthPlace}
                       />
                     </span>
                     <span className="mt-2 block text-xs leading-5 text-black/42">
-                      City is enough. Add the country when cities share a name.
+                      {copy.cityHint}
                     </span>
                   </label>
 
                   {confirmedPlace ? (
                     <div className="mt-6 border border-black/10 bg-white/25 p-4">
                       <p className="text-xs font-semibold text-[#9d3027]">
-                        Location confirmed
+                        {copy.locationConfirmed}
                       </p>
                       <p className="mt-2 text-sm leading-6 text-black/58">
                         {confirmedPlace.label}
@@ -751,20 +862,18 @@ export default function Home() {
                       {resolvingPlace ? (
                         <>
                           <LoaderCircle className="size-4 animate-spin" />
-                          Confirming city
+                          {copy.confirmingCity}
                         </>
                       ) : (
-                        'Confirm this city'
+                        copy.confirmThisCity
                       )}
                     </Button>
                   )}
 
                   <div className="mt-7 block">
                     <div className="grid gap-5 sm:grid-cols-2">
-                      <span>
-                        <span className="field-label">
-                          {locale === 'zh' ? '解读深度' : 'Reading depth'}
-                        </span>
+                      <span className="max-w-xs">
+                        <span className="field-label">{copy.readingDepth}</span>
                         <NativeSelect
                           className="minimal-select"
                           id="tier"
@@ -773,32 +882,8 @@ export default function Home() {
                           }
                           value={tier}
                         >
-                          <option value="free">
-                            {locale === 'zh'
-                              ? '基础 · 更快'
-                              : 'Essential · quicker'}
-                          </option>
-                          <option value="premium">
-                            {locale === 'zh'
-                              ? '深度 · 较慢'
-                              : 'Deep reading · slower'}
-                          </option>
-                        </NativeSelect>
-                      </span>
-                      <span>
-                        <span className="field-label">
-                          {locale === 'zh' ? '语言' : 'Language'}
-                        </span>
-                        <NativeSelect
-                          className="minimal-select"
-                          id="locale"
-                          onChange={(event) =>
-                            setLocale(event.target.value as ReadingLocale)
-                          }
-                          value={locale}
-                        >
-                          <option value="en">English</option>
-                          <option value="zh">简体中文</option>
+                          <option value="free">{copy.essential}</option>
+                          <option value="premium">{copy.deep}</option>
                         </NativeSelect>
                       </span>
                     </div>
@@ -814,14 +899,10 @@ export default function Home() {
                         }
                         type="checkbox"
                       />
-                      <span>
-                        I’m willing to share anonymous feedback to help us make
-                        this prototype better. This is optional.
-                      </span>
+                      <span>{copy.share}</span>
                     </label>
                     <p className="text-[11px] leading-5 text-black/38">
-                      To generate your reading, your birth date, city, and any
-                      optional details you provide are sent to our AI provider.
+                      {copy.provider}
                     </p>
                     <TurnstileField onToken={setTurnstileToken} />
                   </div>
@@ -833,7 +914,7 @@ export default function Home() {
                       type="button"
                       variant="outline"
                     >
-                      Back
+                      {copy.back}
                     </Button>
                     <Button
                       className="glow-control h-14 rounded-none bg-[#1b1a17] text-xs tracking-[0.11em] uppercase hover:bg-[#9d3027]"
@@ -847,7 +928,7 @@ export default function Home() {
                         </>
                       ) : (
                         <>
-                          Reveal my reading <ArrowUpRight className="size-4" />
+                          {copy.reveal} <ArrowUpRight className="size-4" />
                         </>
                       )}
                     </Button>
@@ -866,11 +947,7 @@ export default function Home() {
 
               <div className="mt-7 flex items-start gap-2.5 text-xs leading-5 text-black/40">
                 <LockKeyhole className="mt-0.5 size-3.5 shrink-0" />
-                <p>
-                  Birth details are processed to create this reading and are not
-                  stored by this prototype. Interpretation is for reflection,
-                  not professional advice.
-                </p>
+                <p>{copy.privacy}</p>
               </div>
             </form>
           </div>
@@ -881,24 +958,35 @@ export default function Home() {
   );
 }
 
-function LandingPage({ onBegin }: { onBegin: () => void }) {
+function LandingPage({
+  locale,
+  onBegin,
+}: {
+  locale: ReadingLocale;
+  onBegin: () => void;
+}) {
+  const isZh = locale === 'zh';
   return (
     <section className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[1280px] items-center gap-14 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20 lg:px-14 lg:py-24">
       <div className="animate-rise max-w-2xl">
         <p className="mb-7 text-[10px] font-semibold tracking-[0.24em] text-[#9d3027] uppercase">
-          Four pillars · one moment in time
+          {isZh ? '四柱 · 一个出生时刻' : 'Four pillars · one moment in time'}
         </p>
         <h1 className="max-w-3xl font-serif text-[clamp(3.5rem,8vw,7.4rem)] leading-[0.88] font-medium tracking-[-0.06em]">
-          Read the pattern
-          <span className="block text-[#9d3027]">beneath the moment.</span>
+          {isZh ? '读懂时刻' : 'Read the pattern'}
+          <span className="block text-[#9d3027]">
+            {isZh ? '之下的结构。' : 'beneath the moment.'}
+          </span>
         </h1>
         <p className="mt-9 max-w-xl font-serif text-2xl leading-9 text-black/70 sm:text-3xl sm:leading-10">
-          Discover what your birth date, time, and city reveal through an old
-          Chinese system of timing and balance.
+          {isZh
+            ? '用出生日期、时间和城市，看看中国传统命理如何描述你的节奏与平衡。'
+            : 'Discover what your birth date, time, and city reveal through an old Chinese system of timing and balance.'}
         </p>
         <p className="mt-5 max-w-lg text-sm leading-7 text-black/52">
-          MING turns BaZi into a clear, personal reflection on your character,
-          work, relationships, and the chapters you have already lived.
+          {isZh
+            ? 'MING 将八字转化为清晰、个人化的反思，帮助你回看性格、事业、关系与已经走过的阶段。'
+            : 'MING turns BaZi into a clear, personal reflection on your character, work, relationships, and the chapters you have already lived.'}
         </p>
         <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           <Button
@@ -906,16 +994,20 @@ function LandingPage({ onBegin }: { onBegin: () => void }) {
             onClick={onBegin}
             type="button"
           >
-            Begin your reading
+            {isZh ? '开始解读' : 'Begin your reading'}
             <ArrowUpRight className="size-4" />
           </Button>
           <span className="text-xs text-black/38">
-            Free first reading · no account required
+            {isZh
+              ? '首次基础解读免费 · 无需注册'
+              : 'Free first reading · no account required'}
           </span>
         </div>
         <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
           <span className="h-px w-10 bg-[#9d3027]/55" />
-          No prophecy · a pattern to consider
+          {isZh
+            ? '不是预言 · 是一份可核对的结构'
+            : 'No prophecy · a pattern to consider'}
         </div>
       </div>
 
@@ -925,10 +1017,10 @@ function LandingPage({ onBegin }: { onBegin: () => void }) {
           <div className="flex items-center justify-between border-b border-black/10 pb-5">
             <div>
               <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-                Your starting point
+                {isZh ? '你的起点' : 'Your starting point'}
               </p>
               <p className="mt-2 font-serif text-2xl">
-                Three details. One map.
+                {isZh ? '三个信息，一张命盘。' : 'Three details. One map.'}
               </p>
             </div>
             <span className="grid size-12 place-items-center border border-[#9d3027]/30 font-serif text-2xl text-[#9d3027]">
@@ -936,11 +1028,18 @@ function LandingPage({ onBegin }: { onBegin: () => void }) {
             </span>
           </div>
           <div className="divide-y divide-black/10">
-            {[
-              ['01', 'Date', 'The day your story began'],
-              ['02', 'Time', 'The rhythm within the day'],
-              ['03', 'City', 'The place that sets the clock'],
-            ].map(([number, title, description]) => (
+            {(isZh
+              ? [
+                  ['01', '日期', '故事开始的那一天'],
+                  ['02', '时间', '一天之中的节奏'],
+                  ['03', '城市', '确定当地时间的地点'],
+                ]
+              : [
+                  ['01', 'Date', 'The day your story began'],
+                  ['02', 'Time', 'The rhythm within the day'],
+                  ['03', 'City', 'The place that sets the clock'],
+                ]
+            ).map(([number, title, description]) => (
               <div className="flex gap-5 py-6" key={number}>
                 <span className="pt-1 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027]">
                   {number}
@@ -955,7 +1054,9 @@ function LandingPage({ onBegin }: { onBegin: () => void }) {
             ))}
           </div>
           <p className="border-t border-black/10 pt-5 text-xs leading-5 text-black/40">
-            Exact time gives more detail. Unknown is still a valid way to begin.
+            {isZh
+              ? '准确时间会带来更多细节；不知道时辰也可以开始。'
+              : 'Exact time gives more detail. Unknown is still a valid way to begin.'}
           </p>
         </div>
       </div>
@@ -963,7 +1064,15 @@ function LandingPage({ onBegin }: { onBegin: () => void }) {
   );
 }
 
-function SiteHeader() {
+function SiteHeader({
+  locale,
+  onLocaleChange,
+  showLanguageToggle,
+}: {
+  locale: ReadingLocale;
+  onLocaleChange: (locale: ReadingLocale) => void;
+  showLanguageToggle: boolean;
+}) {
   return (
     <header className="sticky top-0 z-30 mx-auto flex h-20 max-w-[1280px] items-center justify-between border-b border-black/10 bg-[#f2efe8]/88 px-6 backdrop-blur-md sm:px-10 lg:px-14">
       <div className="flex items-center gap-3">
@@ -974,9 +1083,27 @@ function SiteHeader() {
       </div>
       <div className="flex items-center gap-4">
         <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
-        <p className="max-[420px]:hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase">
-          Private beta · Four Pillars
+        <p className="hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase min-[560px]:block">
+          {locale === 'zh' ? '内测版 · 四柱' : 'Private beta · Four Pillars'}
         </p>
+        {showLanguageToggle ? (
+          <div
+            aria-label="Language"
+            className="flex items-center border border-black/12 text-[10px] font-semibold tracking-[0.12em] uppercase"
+          >
+            {(['en', 'zh'] as const).map((value) => (
+              <button
+                aria-pressed={locale === value}
+                className={`px-2.5 py-2 transition-colors ${locale === value ? 'bg-[#1b1a17] text-white' : 'text-black/42 hover:bg-black/[0.04]'}`}
+                key={value}
+                onClick={() => onLocaleChange(value)}
+                type="button"
+              >
+                {value === 'en' ? 'EN' : '中文'}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </header>
   );
