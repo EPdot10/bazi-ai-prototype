@@ -18,6 +18,8 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 6. Unlock Relationships and Looking Ahead with the shared prototype Jade Pass `666`.
 7. Start another reading using New reading.
 
+The fixed MING mark in the top-left header is also a Home action: it clears the current reading/form and returns to the introductory landing page.
+
 ## Key implementation locations
 
 - `app/page.tsx` — intake flow, loading experience, result navigation, feedback controls, and Jade Pass UI.
@@ -89,7 +91,8 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 - Exact-time defaults to minute `30` instead of `00` so the minute wheel is easier to reach from either direction.
 - Hour and minute columns now use three-cycle looping lists, so values wrap smoothly from `00` to `23`/`59` and back.
-- Desktop wheel scrolling is handled inside the wheel, with upward scrolling moving to the previous value and downward scrolling to the next; it no longer scrolls the page.
+- Desktop wheel scrolling is handled inside the entire wheel region, with upward scrolling moving to the previous value and downward scrolling to the next; wheel events and touch movement no longer scroll the page behind it.
+- The home/header control is available in both the intake and result states and returns to the introductory landing page.
 - The loading overlay now receives the selected locale and renders every stage, label, accessibility announcement, and explanatory sentence in Simplified Chinese when Chinese is selected.
 
 ## Known limitations and debt
