@@ -213,12 +213,12 @@ export function BirthWheel({
       onPointerCancelCapture={handleMouseUp}
       onWheelCapture={(event) => {
         onInteract?.();
+        if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
         const column = (event.target as HTMLElement).closest<HTMLElement>(
           '[data-wheel-column]',
         )?.dataset.wheelColumn as WheelColumn | undefined;
         if (!column) return;
-        if (event.cancelable) event.preventDefault();
-        event.stopPropagation();
         wheelRemainder.current += event.deltaY;
         while (Math.abs(wheelRemainder.current) >= 28) {
           // Scrolling up moves toward the previous value; scrolling down
@@ -228,6 +228,9 @@ export function BirthWheel({
           stepColumn(column, direction);
           wheelRemainder.current -= direction * 28;
         }
+      }}
+      onTouchMoveCapture={(event) => {
+        if (event.cancelable) event.preventDefault();
       }}
     >
       <p className="sr-only">

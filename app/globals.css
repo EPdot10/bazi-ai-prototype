@@ -147,7 +147,7 @@ main {
 .birth-wheel {
   user-select: none;
   touch-action: none;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 .birth-wheel > div.relative {

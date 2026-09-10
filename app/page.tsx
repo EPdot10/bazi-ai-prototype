@@ -450,6 +450,7 @@ export default function Home() {
       <SiteHeader
         locale={locale}
         onLocaleChange={setLocale}
+        onHome={resetReading}
         showLanguageToggle={!reading}
       />
       {reading ? (
@@ -1048,20 +1049,29 @@ function LandingPage({
 function SiteHeader({
   locale,
   onLocaleChange,
+  onHome,
   showLanguageToggle,
 }: {
   locale: ReadingLocale;
   onLocaleChange: (locale: ReadingLocale) => void;
+  onHome: () => void;
   showLanguageToggle: boolean;
 }) {
   return (
     <header className="sticky top-0 z-30 mx-auto flex h-20 max-w-[1280px] items-center justify-between border-b border-black/10 bg-[#f2efe8]/88 px-6 backdrop-blur-md sm:px-10 lg:px-14">
-      <div className="flex items-center gap-3">
+      <button
+        aria-label={locale === 'zh' ? '返回首页' : 'Return to home'}
+        className="group flex items-center gap-3"
+        onClick={onHome}
+        type="button"
+      >
         <span className="grid size-8 place-items-center bg-[#9d3027] font-serif text-sm text-white shadow-[0_5px_18px_rgb(157_48_39_/_18%)]">
           命
         </span>
-        <span className="font-serif text-xl tracking-[0.2em]">MING</span>
-      </div>
+        <span className="font-serif text-xl tracking-[0.2em] transition-colors group-hover:text-[#9d3027]">
+          MING
+        </span>
+      </button>
       <div className="flex items-center gap-4">
         <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
         <p className="hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase min-[560px]:block">
