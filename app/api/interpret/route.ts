@@ -404,28 +404,56 @@ function requireInterpretation(
   }
 
   const lifeAreas = candidate.lifeAreas as Record<string, unknown>;
+  const stringArray = (value: unknown) =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : [];
   const validArea = (area: unknown) => {
     if (!area || typeof area !== 'object') return false;
     const item = area as Record<string, unknown>;
     return (
       typeof item.headline === 'string' &&
       typeof item.narrative === 'string' &&
-      Array.isArray(item.strengths) &&
-      Array.isArray(item.frictions) &&
-      typeof item.stressPattern === 'string' &&
-      typeof item.possibleCost === 'string' &&
-      Array.isArray(item.actions) &&
       typeof item.basis === 'string' &&
       typeof item.confidence === 'string'
     );
   };
-  if (
-    ['character', 'career', 'relationships', 'timing'].some(
-      (key) => !validArea(lifeAreas[key]),
-    )
-  ) {
-    throw new Error('DeepSeek returned incomplete life-area analysis');
+  const areaKeys = ['character', 'career', 'relationships', 'timing'] as const;
+  const invalidAreaKeys = areaKeys.filter((key) => !validArea(lifeAreas[key]));
+  if (invalidAreaKeys.length) {
+    throw new Error(
+      `DeepSeek returned incomplete life-area analysis (${invalidAreaKeys.join(', ')})`,
+    );
   }
+  // Keep the model response as the source of truth, but accept the older
+  // signals/guidance shape and optional omissions so one missing enrichment
+  // field cannot block the entire reading. The UI already handles these
+  // normalized arrays without inventing a chart interpretation.
+  candidate.lifeAreas = Object.fromEntries(
+    areaKeys.map((key) => {
+      const item = lifeAreas[key] as Record<string, unknown>;
+      const signals = stringArray(item.signals);
+      const strengths = stringArray(item.strengths);
+      const frictions = stringArray(item.frictions);
+      const actions = stringArray(item.actions);
+      return [
+        key,
+        {
+          ...item,
+          strengths: strengths.length ? strengths : signals.slice(0, 2),
+          frictions: frictions.length ? frictions : signals.slice(2),
+          actions:
+            actions.length || typeof item.guidance !== 'string'
+              ? actions
+              : [item.guidance],
+          stressPattern:
+            typeof item.stressPattern === 'string' ? item.stressPattern : '',
+          possibleCost:
+            typeof item.possibleCost === 'string' ? item.possibleCost : '',
+        },
+      ];
+    }),
+  );
 
   const validForecast = candidate.futureForecasts.every((forecast) => {
     if (!forecast || typeof forecast !== 'object') return false;
