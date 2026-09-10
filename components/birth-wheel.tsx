@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Picker from 'react-mobile-picker';
 
 export interface BirthWheelValue {
@@ -69,6 +69,7 @@ export function BirthWheel({
     lastY: number;
     remainder: number;
   } | null>(null);
+  const wheelRoot = useRef<HTMLDivElement | null>(null);
   const days = useMemo(() => {
     const dayCount = new Date(value.year, value.month, 0).getDate();
     return Array.from({ length: dayCount }, (_, index) =>
@@ -144,24 +145,62 @@ export function BirthWheel({
     onInteract?.();
   }
 
-  function stepColumn(column: WheelColumn, direction: 1 | -1) {
-    const next = { ...value };
-    if (column === 'year') {
-      next.year = Math.min(currentYear, Math.max(1920, next.year + direction));
-    }
-    if (column === 'month') {
-      next.month = ((next.month - 1 + direction + 12) % 12) + 1;
-    }
-    if (column === 'day') {
+  const stepColumn = useCallback(
+    (column: WheelColumn, direction: 1 | -1) => {
+      const next = { ...value };
+      if (column === 'year') {
+        next.year = Math.min(
+          currentYear,
+          Math.max(1920, next.year + direction),
+        );
+      }
+      if (column === 'month') {
+        next.month = ((next.month - 1 + direction + 12) % 12) + 1;
+      }
+      if (column === 'day') {
+        const dayCount = new Date(next.year, next.month, 0).getDate();
+        next.day = ((next.day - 1 + direction + dayCount) % dayCount) + 1;
+      }
+      if (column === 'hour') next.hour = (next.hour + direction + 24) % 24;
+      if (column === 'minute')
+        next.minute = (next.minute + direction + 60) % 60;
       const dayCount = new Date(next.year, next.month, 0).getDate();
-      next.day = ((next.day - 1 + direction + dayCount) % dayCount) + 1;
+      next.day = Math.min(next.day, dayCount);
+      onChange(next);
+    },
+    [onChange, value],
+  );
+
+  useEffect(() => {
+    const root = wheelRoot.current;
+    if (!root) return;
+
+    function handleNativeWheel(event: WheelEvent) {
+      // react-mobile-picker installs its own wheel listener on each column.
+      // Handle desktop wheels at a non-passive ancestor first so the browser
+      // cannot scroll the page, then keep the picker in controlled mode.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onInteract?.();
+      const column = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-wheel-column]',
+      )?.dataset.wheelColumn as WheelColumn | undefined;
+      if (!column) return;
+      wheelRemainder.current += event.deltaY;
+      while (Math.abs(wheelRemainder.current) >= 28) {
+        const direction = wheelRemainder.current < 0 ? -1 : 1;
+        stepColumn(column, direction);
+        wheelRemainder.current -= direction * 28;
+      }
     }
-    if (column === 'hour') next.hour = (next.hour + direction + 24) % 24;
-    if (column === 'minute') next.minute = (next.minute + direction + 60) % 60;
-    const dayCount = new Date(next.year, next.month, 0).getDate();
-    next.day = Math.min(next.day, dayCount);
-    onChange(next);
-  }
+
+    root.addEventListener('wheel', handleNativeWheel, {
+      capture: true,
+      passive: false,
+    });
+    return () =>
+      root.removeEventListener('wheel', handleNativeWheel, { capture: true });
+  }, [onInteract, stepColumn]);
 
   function handleMouseDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType !== 'mouse') {
@@ -206,29 +245,12 @@ export function BirthWheel({
     <div
       className="birth-wheel"
       aria-label={mode === 'date' ? 'Birth date wheel' : 'Birth time wheel'}
+      ref={wheelRoot}
       onKeyDownCapture={onInteract}
       onPointerDownCapture={handleMouseDown}
       onPointerMoveCapture={handleMouseMove}
       onPointerUpCapture={handleMouseUp}
       onPointerCancelCapture={handleMouseUp}
-      onWheelCapture={(event) => {
-        onInteract?.();
-        if (event.cancelable) event.preventDefault();
-        event.stopPropagation();
-        const column = (event.target as HTMLElement).closest<HTMLElement>(
-          '[data-wheel-column]',
-        )?.dataset.wheelColumn as WheelColumn | undefined;
-        if (!column) return;
-        wheelRemainder.current += event.deltaY;
-        while (Math.abs(wheelRemainder.current) >= 28) {
-          // Scrolling up moves toward the previous value; scrolling down
-          // moves toward the next value. This keeps mouse and touch movement
-          // aligned and avoids the browser's page-scroll gesture.
-          const direction = wheelRemainder.current < 0 ? -1 : 1;
-          stepColumn(column, direction);
-          wheelRemainder.current -= direction * 28;
-        }
-      }}
       onTouchMoveCapture={(event) => {
         if (event.cancelable) event.preventDefault();
       }}
@@ -268,7 +290,7 @@ export function BirthWheel({
           itemHeight={42}
           onChange={handleChange}
           value={pickerValue}
-          wheelMode="natural"
+          wheelMode="off"
         >
           {mode === 'date' ? (
             <>
