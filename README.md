@@ -11,7 +11,9 @@ An English-language, mobile-first prototype for Chinese BaZi and Five Element re
 - Deterministic BaZi pillars, Day Master, visible element balance, calculation notes, and annual timing signals.
 - DeepSeek V4.1 Flash interpretation with server-side calls and explicit error reporting when the provider is unavailable.
 - Result views for Looking Back, Character, Career, Relationships, Timing, and Method.
-- Relationship content lock with the prototype Jade Pass `666`.
+- A separate Looking Ahead view built from server-calculated future annual signals, with conditional opportunity, pressure, risk, warning, and action fields.
+- Relationship and Looking Ahead content share the prototype Jade Pass `666`.
+- Balanced life-area sections explicitly cover strengths, friction, stress behaviour, possible costs, and actions instead of defaulting to flattering prose.
 - Saved test fixtures remain in the repository but are currently disabled while model quality is being evaluated.
 - Responsive local preview available to phones on the same LAN.
 
@@ -81,7 +83,7 @@ The production build currently succeeds. Full-project lint still reports issues 
 
 ## Request flow
 
-`birth details → place/time-zone resolution → deterministic chart calculation → anonymised chart facts → DeepSeek V4.1 Flash interpretation → result UI`
+`birth details → place/time-zone resolution → deterministic past/future chart signals → bounded DeepSeek V4.1 Flash interpretation → result UI`
 
 The saved test-date branch is currently disabled.
 
@@ -100,6 +102,7 @@ The saved test-date branch is currently disabled.
 
 - This is a private prototype, not a scientific or professional-advice product.
 - Historical time-zone and traditional chart conventions need expert review before commercial launch.
+- Ziwei Dou Shu is an explicit experimental direction, but it is not yet calculated. The model is forbidden from inventing palaces, stars, transformations, or major periods until that separate chart layer is implemented and checked against reference charts.
 - The current Jade Pass is a client-side prototype gate, not payment security.
 - Public release still needs authentication, rate limiting, abuse controls, analytics, consent/privacy copy, payment entitlement verification, and production monitoring.
 

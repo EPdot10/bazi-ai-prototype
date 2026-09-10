@@ -25,16 +25,38 @@ type ResultView =
   | 'career'
   | 'relationships'
   | 'timing'
+  | 'future'
   | 'method';
 type LifeAreaKey = 'character' | 'career' | 'relationships' | 'timing';
 
 interface LifeArea {
   headline: string;
   narrative: string;
-  signals: string[];
-  guidance: string;
+  signals?: string[];
+  guidance?: string;
+  strengths?: string[];
+  frictions?: string[];
+  stressPattern?: string;
+  possibleCost?: string;
+  actions?: string[];
   basis: string;
   confidence: string;
+}
+
+interface FutureForecast {
+  year: number;
+  age?: number;
+  theme: string;
+  opportunity: string;
+  pressure: string;
+  riskScenario: string;
+  triggerConditions: string[];
+  earlySignals: string[];
+  actions: string[];
+  avoid: string[];
+  basis: string;
+  confidence: string;
+  hourSensitive?: boolean;
 }
 
 interface Reading {
@@ -69,6 +91,17 @@ interface Reading {
       evidence: string[];
       confidence: string;
     }>;
+    futureSignals?: Array<{
+      year: number;
+      opportunityScore: number;
+      pressureScore: number;
+      hourSensitive: boolean;
+    }>;
+    systems?: {
+      bazi: 'calculated';
+      ziwei: 'not-calculated';
+      ziweiNote: string;
+    };
   };
   interpretation: {
     summary: string;
@@ -92,6 +125,8 @@ interface Reading {
       confidence: string;
     }>;
     lifeAreas: Record<LifeAreaKey, LifeArea>;
+    futureOverview?: string;
+    futureForecasts?: FutureForecast[];
     reflectionQuestions: string[];
     limitations: string;
   };
@@ -135,6 +170,7 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: 'Career' },
   { value: 'relationships', label: 'Relationships' },
   { value: 'timing', label: 'Timing' },
+  { value: 'future', label: 'Looking ahead' },
   { value: 'method', label: 'Method' },
 ];
 
@@ -144,6 +180,7 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: '事业' },
   { value: 'relationships', label: '关系' },
   { value: 'timing', label: '时机' },
+  { value: 'future', label: '展望未来' },
   { value: 'method', label: '方法' },
 ];
 
@@ -1117,7 +1154,7 @@ function ReadingResult({
   onReset: () => void;
 }) {
   const [view, setView] = useState<ResultView>('past');
-  const [relationshipUnlocked, setRelationshipUnlocked] = useState(false);
+  const [premiumUnlocked, setPremiumUnlocked] = useState(false);
   const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
 
   function moveTab(direction: -1 | 1) {
@@ -1260,16 +1297,27 @@ function ReadingResult({
         {(['character', 'career', 'relationships', 'timing'] as const).includes(
           view as LifeAreaKey,
         ) ? (
-          view === 'relationships' && !relationshipUnlocked ? (
+          view === 'relationships' && !premiumUnlocked ? (
             <LockedLifeArea
               area={reading.interpretation.lifeAreas.relationships}
               locale={locale}
-              onUnlock={() => setRelationshipUnlocked(true)}
+              onUnlock={() => setPremiumUnlocked(true)}
             />
           ) : (
             <LifeAreaView
               area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
               locale={locale}
+            />
+          )
+        ) : null}
+        {view === 'future' ? (
+          premiumUnlocked ? (
+            <FutureView reading={reading} locale={locale} />
+          ) : (
+            <LockedFutureView
+              reading={reading}
+              locale={locale}
+              onUnlock={() => setPremiumUnlocked(true)}
             />
           )
         ) : null}
@@ -1652,6 +1700,225 @@ function PastView({
   );
 }
 
+function LockedFutureView({
+  reading,
+  locale,
+  onUnlock,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+  onUnlock: () => void;
+}) {
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+
+  function unlock() {
+    if (code === '666') {
+      setCodeError('');
+      onUnlock();
+      return;
+    }
+    setCodeError(
+      locale === 'zh'
+        ? '无法识别这个 Jade Pass。'
+        : 'That Jade Pass is not recognised.',
+    );
+  }
+
+  return (
+    <section className="relative overflow-hidden border border-black/10">
+      <div
+        className="pointer-events-none max-h-[620px] select-none overflow-hidden p-8 blur-[7px]"
+        aria-hidden="true"
+      >
+        <FutureView reading={reading} locale={locale} />
+      </div>
+      <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/76 p-6 backdrop-blur-[2px]">
+        <div className="w-full max-w-md border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
+          <span className="mx-auto grid size-10 place-items-center rounded-full border border-[#9d3027]/30 text-[#9d3027]">
+            <LockKeyhole className="size-4" />
+          </span>
+          <p className="mt-5 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+            {locale === 'zh'
+              ? '未来年份 · 测试解锁'
+              : 'Future years · test access'}
+          </p>
+          <h2 className="mt-2 font-serif text-3xl">
+            {locale === 'zh'
+              ? '查看机会、压力与风险'
+              : 'See opportunity, pressure & risk'}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-black/50">
+            {locale === 'zh'
+              ? '同一个 Jade Pass 会同时解锁关系与未来年份分析。'
+              : 'The same Jade Pass unlocks both Relationships and future-year analysis.'}
+          </p>
+          <label className="mt-6 block text-left" htmlFor="futureJadePass">
+            <span className="field-label">Jade Pass</span>
+            <Input
+              className="minimal-input text-center tracking-[0.3em]"
+              id="futureJadePass"
+              onChange={(event) => setCode(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') unlock();
+              }}
+              placeholder={locale === 'zh' ? '输入密码' : 'Enter code'}
+              value={code}
+            />
+          </label>
+          <Button
+            className="glow-control mt-5 h-12 w-full rounded-none bg-[#1b1a17] text-xs tracking-[0.12em] uppercase hover:bg-[#9d3027]"
+            onClick={unlock}
+            type="button"
+          >
+            {locale === 'zh' ? '解锁未来分析' : 'Unlock the outlook'}
+          </Button>
+          {codeError ? (
+            <p className="mt-3 text-xs text-[#9d3027]" role="alert">
+              {codeError}
+            </p>
+          ) : null}
+          <p className="mt-4 text-[10px] leading-4 text-black/30">
+            {locale === 'zh' ? '原型测试密码：666' : 'Prototype test code: 666'}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FutureView({
+  reading,
+  locale,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+}) {
+  const forecasts = reading.interpretation.futureForecasts ?? [];
+  return (
+    <section>
+      <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+        {locale === 'zh' ? '趋势，不是命令' : 'Signals, not certainties'}
+      </p>
+      <h2 className="mt-3 font-serif text-4xl tracking-[-0.03em]">
+        {locale === 'zh'
+          ? '未来几年的明暗两面。'
+          : 'The light and friction ahead.'}
+      </h2>
+      <p className="mt-6 max-w-2xl text-sm leading-7 text-black/58">
+        {reading.interpretation.futureOverview ??
+          (locale === 'zh'
+            ? '当前没有足够强的未来年份信号。较平静的年份更适合积累，而不是强行寻找事件。'
+            : 'There are no strong supplied future-year signals. Quieter years are better read as room to consolidate, not as missing predictions.')}
+      </p>
+
+      {forecasts.length ? (
+        <div className="mt-10 space-y-5">
+          {forecasts.map((forecast) => (
+            <article
+              className="border border-black/10 bg-white/15 p-6 sm:p-8"
+              key={forecast.year}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/10 pb-5">
+                <div>
+                  <p className="font-serif text-4xl text-[#9d3027]">
+                    {forecast.year}
+                  </p>
+                  <h3 className="mt-1 font-serif text-2xl">{forecast.theme}</h3>
+                </div>
+                <div className="text-right text-[9px] tracking-[0.1em] text-black/32 uppercase">
+                  <p>
+                    {forecast.age !== undefined
+                      ? `${locale === 'zh' ? '约' : 'around age'} ${forecast.age}`
+                      : ''}
+                  </p>
+                  <p>
+                    {forecast.confidence}{' '}
+                    {locale === 'zh' ? '置信度' : 'confidence'}
+                  </p>
+                  {forecast.hourSensitive ? (
+                    <p className="mt-1 text-[#9d3027]">
+                      {locale === 'zh' ? '时辰敏感' : 'hour-sensitive'}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="border-l-2 border-emerald-700/55 pl-4">
+                  <p className="text-[9px] font-semibold tracking-[0.14em] text-emerald-800 uppercase">
+                    {locale === 'zh' ? '机会' : 'Opportunity'}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-black/60">
+                    {forecast.opportunity}
+                  </p>
+                </div>
+                <div className="border-l-2 border-[#9d3027] pl-4">
+                  <p className="text-[9px] font-semibold tracking-[0.14em] text-[#9d3027] uppercase">
+                    {locale === 'zh' ? '压力与代价' : 'Pressure & cost'}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-black/60">
+                    {forecast.pressure}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 bg-[#9d3027]/[0.055] p-5">
+                <p className="text-[9px] font-semibold tracking-[0.14em] text-[#9d3027] uppercase">
+                  {locale === 'zh'
+                    ? '如果问题没有处理'
+                    : 'If the pattern is left unattended'}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-black/62">
+                  {forecast.riskScenario}
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                <ForecastList
+                  title={locale === 'zh' ? '留意这些迹象' : 'Early signals'}
+                  items={forecast.earlySignals}
+                />
+                <ForecastList
+                  title={locale === 'zh' ? '可以主动做' : 'Actions with agency'}
+                  items={forecast.actions}
+                />
+                <ForecastList
+                  title={locale === 'zh' ? '触发条件' : 'Trigger conditions'}
+                  items={forecast.triggerConditions}
+                />
+                <ForecastList
+                  title={locale === 'zh' ? '尽量避免' : 'Try to avoid'}
+                  items={forecast.avoid}
+                />
+              </div>
+              <p className="mt-6 border-t border-black/8 pt-4 text-[10px] leading-5 text-black/30">
+                {locale === 'zh' ? '依据：' : 'Basis: '}
+                {forecast.basis}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ForecastList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <p className="text-[9px] font-semibold tracking-[0.13em] text-black/38 uppercase">
+        {title}
+      </p>
+      <ul className="mt-2 space-y-2 text-sm leading-6 text-black/56">
+        {items.map((item) => (
+          <li key={item}>— {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function LifeAreaView({
   area,
   locale,
@@ -1659,6 +1926,9 @@ function LifeAreaView({
   area: LifeArea;
   locale: ReadingLocale;
 }) {
+  const strengths = area.strengths ?? area.signals?.slice(0, 2) ?? [];
+  const frictions = area.frictions ?? area.signals?.slice(2) ?? [];
+  const actions = area.actions ?? (area.guidance ? [area.guidance] : []);
   return (
     <section>
       <div className="flex items-baseline justify-between gap-5">
@@ -1675,18 +1945,60 @@ function LifeAreaView({
         {area.narrative}
       </p>
       <div className="mt-10 grid gap-px bg-black/10 sm:grid-cols-2">
-        {area.signals.map((signal, index) => (
-          <div className="bg-[#f2efe8] p-6" key={signal}>
-            <p className="font-serif text-lg text-[#9d3027]">0{index + 1}</p>
-            <p className="mt-3 text-sm leading-6 text-black/58">{signal}</p>
-          </div>
-        ))}
+        <div className="bg-[#f2efe8] p-6">
+          <p className="text-[9px] font-semibold tracking-[0.14em] text-emerald-800 uppercase">
+            {locale === 'zh' ? '可以依靠的部分' : 'What works in your favour'}
+          </p>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-black/58">
+            {strengths.map((item) => (
+              <li key={item}>— {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-[#f2efe8] p-6">
+          <p className="text-[9px] font-semibold tracking-[0.14em] text-[#9d3027] uppercase">
+            {locale === 'zh'
+              ? '容易付出代价的部分'
+              : 'Where friction can cost you'}
+          </p>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-black/58">
+            {frictions.map((item) => (
+              <li key={item}>— {item}</li>
+            ))}
+          </ul>
+        </div>
       </div>
+
+      {area.stressPattern || area.possibleCost ? (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="border border-black/10 p-5">
+            <p className="text-[9px] font-semibold tracking-[0.14em] text-black/35 uppercase">
+              {locale === 'zh' ? '压力下的反应' : 'Under pressure'}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-black/58">
+              {area.stressPattern}
+            </p>
+          </div>
+          <div className="border border-[#9d3027]/20 bg-[#9d3027]/[0.045] p-5">
+            <p className="text-[9px] font-semibold tracking-[0.14em] text-[#9d3027] uppercase">
+              {locale === 'zh' ? '可能的代价' : 'Possible cost'}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-black/58">
+              {area.possibleCost}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-9 border-l-2 border-[#9d3027] pl-5">
         <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
-          {locale === 'zh' ? '带走这一点' : 'Take with you'}
+          {locale === 'zh' ? '可以主动做' : 'Actions with agency'}
         </p>
-        <p className="mt-2 text-sm leading-6 text-black/62">{area.guidance}</p>
+        <ul className="mt-2 space-y-2 text-sm leading-6 text-black/62">
+          {actions.map((action) => (
+            <li key={action}>— {action}</li>
+          ))}
+        </ul>
       </div>
       <p className="mt-8 text-[10px] leading-5 text-black/30">
         {locale === 'zh' ? '依据：' : 'Basis: '}
@@ -1718,12 +2030,12 @@ function MethodView({
         </p>
         <p className="mt-2">
           {locale === 'zh'
-            ? '本次结果使用八字、节气、真太阳时、藏干、十神与流年冲合。大运和紫微斗数尚未接入结构化计算，因此模型不会对它们作出假设。'
-            : 'This reading uses BaZi, solar terms, apparent solar time, hidden stems, Ten Gods, and annual branch relations. Da Yun and Ziwei Dou Shu are not yet structured here, so the model is instructed not to guess them.'}
+            ? '本次结果使用八字、节气、真太阳时、藏干、十神，以及过去与未来的流年冲合。紫微斗数已列为下一步实验方向，但在星盘事实层完成前，模型不会虚构宫位、星曜或四化。'
+            : 'This reading uses BaZi, solar terms, apparent solar time, hidden stems, Ten Gods, and past and future annual relations. Ziwei Dou Shu is the next experimental direction, but the model cannot invent palaces, stars, or transformations before its chart layer exists.'}
         </p>
       </div>
 
-      <div className="mt-8 grid gap-px bg-black/10 sm:grid-cols-3">
+      <div className="mt-8 grid gap-px bg-black/10 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-[#f2efe8] p-5">
           <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
             {locale === 'zh' ? '日主元素' : 'Day Master element'}
@@ -1748,7 +2060,37 @@ function MethodView({
             {reading.chart.eventCandidates?.length ?? 0}
           </p>
         </div>
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] tracking-[0.12em] text-black/32 uppercase">
+            {locale === 'zh' ? '未来强信号' : 'Future signals'}
+          </p>
+          <p className="mt-2 font-serif text-2xl">
+            {reading.chart.futureSignals?.length ?? 0}
+          </p>
+        </div>
       </div>
+
+      {reading.chart.systems ? (
+        <div className="mt-7 grid gap-3 text-xs leading-5 sm:grid-cols-2">
+          <div className="border border-emerald-800/20 bg-emerald-900/[0.035] p-4">
+            <p className="font-semibold text-emerald-900">
+              {locale === 'zh' ? '八字 · 已计算' : 'BaZi · calculated'}
+            </p>
+          </div>
+          <div className="border border-black/10 p-4 text-black/46">
+            <p className="font-semibold text-black/60">
+              {locale === 'zh'
+                ? '紫微斗数 · 实验准备中'
+                : 'Ziwei Dou Shu · experimental, not calculated'}
+            </p>
+            <p className="mt-1">
+              {locale === 'zh'
+                ? '需要独立排星盘后才能进入解读。'
+                : 'A separate star-chart calculation is required before interpretation.'}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {reading.chart.strengthNotes?.length ? (
         <div className="mt-7 border-l-2 border-[#9d3027] pl-4">

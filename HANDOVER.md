@@ -14,8 +14,8 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 2. Choose Exact, Approximate, or Unknown birth time; Exact is the default.
 3. Enter and confirm a birth city. City plus country is recommended when names are ambiguous.
 4. Wait through the staged reading animation while the server calls DeepSeek V4.1 Flash.
-5. Review retrospective periods first, then move across Character, Career, Relationships, Timing, and Method.
-6. Unlock Relationships with the prototype Jade Pass `666`.
+5. Review retrospective periods first, then move across Character, Career, Relationships, Timing, Looking Ahead, and Method.
+6. Unlock Relationships and Looking Ahead with the shared prototype Jade Pass `666`.
 7. Start another reading using New reading.
 
 ## Key implementation locations
@@ -89,16 +89,18 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 - The input year wheel starts at 1920; earlier dates require direct input.
 - Automated browser control was unavailable during the latest iteration, so the final regression used build, HTTP, and API verification. A manual phone/desktop visual review is still recommended.
 - Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
+- Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
+- Ziwei Dou Shu is approved as the next experimental methodology, without requiring a proprietary user dataset first. It still needs a separate deterministic star-chart layer and a small reference-chart regression set before its facts can enter the model prompt.
 
 ## Recommended next implementation sequence
 
-1. Manually review both fixtures on desktop and phone: reset, date entry, time options, city state, loading transition, all result tabs, feedback buttons, and Jade Pass.
-2. Add anonymous event analytics for funnel steps, fixture exclusion, reading completion, tab views, retrospective Match/Partial/Miss, and unlock intent.
-3. Replace the client-only Jade Pass with a server-verified entitlement after choosing a payment provider.
-4. Add rate limiting, request IDs, structured error logging, and model cost/latency telemetry.
-5. Add place autocomplete and a visible confirmation step for ambiguous cities.
-6. Create a small prompt evaluation set using consented test users; measure recognition, specificity, safety, and conversion instead of optimising only for impressive prose.
-7. Add privacy terms and explicit disclaimers suitable for Australia and the initial target markets before public promotion.
+1. Manually review the new balanced life-area cards and Looking Ahead lock on desktop and phone using a live reading.
+2. Implement a deterministic Ziwei Dou Shu chart module, document its calculation conventions, and compare a small set of public/reference charts. A large proprietary user dataset is not a prerequisite.
+3. Add Ziwei facts to Method first, then let the prompt interpret them as a visibly separate lens; do not silently merge conflicting BaZi and Ziwei claims.
+4. Add anonymous event analytics for funnel steps, reading completion, tab views, retrospective Match/Partial/Miss, and unlock intent.
+5. Replace the client-only Jade Pass with a server-verified entitlement after choosing a payment provider.
+6. Add shared rate limiting, structured error logging, and model cost/latency telemetry.
+7. Add place autocomplete, privacy terms, and explicit disclaimers before public promotion.
 
 ## Git workflow
 

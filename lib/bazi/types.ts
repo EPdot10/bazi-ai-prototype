@@ -40,6 +40,13 @@ export interface BaziChartFacts {
     domains: string[];
     signature: string;
     strength: 'strong' | 'moderate';
+    score: number;
+    opportunityScore: number;
+    pressureScore: number;
+    opportunities: string[];
+    risks: string[];
+    activatedPillars: string[];
+    hourSensitive: boolean;
   }>;
   eventCandidates: Array<{
     year: number;
@@ -51,4 +58,27 @@ export interface BaziChartFacts {
     evidence: string[];
     confidence: 'high' | 'medium' | 'low';
   }>;
+  futureSignals: Array<{
+    year: number;
+    age: number;
+    annualPillar: string;
+    relations: string[];
+    relationTypes: string[];
+    themes: string[];
+    domains: string[];
+    signature: string;
+    strength: 'strong' | 'moderate';
+    score: number;
+    opportunityScore: number;
+    pressureScore: number;
+    opportunities: string[];
+    risks: string[];
+    activatedPillars: string[];
+    hourSensitive: boolean;
+  }>;
+  systems: {
+    bazi: 'calculated';
+    ziwei: 'not-calculated';
+    ziweiNote: string;
+  };
 }

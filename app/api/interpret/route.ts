@@ -367,7 +367,10 @@ function localInterpretation(
   return result;
 }
 
-function requireInterpretation(value: unknown) {
+function requireInterpretation(
+  value: unknown,
+  chart: ReturnType<typeof calculateBaziChart>,
+) {
   if (!value || typeof value !== 'object') {
     throw new Error('DeepSeek returned a non-object interpretation');
   }
@@ -378,6 +381,8 @@ function requireInterpretation(value: unknown) {
     'pastPatterns',
     'insights',
     'lifeAreas',
+    'futureOverview',
+    'futureForecasts',
     'reflectionQuestions',
     'limitations',
   ];
@@ -390,12 +395,71 @@ function requireInterpretation(value: unknown) {
     !Array.isArray(candidate.pastPatterns) ||
     !Array.isArray(candidate.insights) ||
     !candidate.lifeAreas ||
+    typeof candidate.futureOverview !== 'string' ||
+    !Array.isArray(candidate.futureForecasts) ||
     !Array.isArray(candidate.reflectionQuestions) ||
     typeof candidate.limitations !== 'string'
   ) {
     throw new Error('DeepSeek returned an invalid interpretation shape');
   }
-  return value as ReturnType<typeof localInterpretation>;
+
+  const lifeAreas = candidate.lifeAreas as Record<string, unknown>;
+  const validArea = (area: unknown) => {
+    if (!area || typeof area !== 'object') return false;
+    const item = area as Record<string, unknown>;
+    return (
+      typeof item.headline === 'string' &&
+      typeof item.narrative === 'string' &&
+      Array.isArray(item.strengths) &&
+      Array.isArray(item.frictions) &&
+      typeof item.stressPattern === 'string' &&
+      typeof item.possibleCost === 'string' &&
+      Array.isArray(item.actions) &&
+      typeof item.basis === 'string' &&
+      typeof item.confidence === 'string'
+    );
+  };
+  if (
+    ['character', 'career', 'relationships', 'timing'].some(
+      (key) => !validArea(lifeAreas[key]),
+    )
+  ) {
+    throw new Error('DeepSeek returned incomplete life-area analysis');
+  }
+
+  const validForecast = candidate.futureForecasts.every((forecast) => {
+    if (!forecast || typeof forecast !== 'object') return false;
+    const item = forecast as Record<string, unknown>;
+    return (
+      typeof item.year === 'number' &&
+      typeof item.theme === 'string' &&
+      typeof item.opportunity === 'string' &&
+      typeof item.pressure === 'string' &&
+      typeof item.riskScenario === 'string' &&
+      Array.isArray(item.triggerConditions) &&
+      Array.isArray(item.earlySignals) &&
+      Array.isArray(item.actions) &&
+      Array.isArray(item.avoid) &&
+      typeof item.basis === 'string' &&
+      typeof item.confidence === 'string'
+    );
+  });
+  if (!validForecast) {
+    throw new Error('DeepSeek returned invalid future forecasts');
+  }
+
+  const expectedFutureYears = chart.futureSignals.map((signal) => signal.year);
+  const returnedFutureYears = candidate.futureForecasts.map(
+    (forecast) => (forecast as Record<string, unknown>).year,
+  );
+  if (
+    expectedFutureYears.length !== returnedFutureYears.length ||
+    expectedFutureYears.some((year) => !returnedFutureYears.includes(year))
+  ) {
+    throw new Error('DeepSeek returned unsupported or missing future years');
+  }
+
+  return value;
 }
 
 // Retained only as a migration reference for the old fixture implementation;
@@ -644,6 +708,7 @@ export async function POST(request: Request) {
             gender: body.gender ?? 'undisclosed',
           },
         }),
+        chart,
       );
       return jsonWithRequestId(
         {

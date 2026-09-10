@@ -173,6 +173,44 @@ function tenGodTheme(god: string) {
   }
 }
 
+function annualOpportunity(god: string) {
+  switch (god) {
+    case relationNames.same:
+    case relationNames.peer:
+      return 'Build alliances without giving away ownership of your priorities.';
+    case relationNames.output:
+    case relationNames.challenge:
+      return 'Make work, ideas, or a point of view more visible.';
+    case relationNames.wealth:
+    case relationNames.directWealth:
+      return 'Turn a practical opening into a durable resource or commitment.';
+    case relationNames.pressure:
+    case relationNames.authority:
+      return 'Earn trust by handling a demanding standard or responsibility well.';
+    default:
+      return 'Use study, support, or preparation to strengthen the next decision.';
+  }
+}
+
+function annualRisk(god: string) {
+  switch (god) {
+    case relationNames.same:
+    case relationNames.peer:
+      return 'Competition or blurred ownership can strain money, credit, or trust.';
+    case relationNames.output:
+    case relationNames.challenge:
+      return 'Speaking or acting too quickly can turn a useful challenge into conflict.';
+    case relationNames.wealth:
+    case relationNames.directWealth:
+      return 'An attractive opportunity can create more cost or obligation than expected.';
+    case relationNames.pressure:
+    case relationNames.authority:
+      return 'Prolonged pressure can lead to rigid choices, overwork, or a late abrupt exit.';
+    default:
+      return 'Preparation can become avoidance if support is used to postpone a decision.';
+  }
+}
+
 const pillarDomains: Record<string, string> = {
   year: 'family, origin, and belonging',
   month: 'school, authority, and career formation',
@@ -208,7 +246,8 @@ function calculateTimingSignals(
   const currentYear = new Date().getUTCFullYear();
   const signals: BaziChartFacts['timingSignals'] = [];
 
-  for (let year = birthYear + 6; year < currentYear; year += 1) {
+  const firstAnalysedYear = Math.min(birthYear + 6, currentYear);
+  for (let year = firstAnalysedYear; year <= currentYear + 5; year += 1) {
     const annualPillar = Solar.fromYmdHms(year, 7, 1, 12, 0, 0)
       .getLunar()
       .getEightChar()
@@ -220,7 +259,10 @@ function calculateTimingSignals(
     const relationTypes: string[] = [];
     const themes: string[] = [];
     const domains: string[] = [];
+    const activatedPillars: string[] = [];
     let score = 0;
+    let opportunityScore = 0;
+    let pressureScore = 0;
 
     // The annual stem gives a second, independent clue about the kind of
     // pressure or opportunity present in a year. It is only surfaced when
@@ -235,7 +277,10 @@ function calculateTimingSignals(
         relationTypes.push('repeat');
         themes.push('an existing theme becomes more visible');
         domains.push(pillarDomains[pillarName]);
+        activatedPillars.push(pillarName);
         score += 3;
+        pressureScore += 2;
+        opportunityScore += 1;
       } else if (branchClashes[annualBranch] === natalBranch) {
         relations.push(
           `${annualBranch} clashes with the ${pillarName} branch ${natalBranch}`,
@@ -243,7 +288,9 @@ function calculateTimingSignals(
         relationTypes.push('clash');
         themes.push('movement, renegotiation, or a break from routine');
         domains.push(pillarDomains[pillarName]);
+        activatedPillars.push(pillarName);
         score += 3;
+        pressureScore += 3;
       } else if (branchCombinations[annualBranch] === natalBranch) {
         relations.push(
           `${annualBranch} combines with the ${pillarName} branch ${natalBranch}`,
@@ -251,7 +298,9 @@ function calculateTimingSignals(
         relationTypes.push('combination');
         themes.push('connection, agreement, or cooperation');
         domains.push(pillarDomains[pillarName]);
+        activatedPillars.push(pillarName);
         score += 2;
+        opportunityScore += 2;
       }
     });
 
@@ -263,6 +312,24 @@ function calculateTimingSignals(
       );
       const uniqueDomains = [...new Set(domains)];
       const uniqueRelationTypes = [...new Set(relationTypes)];
+      const uniqueActivatedPillars = [...new Set(activatedPillars)];
+      const opportunities = [annualOpportunity(annualTenGod)];
+      const risks = [annualRisk(annualTenGod)];
+      if (uniqueRelationTypes.includes('combination')) {
+        opportunities.push(
+          'Cooperation is easier to begin, provided expectations are made explicit.',
+        );
+      }
+      if (uniqueRelationTypes.includes('clash')) {
+        risks.push(
+          'An unresolved issue is more likely to demand movement, renegotiation, or a clean boundary.',
+        );
+      }
+      if (uniqueRelationTypes.includes('repeat')) {
+        risks.push(
+          'A familiar pattern can intensify; repeating the old response may repeat its cost.',
+        );
+      }
       signals.push({
         year,
         age: year - birthYear,
@@ -273,32 +340,76 @@ function calculateTimingSignals(
         domains: uniqueDomains,
         signature: `${annualPillar} activates ${uniqueDomains.join(' and ') || 'a visible chart theme'} through ${uniqueRelationTypes.join(', ')}.`,
         strength: score >= 5 ? 'strong' : 'moderate',
+        score,
+        opportunityScore,
+        pressureScore,
+        opportunities,
+        risks,
+        activatedPillars: uniqueActivatedPillars,
+        hourSensitive: uniqueActivatedPillars.includes('hour'),
       });
     }
   }
 
-  return signals
-    .sort((left, right) => {
-      const strengthDifference =
-        Number(right.strength === 'strong') -
-        Number(left.strength === 'strong');
-      return strengthDifference || left.year - right.year;
-    })
-    .slice(0, 12);
+  return signals.sort((left, right) => {
+    const strengthDifference =
+      Number(right.strength === 'strong') - Number(left.strength === 'strong');
+    return strengthDifference || left.year - right.year;
+  });
 }
 
 function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
-  return signals.slice(0, 8).map((signal) => ({
-    year: signal.year,
-    age: signal.age,
-    window: `${signal.year} · around age ${signal.age}`,
-    themes: signal.themes,
-    domains: signal.domains,
-    signature: signal.signature,
-    evidence: [signal.annualPillar, ...signal.relations],
-    confidence:
-      signal.strength === 'strong' ? ('high' as const) : ('medium' as const),
-  }));
+  const currentYear = new Date().getUTCFullYear();
+  const past = signals.filter((signal) => signal.year < currentYear);
+  const adultSignals = past.filter((signal) => signal.age >= 18);
+  const youngerSignals = past.filter((signal) => signal.age < 18);
+  // For adults, prioritise evidence from life periods that are less likely to
+  // be explained by universal school milestones. Younger signals remain a
+  // fallback rather than a quota the reading must fill.
+  const ranked =
+    adultSignals.length >= 3 ? [...adultSignals, ...youngerSignals] : past;
+  const selected: typeof past = [];
+
+  for (const signal of ranked) {
+    if (
+      adultSignals.length >= 3 &&
+      signal.age < 18 &&
+      selected.some((item) => item.age < 18)
+    ) {
+      continue;
+    }
+    const tooClose = selected.some(
+      (item) => Math.abs(item.year - signal.year) < 3,
+    );
+    const sameSignature = selected.some(
+      (item) =>
+        item.relationTypes.join('|') === signal.relationTypes.join('|') &&
+        item.domains[0] === signal.domains[0],
+    );
+    if (!tooClose && !sameSignature) selected.push(signal);
+    if (selected.length === 6) break;
+  }
+
+  if (selected.length < 3) {
+    for (const signal of past) {
+      if (!selected.includes(signal)) selected.push(signal);
+      if (selected.length === 3) break;
+    }
+  }
+
+  return selected
+    .sort((a, b) => a.year - b.year)
+    .map((signal) => ({
+      year: signal.year,
+      age: signal.age,
+      window: `${signal.year} · around age ${signal.age}`,
+      themes: signal.themes,
+      domains: signal.domains,
+      signature: signal.signature,
+      evidence: [signal.annualPillar, ...signal.relations],
+      confidence:
+        signal.strength === 'strong' ? ('high' as const) : ('medium' as const),
+    }));
 }
 
 function parseDate(value: string) {
@@ -497,6 +608,7 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
     `Seasonal strength is treated as ${seasonalStrength}, not as a fixed personality verdict.`,
   ];
   const signals = calculateTimingSignals(year, pillars, dayMaster);
+  const currentYear = new Date().getUTCFullYear();
 
   return {
     pillars,
@@ -522,5 +634,14 @@ export function calculateBaziChart(profile: BirthProfile): BaziChartFacts {
     },
     timingSignals: signals,
     eventCandidates: deriveEventCandidates(signals),
+    futureSignals: signals
+      .filter((signal) => signal.year >= currentYear)
+      .sort((left, right) => left.year - right.year),
+    systems: {
+      bazi: 'calculated',
+      ziwei: 'not-calculated',
+      ziweiNote:
+        'Ziwei Dou Shu is reserved for a separately calculated chart layer. The interpretation must not invent palaces, stars, transformations, or major periods.',
+    },
   };
 }

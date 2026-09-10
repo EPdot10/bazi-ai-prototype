@@ -41,8 +41,11 @@ Acceptance check: the same chart can be rerun with a versioned prompt/calculatio
 
 Status: **partially implemented; narrative/UX foundation complete**
 
-- Add a separately validated Da Yun and Ziwei Dou Shu facts layer before asking the model to discuss those systems. The current UI explicitly marks them as not yet supplied, and the prompt forbids invented palaces, stars, or transformations.
-- Improve Chinese/English narrative parity, premium lock states, and method/basis disclosure.
+- Looking Ahead now uses server-calculated annual signals for the current year and next five years. Each selected year has separate opportunity and pressure scores plus deterministic risk themes; the prompt must express risks conditionally rather than manufacture frightening events.
+- Character, career, relationships, and timing now require strengths, friction, stress behaviour, possible cost, and actions instead of a single flattering narrative.
+- Relationships and Looking Ahead share the prototype premium lock.
+- Add a separately calculated Ziwei Dou Shu facts layer before asking the model to discuss that system. This does not require accumulating a proprietary user dataset: use documented conventions and a small regression set of reference charts. The prompt still forbids invented palaces, stars, transformations, or major periods.
+- Improve Chinese/English narrative parity and method/basis disclosure.
 - Keep regression fixtures for the two fixed test dates and the owner's reference chart; the method view now exposes the calculation facts used by the result.
 - Measure latency, model fallback rate, and cost per reading before opening paid access.
 
