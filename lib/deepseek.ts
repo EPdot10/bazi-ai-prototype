@@ -1,9 +1,9 @@
-import type { BaziChartFacts } from '@/lib/bazi/types';
+import type { BaziChartFacts } from "@/lib/bazi/types";
 
 export interface InterpretationRequest {
   chart: BaziChartFacts;
-  topic: 'overview' | 'career' | 'relationships' | 'year-ahead';
-  locale?: 'en' | 'zh';
+  topic: "overview" | "career" | "relationships" | "year-ahead";
+  locale?: "en" | "zh";
   birthContext?: {
     birthDate: string;
     readingDate: string;
@@ -14,14 +14,14 @@ export interface InterpretationRequest {
       ianaTimeZone: string;
     };
     name?: string;
-    gender?: 'male' | 'female' | 'undisclosed';
+    gender?: "male" | "female" | "undisclosed";
   };
 }
 
 const ALLOWED_FLASH_MODELS = new Set([
-  'deepseek-flash',
-  'deepseek-v4-flash',
-  'deepseek-v4-flash-vision-exp',
+  "deepseek-flash",
+  "deepseek-v4-flash",
+  "deepseek-v4-flash-vision-exp",
 ]);
 
 const DEFAULT_DEEPSEEK_TIMEOUT_MS = 60_000;
@@ -36,10 +36,19 @@ function deepSeekTimeoutMs() {
 }
 
 function configuredModel() {
-  const value = process.env.DEEPSEEK_MODEL ?? 'deepseek-flash';
+  const configuredValue =
+    process.env.DEEPSEEK_FREE_MODEL ??
+    process.env.DEEPSEEK_MODEL ??
+    "deepseek-v4-flash";
+  // Older deployments used the generic alias. Keep the deployment compatible
+  // while routing it to the current Flash model requested for this pass.
+  const value =
+    configuredValue === "deepseek-flash"
+      ? "deepseek-v4-flash"
+      : configuredValue;
   if (!ALLOWED_FLASH_MODELS.has(value)) {
     throw new Error(
-      'DEEPSEEK_MODEL must be deepseek-flash or a temporary legacy Flash alias',
+      "DEEPSEEK_FREE_MODEL/DEEPSEEK_MODEL must be an allowed Flash model",
     );
   }
   return value;
@@ -99,45 +108,45 @@ export async function generateInterpretation(
   options: { repairSchema?: boolean } = {},
 ) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not configured');
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
-  const baseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com';
+  const baseUrl = process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
   const model = configuredModel();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
   try {
     const schemaInstruction = options.repairSchema
-      ? 'SCHEMA REPAIR PASS: The previous response did not satisfy the contract. Return a complete JSON object now. Keep every property name exactly as specified in English; translate string values only. Do not omit any of the four lifeAreas or any required child field. Do not add commentary or markdown.'
-      : 'SCHEMA LOCK: Every JSON property name must remain exactly as specified in English, including character, career, relationships, timing, headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence, futureForecasts, and all other keys. Translate string values only; never translate, rename, or omit keys.';
+      ? "SCHEMA REPAIR PASS: The previous response did not satisfy the contract. Return a complete JSON object now. Keep every property name exactly as specified in English; translate string values only. Do not omit any of the four lifeAreas or any required child field. Do not add commentary or markdown."
+      : "SCHEMA LOCK: Every JSON property name must remain exactly as specified in English, including character, career, relationships, timing, headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence, futureForecasts, and all other keys. Translate string values only; never translate, rename, or omit keys.";
     const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model,
         // Keep the public reading path in Flash non-thinking mode. It is
         // materially faster and guarantees a final JSON content payload;
         // failures are surfaced instead of replaced by a local reading.
-        thinking: { type: 'disabled' },
-        response_format: { type: 'json_object' },
+        thinking: { type: "disabled" },
+        response_format: { type: "json_object" },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: "system", content: SYSTEM_PROMPT },
           {
-            role: 'user',
+            role: "user",
             content: JSON.stringify({
               ...input,
               outputLanguageInstruction:
-                input.locale === 'zh'
-                  ? 'MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, futureOverview, futureForecasts, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese.'
-                  : 'MANDATORY: every user-visible field in the JSON must be written in English.',
+                input.locale === "zh"
+                  ? "MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, futureOverview, futureForecasts, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese."
+                  : "MANDATORY: every user-visible field in the JSON must be written in English.",
               schemaInstruction,
             }),
           },
         ],
         temperature: 0.5,
-        max_tokens: 7200,
+        max_tokens: 9000,
       }),
       signal: controller.signal,
     });
@@ -155,13 +164,13 @@ export async function generateInterpretation(
     }
     const normalized = content
       .trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/```$/, '');
+      .replace(/^```json\s*/i, "")
+      .replace(/```$/, "");
     try {
       return JSON.parse(normalized) as unknown;
     } catch {
-      const firstBrace = normalized.indexOf('{');
-      const lastBrace = normalized.lastIndexOf('}');
+      const firstBrace = normalized.indexOf("{");
+      const lastBrace = normalized.lastIndexOf("}");
       if (firstBrace >= 0 && lastBrace > firstBrace) {
         try {
           return JSON.parse(
@@ -174,7 +183,7 @@ export async function generateInterpretation(
       throw new Error(`DeepSeek model ${model} returned invalid JSON`);
     }
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error(`DeepSeek model ${model} timed out`);
     }
     throw error;
