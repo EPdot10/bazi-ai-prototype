@@ -14,6 +14,10 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
+  // Preserve dashboard-managed runtime variables when the Git build deploys
+  // the generated Wrangler config. Without this, an empty vars object can
+  // remove the model configuration on every deployment.
+  keep_vars: true,
   compatibility_flags: ['nodejs_compat'],
   d1_databases: d1
     ? [

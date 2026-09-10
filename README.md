@@ -43,7 +43,7 @@ DEEPSEEK_FREE_MODEL=deepseek-v4-flash
 DEEPSEEK_PREMIUM_MODEL=deepseek-v4-pro
 DEEPSEEK_AUDIT_MODEL=deepseek-v4-flash
 GOOGLE_MAPS_API_KEY=
-DEEPSEEK_TIMEOUT_MS=45000
+DEEPSEEK_TIMEOUT_MS=90000
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
 ```
@@ -55,10 +55,10 @@ Turnstile is optional for local development; configure the public site key at bu
 
 Use direct date entry rather than the wheel, because the normal wheel intentionally starts at 1920:
 
-| Date | Fixed state | Purpose |
-| --- | --- | --- |
-| `1000-01-01` | Exact-time chart, 乙 Day Master | Standard result, tabs, timeline, and lock testing |
-| `1000-01-02` | Unknown-time chart, 丙 Day Master | Missing-hour and alternate-copy testing |
+| Date         | Fixed state                       | Purpose                                           |
+| ------------ | --------------------------------- | ------------------------------------------------- |
+| `1000-01-01` | Exact-time chart, 乙 Day Master   | Standard result, tabs, timeline, and lock testing |
+| `1000-01-02` | Unknown-time chart, 丙 Day Master | Missing-hour and alternate-copy testing           |
 
 After either date is confirmed, Melbourne is filled and confirmed automatically. Submitting returns a saved fixture from `lib/fixtures/test-readings.ts`. No place lookup or model request occurs. The result page displays “Saved test fixture · no API request”.
 
@@ -93,7 +93,7 @@ The test dates branch immediately to a stored fixture before any external servic
 - `/api/place` is limited to 20 requests per IP per minute.
 - JSON bodies are capped at 16 KB and city input at 100 characters.
 - Responses include an `X-Request-Id` for support and abuse investigation.
-- DeepSeek requests use a shared 45-second timeout, configurable with `DEEPSEEK_TIMEOUT_MS`.
+- DeepSeek requests use a shared 90-second ceiling, configurable with `DEEPSEEK_TIMEOUT_MS`; premium reasoning may take longer than the fast path.
 - Set `RATE_LIMIT_ENABLED=false` only for local or private testing to temporarily disable API rate limits; keep it `true` for public use.
 - Configure Cloudflare Turnstile with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at build time and `TURNSTILE_SECRET_KEY` at runtime. Local development skips verification when the secret is absent.
 - Protect the deployed Worker with Cloudflare Access for private testing; application-level limits remain necessary if the URL is public.

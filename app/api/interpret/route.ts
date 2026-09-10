@@ -209,15 +209,31 @@ function localInterpretation(
       },
       pastPatterns: result.pastPatterns.map((pattern, index) => {
         const candidate = selectedSignals[index];
-        const hasClash =
-          candidate?.domains?.some((domain) => domain.includes('career')) ||
-          candidate?.themes.some((theme) => theme.includes('movement'));
+        const signal = chart.timingSignals.find(
+          (item) => item.year === candidate?.year,
+        );
         const domain = candidate?.domains?.[0] ?? '生活中的一个重要领域';
+        const domainLabel = domain.includes('family')
+          ? '家庭与归属'
+          : domain.includes('school') || domain.includes('authority')
+            ? '学习与规则'
+            : domain.includes('relationship') || domain.includes('close')
+              ? '亲密关系与边界'
+              : domain.includes('career') || domain.includes('resource')
+                ? '事业与资源'
+                : '个人目标与表达';
+        const relation = signal?.relationTypes[0];
+        const headline =
+          relation === 'clash'
+            ? `${domainLabel}：旧秩序被打破`
+            : relation === 'repeat'
+              ? `${domainLabel}：旧主题再次浮现`
+              : relation === 'combination'
+                ? `${domainLabel}：新的连接形成`
+                : `${domainLabel}：责任与表达变得清晰`;
         return {
           ...pattern,
-          headline: hasClash
-            ? '旧节奏被打破，必须重新选择'
-            : '一个原有主题被放大',
+          headline,
           narrative: `在${pattern.period}前后，命盘中的${candidate?.signature ?? '流年关系'}可能让“${domain}”变得更显眼。它未必对应单一事件，更像是你开始发现：原来的安排、关系或自我定位已经不能完全容纳现在的你。可能表现为学习方向变化、家庭规则重新协商、朋友圈重组，或对未来计划产生更强的自主要求。最值得核对的不是事情有多戏剧化，而是你是否从那段时间开始改变了做决定的方式。`,
           possibilities: [
             `你可能在${domain}上遇到一次需要重新适应或重新分配责任的经历。`,
