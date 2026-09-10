@@ -10,10 +10,13 @@ An English-language, mobile-first prototype for Chinese BaZi and Five Element re
 - Birthplace lookup with city label, coordinates, IANA time zone, civil-time handling, and local solar-time adjustment.
 - Deterministic BaZi pillars, Day Master, visible element balance, calculation notes, and annual timing signals.
 - DeepSeek V4.1 Flash interpretation with server-side calls and explicit error reporting when the provider is unavailable.
-- Result views for Looking Back, Character, Career, Relationships, Timing, and Method.
+- Result views ordered Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method.
 - A separate Looking Ahead view built from server-calculated future annual signals, with conditional opportunity, pressure, risk, warning, and action fields.
 - Relationship and Looking Ahead content share the prototype Jade Pass `666`.
+- Result pages use page-specific leads: retrospective summary/signatures stay with Looking Back, future opportunity/pressure stay with Looking Ahead, and Timing goes directly to its detailed reading.
 - Balanced life-area sections explicitly cover strengths, friction, stress behaviour, possible costs, and actions instead of defaulting to flattering prose.
+- Hour and minute wheels loop through three cycles for faster wraparound selection; exact-time minutes default to `30`.
+- The staged loading overlay follows the selected English or Simplified Chinese locale.
 - Saved test fixtures remain in the repository but are currently disabled while model quality is being evaluated.
 - Responsive local preview available to phones on the same LAN.
 

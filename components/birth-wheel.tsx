@@ -89,6 +89,24 @@ export function BirthWheel({
       ),
     [days],
   );
+  const loopHours = useMemo(
+    () =>
+      ['previous', 'current', 'next'].flatMap((cycle) =>
+        hours.map((hour) => ({ value: `${cycle}:${hour}`, label: hour })),
+      ),
+    [],
+  );
+  const loopMinutes = useMemo(
+    () =>
+      ['previous', 'current', 'next'].flatMap((cycle) =>
+        minutes.map((minute) => ({
+          value: `${cycle}:${minute}`,
+          label: minute,
+        })),
+      ),
+    [],
+  );
+  const wheelRemainder = useRef(0);
 
   const pickerValue: Record<string, string | number> =
     mode === 'date'
@@ -98,10 +116,10 @@ export function BirthWheel({
           day: `current:${String(Math.min(value.day, days.length)).padStart(2, '0')}`,
         }
       : {
-          hour: String(value.hour).padStart(2, '0'),
+          hour: `current:${String(value.hour).padStart(2, '0')}`,
           ...(approximateTime
             ? {}
-            : { minute: String(value.minute).padStart(2, '0') }),
+            : { minute: `current:${String(value.minute).padStart(2, '0')}` }),
         };
 
   function handleChange(next: Record<string, string | number>) {
@@ -195,7 +213,21 @@ export function BirthWheel({
       onPointerCancelCapture={handleMouseUp}
       onWheelCapture={(event) => {
         onInteract?.();
+        const column = (event.target as HTMLElement).closest<HTMLElement>(
+          '[data-wheel-column]',
+        )?.dataset.wheelColumn as WheelColumn | undefined;
+        if (!column) return;
         if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
+        wheelRemainder.current += event.deltaY;
+        while (Math.abs(wheelRemainder.current) >= 28) {
+          // Scrolling up moves toward the previous value; scrolling down
+          // moves toward the next value. This keeps mouse and touch movement
+          // aligned and avoids the browser's page-scroll gesture.
+          const direction = wheelRemainder.current < 0 ? -1 : 1;
+          stepColumn(column, direction);
+          wheelRemainder.current -= direction * 28;
+        }
       }}
     >
       <p className="sr-only">
@@ -264,14 +296,22 @@ export function BirthWheel({
           ) : (
             <>
               <Picker.Column name="hour" data-wheel-column="hour">
-                {hours.map((hour) => (
-                  <WheelItem key={hour} value={hour} />
+                {loopHours.map((hour) => (
+                  <WheelItem
+                    key={hour.value}
+                    label={hour.label}
+                    value={hour.value}
+                  />
                 ))}
               </Picker.Column>
               {approximateTime ? null : (
                 <Picker.Column name="minute" data-wheel-column="minute">
-                  {minutes.map((minute) => (
-                    <WheelItem key={minute} value={minute} />
+                  {loopMinutes.map((minute) => (
+                    <WheelItem
+                      key={minute.value}
+                      label={minute.label}
+                      value={minute.value}
+                    />
                   ))}
                 </Picker.Column>
               )}

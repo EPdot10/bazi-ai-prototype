@@ -143,7 +143,7 @@ const initialBirthValue: BirthWheelValue = {
   month: 1,
   day: 1,
   hour: 12,
-  minute: 0,
+  minute: 30,
 };
 const elementNames: Record<string, string> = {
   wood: 'Wood',
@@ -166,21 +166,21 @@ const stemNames: Record<string, string> = {
 };
 const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'past', label: 'Looking back' },
+  { value: 'future', label: 'Looking ahead' },
   { value: 'character', label: 'Character' },
   { value: 'career', label: 'Career' },
   { value: 'relationships', label: 'Relationships' },
   { value: 'timing', label: 'Timing' },
-  { value: 'future', label: 'Looking ahead' },
   { value: 'method', label: 'Method' },
 ];
 
 const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'past', label: '回望过去' },
+  { value: 'future', label: '展望未来' },
   { value: 'character', label: '性格' },
   { value: 'career', label: '事业' },
   { value: 'relationships', label: '关系' },
   { value: 'timing', label: '时机' },
-  { value: 'future', label: '展望未来' },
   { value: 'method', label: '方法' },
 ];
 
@@ -679,7 +679,7 @@ export default function Home() {
                               if (value === 'approximate')
                                 setBirthValue((current) => ({
                                   ...current,
-                                  minute: 0,
+                                  minute: 30,
                                 }));
                             }}
                             type="radio"
@@ -934,7 +934,7 @@ export default function Home() {
           </div>
         </section>
       )}
-      {loading ? <ReadingLoading /> : null}
+      {loading ? <ReadingLoading locale={locale} /> : null}
     </main>
   );
 }
@@ -1091,15 +1091,36 @@ function SiteHeader({
 }
 
 const loadingStages = [
-  ['定', 'Confirming the place and local time'],
-  ['曆', 'Aligning the date with the solar-term calendar'],
-  ['柱', 'Forming the visible pillars'],
-  ['象', 'Tracing earlier turning points'],
-  ['解', 'Composing your complete reading'],
+  {
+    character: '定',
+    en: 'Confirming the place and local time',
+    zh: '确认出生地点与当地时间',
+  },
+  {
+    character: '曆',
+    en: 'Aligning the date with the solar-term calendar',
+    zh: '根据节气历校准日期',
+  },
+  {
+    character: '柱',
+    en: 'Forming the visible pillars',
+    zh: '排出可见的四柱',
+  },
+  {
+    character: '象',
+    en: 'Tracing earlier turning points',
+    zh: '寻找过去的重要转折',
+  },
+  {
+    character: '解',
+    en: 'Composing your complete reading',
+    zh: '整理完整解读',
+  },
 ] as const;
 
-function ReadingLoading() {
+function ReadingLoading({ locale }: { locale: ReadingLocale }) {
   const [stage, setStage] = useState(0);
+  const isZh = locale === 'zh';
 
   useEffect(() => {
     const timer = window.setInterval(
@@ -1113,21 +1134,23 @@ function ReadingLoading() {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#171612]/94 px-6 text-[#f2efe8] backdrop-blur-sm">
       <output aria-live="polite" className="sr-only">
-        {loadingStages[stage][1]}
+        {isZh ? loadingStages[stage].zh : loadingStages[stage].en}
       </output>
       <div aria-hidden="true" className="w-full max-w-md text-center">
         <div className="relative mx-auto grid size-28 place-items-center animate-breathe">
           <span className="absolute inset-0 animate-spin rounded-full border border-[#f2efe8]/10 border-t-[#b94a3e] [animation-duration:3s]" />
           <span className="absolute inset-3 animate-[spin_5s_linear_infinite_reverse] rounded-full border border-dashed border-[#f2efe8]/16" />
           <span className="font-serif text-4xl text-[#d86a5d] transition-all duration-700">
-            {loadingStages[stage][0]}
+            {loadingStages[stage].character}
           </span>
         </div>
         <p className="mt-9 text-[10px] font-semibold tracking-[0.22em] text-[#d86a5d] uppercase">
-          Reading the pattern · 0{stage + 1}
+          {isZh
+            ? `正在读取结构 · 0${stage + 1}`
+            : `Reading the pattern · 0${stage + 1}`}
         </p>
         <p className="mt-4 font-serif text-3xl leading-9">
-          {loadingStages[stage][1]}
+          {isZh ? loadingStages[stage].zh : loadingStages[stage].en}
         </p>
         <div className="mt-9 h-px overflow-hidden bg-white/10">
           <div
@@ -1136,8 +1159,9 @@ function ReadingLoading() {
           />
         </div>
         <p className="mt-5 text-xs leading-5 text-white/35">
-          The chart is calculated first. The model interprets only the verified
-          pattern.
+          {isZh
+            ? '先由系统完成命盘计算，再由模型解读已核验的结构。'
+            : 'The chart is calculated first. The model interprets only the verified pattern.'}
         </p>
       </div>
     </div>
@@ -1219,9 +1243,6 @@ function ReadingResult({
           </button>
         ))}
       </nav>
-
-      <ReadingSummary reading={reading} locale={locale} />
-      <InsightStrip reading={reading} locale={locale} />
 
       <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
@@ -1306,7 +1327,9 @@ function ReadingResult({
           ) : (
             <LifeAreaView
               area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
+              areaKey={view as LifeAreaKey}
               locale={locale}
+              showIntro={view !== 'timing'}
             />
           )
         ) : null}
@@ -1356,7 +1379,7 @@ function LockedLifeArea({
         className="pointer-events-none select-none p-8 blur-[7px]"
         aria-hidden="true"
       >
-        <LifeAreaView area={area} locale={locale} />
+        <LifeAreaView area={area} areaKey="relationships" locale={locale} />
       </div>
       <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/72 p-6 backdrop-blur-[2px]">
         <div className="w-full max-w-sm border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
@@ -1578,6 +1601,8 @@ function PastView({
 
   return (
     <section>
+      <ReadingSummary reading={reading} locale={locale} />
+      <InsightStrip reading={reading} locale={locale} />
       <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
         {locale === 'zh' ? '先验证，再谈预测' : 'Recognition before prediction'}
       </p>
@@ -1812,6 +1837,27 @@ function FutureView({
             : 'There are no strong supplied future-year signals. Quieter years are better read as room to consolidate, not as missing predictions.')}
       </p>
 
+      {forecasts[0] ? (
+        <div className="mt-8 grid gap-px border-y border-black/10 bg-black/10 sm:grid-cols-2">
+          <div className="bg-[#f2efe8] p-5">
+            <p className="text-[9px] font-semibold tracking-[0.14em] text-emerald-800 uppercase">
+              {locale === 'zh' ? '先看机会' : 'The opening to watch'}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-black/60">
+              {forecasts[0].opportunity}
+            </p>
+          </div>
+          <div className="bg-[#f2efe8] p-5">
+            <p className="text-[9px] font-semibold tracking-[0.14em] text-[#9d3027] uppercase">
+              {locale === 'zh' ? '先看压力' : 'The pressure to watch'}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-black/60">
+              {forecasts[0].pressure}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {forecasts.length ? (
         <div className="mt-10 space-y-5">
           {forecasts.map((forecast) => (
@@ -1919,19 +1965,88 @@ function ForecastList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function LifeAreaView({
+const lifeAreaLeadCopy: Record<
+  LifeAreaKey,
+  {
+    en: { eyebrow: string; strength: string; friction: string };
+    zh: { eyebrow: string; strength: string; friction: string };
+  }
+> = {
+  character: {
+    en: {
+      eyebrow: 'Character lens',
+      strength: 'Your usable edge',
+      friction: 'The cost to watch',
+    },
+    zh: {
+      eyebrow: '性格视角',
+      strength: '可以依靠的部分',
+      friction: '需要留意的代价',
+    },
+  },
+  career: {
+    en: {
+      eyebrow: 'Career lens',
+      strength: 'Where you can compound',
+      friction: 'Where effort leaks',
+    },
+    zh: {
+      eyebrow: '事业视角',
+      strength: '可以积累的地方',
+      friction: '精力容易流失的地方',
+    },
+  },
+  relationships: {
+    en: {
+      eyebrow: 'Relationship lens',
+      strength: 'What creates trust',
+      friction: 'What can erode it',
+    },
+    zh: {
+      eyebrow: '关系视角',
+      strength: '建立信任的部分',
+      friction: '可能消耗关系的部分',
+    },
+  },
+  timing: {
+    en: {
+      eyebrow: 'Timing lens',
+      strength: 'Current support',
+      friction: 'Current pressure',
+    },
+    zh: { eyebrow: '时机视角', strength: '当前的支持', friction: '当前的压力' },
+  },
+};
+
+function LifeAreaLead({
   area,
+  areaKey,
   locale,
 }: {
   area: LifeArea;
+  areaKey: LifeAreaKey;
   locale: ReadingLocale;
 }) {
-  const strengths = area.strengths ?? area.signals?.slice(0, 2) ?? [];
-  const frictions = area.frictions ?? area.signals?.slice(2) ?? [];
-  const actions = area.actions ?? (area.guidance ? [area.guidance] : []);
+  const copy = lifeAreaLeadCopy[areaKey][locale];
+  const strength =
+    area.strengths?.[0] ??
+    area.signals?.[0] ??
+    (locale === 'zh'
+      ? '命盘提供了一条可继续核对的支持线索。'
+      : 'The chart offers a supportive pattern worth checking.');
+  const friction =
+    area.frictions?.[0] ??
+    area.signals?.[1] ??
+    (locale === 'zh'
+      ? '压力下的反应需要结合真实经历核对。'
+      : 'Your response under pressure needs to be checked against lived experience.');
+
   return (
-    <section>
-      <div className="flex items-baseline justify-between gap-5">
+    <section className="mb-10 border-l-2 border-[#9d3027] pl-5 sm:pl-7">
+      <p className="text-[10px] font-semibold tracking-[0.18em] text-[#9d3027] uppercase">
+        {copy.eyebrow}
+      </p>
+      <div className="mt-4 flex items-baseline justify-between gap-5">
         <h2 className="font-serif text-4xl tracking-[-0.03em]">
           {area.headline}
         </h2>
@@ -1941,6 +2056,54 @@ function LifeAreaView({
             : `${area.confidence} confidence`}
         </span>
       </div>
+      <div className="mt-6 grid gap-px bg-black/10 sm:grid-cols-2">
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] font-semibold tracking-[0.13em] text-emerald-800 uppercase">
+            {copy.strength}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-black/60">{strength}</p>
+        </div>
+        <div className="bg-[#f2efe8] p-5">
+          <p className="text-[9px] font-semibold tracking-[0.13em] text-[#9d3027] uppercase">
+            {copy.friction}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-black/60">{friction}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LifeAreaView({
+  area,
+  areaKey,
+  locale,
+  showIntro = true,
+}: {
+  area: LifeArea;
+  areaKey: LifeAreaKey;
+  locale: ReadingLocale;
+  showIntro?: boolean;
+}) {
+  const strengths = area.strengths ?? area.signals?.slice(0, 2) ?? [];
+  const frictions = area.frictions ?? area.signals?.slice(2) ?? [];
+  const actions = area.actions ?? (area.guidance ? [area.guidance] : []);
+  return (
+    <section>
+      {showIntro ? (
+        <LifeAreaLead area={area} areaKey={areaKey} locale={locale} />
+      ) : (
+        <div className="flex items-baseline justify-between gap-5">
+          <h2 className="font-serif text-4xl tracking-[-0.03em]">
+            {area.headline}
+          </h2>
+          <span className="shrink-0 text-[9px] tracking-[0.1em] text-black/30 uppercase">
+            {locale === 'zh'
+              ? `${area.confidence} 置信度`
+              : `${area.confidence} confidence`}
+          </span>
+        </div>
+      )}
       <p className="mt-8 font-serif text-2xl leading-9 text-black/78">
         {area.narrative}
       </p>

@@ -1,6 +1,6 @@
 # MING Project Handover
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ## Product intent
 
@@ -14,7 +14,7 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 2. Choose Exact, Approximate, or Unknown birth time; Exact is the default.
 3. Enter and confirm a birth city. City plus country is recommended when names are ambiguous.
 4. Wait through the staged reading animation while the server calls DeepSeek V4.1 Flash.
-5. Review retrospective periods first, then move across Character, Career, Relationships, Timing, Looking Ahead, and Method.
+5. Review retrospective periods first, then Looking Ahead, Character, Career, Relationships, Timing, and Method.
 6. Unlock Relationships and Looking Ahead with the shared prototype Jade Pass `666`.
 7. Start another reading using New reading.
 
@@ -26,8 +26,7 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 - `lib/geocode.ts` — place resolution, coordinates, and IANA time-zone lookup.
 - `lib/bazi/calculate.ts` — deterministic BaZi calculation and timing signals.
 - `app/api/interpret/route.ts` — validation, disabled-fixture switch, chart calculation, DeepSeek call, strict response validation, and error handling.
-- `lib/deepseek.ts` — server-only DeepSeek V4.1 Flash client, timeout, and prompt boundary.
-- `lib/prompts.ts` — interpretation prompt and JSON contract.
+- `lib/deepseek.ts` — server-only DeepSeek V4.1 Flash client, timeout, interpretation prompt, JSON contract, and one schema-repair retry for malformed model output.
 - `lib/fixtures/test-readings.ts` — two fully saved, zero-cost UI test readings.
 - `vite.config.ts` — Vinext/Sites/Cloudflare configuration and LAN host binding.
 - `.env.local` — local secrets; ignored by Git and must never be shared or committed.
@@ -49,7 +48,7 @@ DeepSeek is called on the server. The browser cannot choose arbitrary models or 
 
 - All readings use `DEEPSEEK_MODEL=deepseek-flash` (DeepSeek V4.1 Flash).
 - The model selector was removed from the page.
-- There is no model retry or local interpretation fallback during evaluation.
+- There is no local interpretation fallback during evaluation. If the first model response violates the JSON contract, the server makes one explicit schema-repair request to DeepSeek, then reports a 502 if the repaired response is still invalid.
 - If DeepSeek times out, returns empty content, or returns invalid JSON, the API returns an explicit 502 error.
 
 Never place a real key in source, README, browser code, screenshots, logs, or Git history.
@@ -76,6 +75,22 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 - Three random dates were verified against production: all returned HTTP 200 and `interpretationSource=deepseek` in 25.9–28.6 seconds.
 - A request to `http://192.168.1.100:3000/` returns HTTP 200 from the local machine.
 - Normal DeepSeek-backed dates were verified in the prior iteration.
+- A live Simplified Chinese reading was re-tested after the schema repair change: HTTP 200, `interpretationSource=deepseek`, all four life-area sections present, and four future forecasts returned.
+
+## Result information architecture
+
+- The global two-line summary and distinctive-signature strip now appear only inside Looking Back, where they introduce the retrospective evidence.
+- Character, Career, and Relationships each have a page-specific lead showing that area's headline, confidence, usable strength, and likely friction before the detailed narrative.
+- Looking Ahead has its own future overview plus separate opening/pressure cards before the year-by-year forecasts.
+- Timing deliberately skips the extra summary/feature lead and goes directly to its detailed timing reading and basis, as requested.
+- The result tabs are ordered Looking Back → Looking Ahead → Character → Career → Relationships → Timing → Method.
+
+## Wheel and loading UX
+
+- Exact-time defaults to minute `30` instead of `00` so the minute wheel is easier to reach from either direction.
+- Hour and minute columns now use three-cycle looping lists, so values wrap smoothly from `00` to `23`/`59` and back.
+- Desktop wheel scrolling is handled inside the wheel, with upward scrolling moving to the previous value and downward scrolling to the next; it no longer scrolls the page.
+- The loading overlay now receives the selected locale and renders every stage, label, accessibility announcement, and explanatory sentence in Simplified Chinese when Chinese is selected.
 
 ## Known limitations and debt
 
@@ -94,7 +109,7 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 ## Recommended next implementation sequence
 
-1. Manually review the new balanced life-area cards and Looking Ahead lock on desktop and phone using a live reading.
+1. Manually review the page-specific leads, reordered tabs, looping hour/minute wheel, and Chinese loading overlay on desktop and phone using a live reading.
 2. Implement a deterministic Ziwei Dou Shu chart module, document its calculation conventions, and compare a small set of public/reference charts. A large proprietary user dataset is not a prerequisite.
 3. Add Ziwei facts to Method first, then let the prompt interpret them as a visibly separate lens; do not silently merge conflicting BaZi and Ziwei claims.
 4. Add anonymous event analytics for funnel steps, reading completion, tab views, retrospective Match/Partial/Miss, and unlock intent.
