@@ -695,21 +695,35 @@ export async function POST(request: Request) {
     });
 
     try {
-      const interpretation = requireInterpretation(
-        await generateInterpretation({
-          chart,
-          topic,
-          locale: body.locale ?? 'en',
-          birthContext: {
-            birthDate: body.birthDate,
-            readingDate: new Date().toISOString().slice(0, 10),
-            resolvedPlace,
-            name: body.name?.trim() || undefined,
-            gender: body.gender ?? 'undisclosed',
-          },
-        }),
+      const interpretationRequest = {
         chart,
+        topic,
+        locale: body.locale ?? 'en',
+        birthContext: {
+          birthDate: body.birthDate,
+          readingDate: new Date().toISOString().slice(0, 10),
+          resolvedPlace,
+          name: body.name?.trim() || undefined,
+          gender: body.gender ?? 'undisclosed',
+        },
+      } as const;
+      let rawInterpretation = await generateInterpretation(
+        interpretationRequest,
       );
+      let interpretation;
+      try {
+        interpretation = requireInterpretation(rawInterpretation, chart);
+      } catch (firstError) {
+        const schemaFailure =
+          firstError instanceof Error &&
+          firstError.message.startsWith('DeepSeek returned');
+        if (!schemaFailure) throw firstError;
+        rawInterpretation = await generateInterpretation(
+          interpretationRequest,
+          { repairSchema: true },
+        );
+        interpretation = requireInterpretation(rawInterpretation, chart);
+      }
       return jsonWithRequestId(
         {
           resolvedPlace,

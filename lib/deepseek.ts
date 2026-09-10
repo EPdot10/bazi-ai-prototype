@@ -94,7 +94,10 @@ Return valid JSON with exactly these top-level keys: summary, pastOverview, past
 FINAL SILENT AUDIT
 Rewrite any sentence that could fit almost anyone, flatters without a cost, predicts certainty, cites unsupplied evidence, or repeats another section. Every adverse claim must have a basis, trigger condition, and useful response.`;
 
-export async function generateInterpretation(input: InterpretationRequest) {
+export async function generateInterpretation(
+  input: InterpretationRequest,
+  options: { repairSchema?: boolean } = {},
+) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not configured');
 
@@ -103,6 +106,9 @@ export async function generateInterpretation(input: InterpretationRequest) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
   try {
+    const schemaInstruction = options.repairSchema
+      ? 'SCHEMA REPAIR PASS: The previous response did not satisfy the contract. Return a complete JSON object now. Keep every property name exactly as specified in English; translate string values only. Do not omit any of the four lifeAreas or any required child field. Do not add commentary or markdown.'
+      : 'SCHEMA LOCK: Every JSON property name must remain exactly as specified in English, including character, career, relationships, timing, headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence, futureForecasts, and all other keys. Translate string values only; never translate, rename, or omit keys.';
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -126,6 +132,7 @@ export async function generateInterpretation(input: InterpretationRequest) {
                 input.locale === 'zh'
                   ? 'MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, futureOverview, futureForecasts, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese.'
                   : 'MANDATORY: every user-visible field in the JSON must be written in English.',
+              schemaInstruction,
             }),
           },
         ],
