@@ -354,7 +354,6 @@ export default function Home() {
     setBirthPlace('');
     setName('');
     setGender('undisclosed');
-    setLocale('en');
     setConfirmedPlace(null);
     setStep(1);
     setDirectInput(false);
