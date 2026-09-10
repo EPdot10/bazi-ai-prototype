@@ -1,6 +1,6 @@
 # MING Project Handover
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## Product intent
 
@@ -13,11 +13,10 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 1. Select a birth date using the wheel or direct input.
 2. Choose Exact, Approximate, or Unknown birth time; Exact is the default.
 3. Enter and confirm a birth city. City plus country is recommended when names are ambiguous.
-4. Choose Essential or Deep reading.
-5. Wait through the staged reading animation.
-6. Review retrospective periods first, then move across Character, Career, Relationships, Timing, and Method.
-7. Unlock Relationships with the prototype Jade Pass `666`.
-8. Start another reading using New reading.
+4. Wait through the staged reading animation while the server calls DeepSeek V4.1 Flash.
+5. Review retrospective periods first, then move across Character, Career, Relationships, Timing, and Method.
+6. Unlock Relationships with the prototype Jade Pass `666`.
+7. Start another reading using New reading.
 
 ## Key implementation locations
 
@@ -26,8 +25,8 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 - `app/api/place/route.ts` — browser-facing city confirmation endpoint.
 - `lib/geocode.ts` — place resolution, coordinates, and IANA time-zone lookup.
 - `lib/bazi/calculate.ts` — deterministic BaZi calculation and timing signals.
-- `app/api/interpret/route.ts` — validation, fixture shortcut, chart calculation, DeepSeek call, normalisation, and fallback handling.
-- `lib/deepseek.ts` — server-only model client, model allowlist, timeouts/retries, and prompt boundary.
+- `app/api/interpret/route.ts` — validation, disabled-fixture switch, chart calculation, DeepSeek call, strict response validation, and error handling.
+- `lib/deepseek.ts` — server-only DeepSeek V4.1 Flash client, timeout, and prompt boundary.
 - `lib/prompts.ts` — interpretation prompt and JSON contract.
 - `lib/fixtures/test-readings.ts` — two fully saved, zero-cost UI test readings.
 - `vite.config.ts` — Vinext/Sites/Cloudflare configuration and LAN host binding.
@@ -40,7 +39,7 @@ Two intentionally impossible historical dates are reserved for fast interface te
 - `1000-01-01`: exact-time-style fixture, 乙 Day Master.
 - `1000-01-02`: unknown-time fixture, 丙 Day Master.
 
-Use “Type the date instead” to enter them. Moving to step 3 automatically supplies and confirms Melbourne. `/api/interpret` validates the request, then returns the stored object before place resolution, chart calculation, or DeepSeek. It also returns the `X-Ming-Test-Fixture` response header.
+The records remain available for future QA, but the fixture switch is currently disabled. Both dates now go through normal place resolution, chart calculation, and DeepSeek.
 
 Keep these dates undocumented in customer-facing product copy. If the API is opened publicly, consider protecting fixtures behind a development-only environment switch so outsiders cannot enumerate test behaviour.
 
@@ -48,11 +47,10 @@ Keep these dates undocumented in customer-facing product copy. If the API is ope
 
 DeepSeek is called on the server. The browser cannot choose arbitrary models or read the API key.
 
-- Essential/free tier uses `DEEPSEEK_FREE_MODEL`.
-- Deep/premium tier uses `DEEPSEEK_PREMIUM_MODEL`.
-- Audit work can use `DEEPSEEK_AUDIT_MODEL`.
-- Unsupported or unavailable V4 aliases retry through compatible DeepSeek endpoints according to the current client policy.
-- When the model fails, the API returns a locally generated interpretation and a notice instead of breaking the reading.
+- All readings use `DEEPSEEK_MODEL=deepseek-flash` (DeepSeek V4.1 Flash).
+- The model selector was removed from the page.
+- There is no model retry or local interpretation fallback during evaluation.
+- If DeepSeek times out, returns empty content, or returns invalid JSON, the API returns an explicit 502 error.
 
 Never place a real key in source, README, browser code, screenshots, logs, or Git history.
 
@@ -74,8 +72,8 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 - Targeted lint passes for the edited product files.
 - Production build completes successfully.
-- `1000-01-01` returns HTTP 200 with source `fixture` and response header `X-Ming-Test-Fixture: 1000-01-01`.
-- `1000-01-02` returns HTTP 200 with source `fixture` and response header `X-Ming-Test-Fixture: 1000-01-02`.
+- `1000-01-01` was verified after the change to return a live DeepSeek response with no fixture header.
+- Three random dates were verified against production: all returned HTTP 200 and `interpretationSource=deepseek` in 25.9–28.6 seconds.
 - A request to `http://192.168.1.100:3000/` returns HTTP 200 from the local machine.
 - Normal DeepSeek-backed dates were verified in the prior iteration.
 
