@@ -86,8 +86,10 @@ export async function generateInterpretation(input: InterpretationRequest) {
       },
       body: JSON.stringify({
         model,
-        thinking: { type: 'enabled' },
-        reasoning_effort: 'high',
+        // Keep the public reading path in Flash non-thinking mode. It is
+        // materially faster and guarantees a final JSON content payload;
+        // failures are surfaced instead of replaced by a local reading.
+        thinking: { type: 'disabled' },
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -103,7 +105,7 @@ export async function generateInterpretation(input: InterpretationRequest) {
           },
         ],
         temperature: 0.5,
-        max_tokens: 7000,
+        max_tokens: 5200,
       }),
       signal: controller.signal,
     });
