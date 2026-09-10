@@ -207,43 +207,76 @@ function localInterpretation(
         trajectorySentence:
           '你过去的轨迹可能不是单纯一路上升，而是在几次环境、关系或责任重新排列之后，逐渐把主动权收回到自己手里。',
       },
-      pastPatterns: result.pastPatterns.map((pattern, index) => {
-        const candidate = selectedSignals[index];
-        const signal = chart.timingSignals.find(
-          (item) => item.year === candidate?.year,
-        );
-        const domain = candidate?.domains?.[0] ?? '生活中的一个重要领域';
-        const domainLabel = domain.includes('family')
-          ? '家庭与归属'
-          : domain.includes('school') || domain.includes('authority')
-            ? '学习与规则'
-            : domain.includes('relationship') || domain.includes('close')
-              ? '亲密关系与边界'
-              : domain.includes('career') || domain.includes('resource')
-                ? '事业与资源'
-                : '个人目标与表达';
-        const relation = signal?.relationTypes[0];
-        const headline =
-          relation === 'clash'
-            ? `${domainLabel}：旧秩序被打破`
-            : relation === 'repeat'
-              ? `${domainLabel}：旧主题再次浮现`
-              : relation === 'combination'
-                ? `${domainLabel}：新的连接形成`
-                : `${domainLabel}：责任与表达变得清晰`;
-        return {
-          ...pattern,
-          headline,
-          narrative: `在${pattern.period}前后，命盘中的${candidate?.signature ?? '流年关系'}可能让“${domain}”变得更显眼。它未必对应单一事件，更像是你开始发现：原来的安排、关系或自我定位已经不能完全容纳现在的你。可能表现为学习方向变化、家庭规则重新协商、朋友圈重组，或对未来计划产生更强的自主要求。最值得核对的不是事情有多戏剧化，而是你是否从那段时间开始改变了做决定的方式。`,
-          possibilities: [
-            `你可能在${domain}上遇到一次需要重新适应或重新分配责任的经历。`,
-            '某段关系、学习安排或生活规则可能从“默认如此”变成需要明确谈判。',
-            '这段经历之后，你可能更重视自主权、边界或可执行的计划。',
-          ],
-          principle: `依据${candidate?.signature ?? '流年与命盘关系'}，传统上更像“${candidate?.themes?.join('、') ?? '主题被激活'}”的窗口，而不是一个保证发生的事件。`,
-          basis: candidate?.evidence?.join('；') ?? pattern.basis,
-        };
-      }),
+      pastPatterns: (() => {
+        const usedDomainLabels = new Set<string>();
+        const domainAlternatives = [
+          '家庭与归属',
+          '学习与规则',
+          '亲密关系与边界',
+          '事业与资源',
+          '个人目标与表达',
+        ];
+        return result.pastPatterns.map((pattern, index) => {
+          const candidate = selectedSignals[index];
+          const signal = chart.timingSignals.find(
+            (item) => item.year === candidate?.year,
+          );
+          const domain = candidate?.domains?.[0] ?? '生活中的一个重要领域';
+          const detectedDomainLabel = domain.includes('family')
+            ? '家庭与归属'
+            : domain.includes('school') || domain.includes('authority')
+              ? '学习与规则'
+              : domain.includes('relationship') || domain.includes('close')
+                ? '亲密关系与边界'
+                : domain.includes('career') || domain.includes('resource')
+                  ? '事业与资源'
+                  : '个人目标与表达';
+          const domainLabel = usedDomainLabels.has(detectedDomainLabel)
+            ? (domainAlternatives.find((item) => !usedDomainLabels.has(item)) ??
+              detectedDomainLabel)
+            : detectedDomainLabel;
+          usedDomainLabels.add(domainLabel);
+          const relation = signal?.relationTypes[0];
+          const headline =
+            relation === 'clash'
+              ? `${domainLabel}：旧秩序被打破`
+              : relation === 'repeat'
+                ? `${domainLabel}：旧主题再次浮现`
+                : relation === 'combination'
+                  ? `${domainLabel}：新的连接形成`
+                  : `${domainLabel}：责任与表达变得清晰`;
+          const relationReading =
+            relation === 'clash'
+              ? '冲突信号把原本默认的安排推到台前，要求你重新谈判边界或做出取舍。'
+              : relation === 'repeat'
+                ? '重复信号让一个旧主题再次变得具体，像是同一道题换了场景重新出现。'
+                : relation === 'combination'
+                  ? '连接信号带来新的协作、支持或入口，但也要求你适应别人的节奏。'
+                  : '这一窗口更像把一个原本隐约的责任或愿望照亮，让你开始认真命名它。';
+          const sceneDetail =
+            domainLabel === '家庭与归属'
+              ? '家中的规则、照顾方式，或你对“我属于哪里”的感受'
+              : domainLabel === '学习与规则'
+                ? '学校、考试、导师或家人对你能力的具体要求'
+                : domainLabel === '亲密关系与边界'
+                  ? '一段重要关系里的距离、信任与表达方式'
+                  : domainLabel === '事业与资源'
+                    ? '工作分工、金钱安排，或别人如何评价你的可靠性'
+                    : '一个你想独立完成的目标，以及你愿意为它承担的代价';
+          return {
+            ...pattern,
+            headline,
+            narrative: `在${pattern.period}前后，最值得核对的不是泛泛的“发生变化”，而是${sceneDetail}是否突然需要你亲自处理。${relationReading}这可能表现为一次具体的选择、一次谈话、一个新的责任，或你对某件事的态度从配合变成有条件地答应。事情过去之后，留下来的往往不是表面结果，而是你开始用不同的标准判断谁值得信任、什么值得投入，以及哪些安排不能再由别人替你决定。`,
+            possibilities: [
+              `${domainLabel}方面可能出现一个必须由你回应的具体节点，而不是继续顺其自然。`,
+              `${sceneDetail}可能从“默认如此”变成需要说清楚、重新安排或设定边界。`,
+              '回头看，这段经历可能改变了你之后做决定时最看重的标准。',
+            ],
+            principle: `依据${candidate?.signature ?? '流年与命盘关系'}，传统上更像“${candidate?.themes?.join('、') ?? '主题被激活'}”的窗口，而不是一个保证发生的事件。`,
+            basis: candidate?.evidence?.join('；') ?? pattern.basis,
+          };
+        });
+      })(),
       insights: [
         {
           title: '日主与季节的张力',
