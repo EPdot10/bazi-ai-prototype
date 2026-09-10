@@ -18,48 +18,31 @@ export interface InterpretationRequest {
   };
 }
 
-export type InterpretationTier = 'free' | 'premium' | 'audit';
+const ALLOWED_FLASH_MODELS = new Set([
+  'deepseek-flash',
+  'deepseek-v4-flash',
+  'deepseek-v4-flash-vision-exp',
+]);
 
-const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'deepseek-v4-pro']);
-
-// Premium readings enable model reasoning and can legitimately take longer
-// than the fast path. Keep the ceiling bounded, but do not turn a slow valid
-// answer into a generic local fallback too early.
-const DEFAULT_DEEPSEEK_TIMEOUT_MS = 90_000;
+const DEFAULT_DEEPSEEK_TIMEOUT_MS = 60_000;
 
 function deepSeekTimeoutMs() {
   const configured = Number(process.env.DEEPSEEK_TIMEOUT_MS);
   return Number.isFinite(configured) &&
     configured >= 5_000 &&
-    configured <= 120_000
+    configured <= 60_000
     ? configured
     : DEFAULT_DEEPSEEK_TIMEOUT_MS;
 }
 
-function configuredModel(name: string, fallback: string) {
-  const value = process.env[name] ?? fallback;
-  if (!ALLOWED_MODELS.has(value)) {
-    throw new Error(`${name} must be deepseek-v4-flash or deepseek-v4-pro`);
+function configuredModel() {
+  const value = process.env.DEEPSEEK_MODEL ?? 'deepseek-flash';
+  if (!ALLOWED_FLASH_MODELS.has(value)) {
+    throw new Error(
+      'DEEPSEEK_MODEL must be deepseek-flash or a temporary legacy Flash alias',
+    );
   }
   return value;
-}
-
-export function resolveModelForTier(tier: InterpretationTier) {
-  switch (tier) {
-    case 'premium':
-      return configuredModel('DEEPSEEK_PREMIUM_MODEL', 'deepseek-v4-pro');
-    case 'audit':
-      return configuredModel('DEEPSEEK_AUDIT_MODEL', 'deepseek-v4-flash');
-    default:
-      return configuredModel('DEEPSEEK_FREE_MODEL', 'deepseek-v4-flash');
-  }
-}
-
-function modelCandidatesForTier(tier: InterpretationTier) {
-  const configured = resolveModelForTier(tier);
-  const compatible =
-    tier === 'premium' ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
-  return configured === compatible ? [configured] : [configured, compatible];
 }
 
 const SYSTEM_PROMPT = `You are the interpretation layer of a culturally grounded BaZi product. Write for a curious first-time user, not for a BaZi practitioner. Follow the locale field in the request: use clear Simplified Chinese when locale is "zh" and clear English when locale is "en".
@@ -86,99 +69,82 @@ Insights must be an array of 2 to 4 objects with title, interpretation, basis, a
 lifeAreas must be an object with exactly four keys: character, career, relationships, timing. Each value must contain headline, narrative, signals, guidance, basis, and confidence. Each narrative should be 140 to 220 words, signals must contain 4 concrete observations, and guidance should contain 2 to 3 actionable sentences. Cover all four areas in the same response; do not ask the user to choose a focus. For timing, discuss the current phase and near-term themes without guaranteed events. For relationships, do not assume relationship status, gender, or sexuality.
 Summary should be vivid, direct, and under 80 words. Limitations must be one plain string, not an array.`;
 
-export async function generateInterpretation(
-  input: InterpretationRequest,
-  tier: InterpretationTier = 'free',
-) {
+export async function generateInterpretation(input: InterpretationRequest) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not configured');
 
   const baseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com';
-  let lastError = 'DeepSeek request failed';
-  for (const model of modelCandidatesForTier(tier)) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
-    try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          thinking: { type: tier === 'premium' ? 'enabled' : 'disabled' },
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: JSON.stringify({
-                ...input,
-                outputLanguageInstruction:
-                  input.locale === 'zh'
-                    ? 'MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese.'
-                    : 'MANDATORY: every user-visible field in the JSON must be written in English.',
-              }),
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: tier === 'premium' ? 7000 : 5200,
-        }),
-        signal: controller.signal,
-      });
+  const model = configuredModel();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        thinking: { type: 'enabled' },
+        reasoning_effort: 'high',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              ...input,
+              outputLanguageInstruction:
+                input.locale === 'zh'
+                  ? 'MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese.'
+                  : 'MANDATORY: every user-visible field in the JSON must be written in English.',
+            }),
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 7000,
+      }),
+      signal: controller.signal,
+    });
 
-      if (!response.ok) {
-        lastError = `DeepSeek request failed with status ${response.status}`;
-        if (
-          (response.status === 400 || response.status === 404) &&
-          model.startsWith('deepseek-v4-')
-        ) {
-          continue;
-        }
-        throw new Error(lastError);
-      }
-
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const content = payload.choices?.[0]?.message?.content;
-      if (!content) {
-        lastError = `DeepSeek model ${model} returned an empty response`;
-        if (model.startsWith('deepseek-v4-')) continue;
-        throw new Error(lastError);
-      }
-      const normalized = content
-        .trim()
-        .replace(/^```json\s*/i, '')
-        .replace(/```$/, '');
-      try {
-        return JSON.parse(normalized) as unknown;
-      } catch {
-        const firstBrace = normalized.indexOf('{');
-        const lastBrace = normalized.lastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace) {
-          try {
-            return JSON.parse(
-              normalized.slice(firstBrace, lastBrace + 1),
-            ) as unknown;
-          } catch {
-            // Try the compatible model below when a V4 alias returns partial JSON.
-          }
-        }
-        lastError = `DeepSeek model ${model} returned invalid JSON`;
-        if (model.startsWith('deepseek-v4-')) continue;
-        throw new Error(lastError);
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        lastError = `DeepSeek model ${model} timed out`;
-        if (model.startsWith('deepseek-v4-')) continue;
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
+    if (!response.ok) {
+      throw new Error(`DeepSeek request failed with status ${response.status}`);
     }
+
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = payload.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error(`DeepSeek model ${model} returned an empty response`);
+    }
+    const normalized = content
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/```$/, '');
+    try {
+      return JSON.parse(normalized) as unknown;
+    } catch {
+      const firstBrace = normalized.indexOf('{');
+      const lastBrace = normalized.lastIndexOf('}');
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        try {
+          return JSON.parse(
+            normalized.slice(firstBrace, lastBrace + 1),
+          ) as unknown;
+        } catch {
+          // Preserve the provider failure so the caller can report it honestly.
+        }
+      }
+      throw new Error(`DeepSeek model ${model} returned invalid JSON`);
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`DeepSeek model ${model} timed out`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  throw new Error(lastError);
 }

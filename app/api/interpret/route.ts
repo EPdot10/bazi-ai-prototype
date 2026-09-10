@@ -23,6 +23,9 @@ const validTopics = new Set([
   'relationships',
   'year-ahead',
 ]);
+// Keep the old fixtures in the repository for future QA, but do not serve them
+// during the current model evaluation pass.
+const ENABLE_TEST_FIXTURES = false;
 
 function localInterpretation(
   chart: ReturnType<typeof calculateBaziChart>,
@@ -364,6 +367,40 @@ function localInterpretation(
   return result;
 }
 
+function requireInterpretation(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    throw new Error('DeepSeek returned a non-object interpretation');
+  }
+  const candidate = value as Record<string, unknown>;
+  const requiredKeys = [
+    'summary',
+    'pastOverview',
+    'pastPatterns',
+    'insights',
+    'lifeAreas',
+    'reflectionQuestions',
+    'limitations',
+  ];
+  if (requiredKeys.some((key) => !(key in candidate))) {
+    throw new Error('DeepSeek returned incomplete interpretation JSON');
+  }
+  if (
+    typeof candidate.summary !== 'string' ||
+    !candidate.pastOverview ||
+    !Array.isArray(candidate.pastPatterns) ||
+    !Array.isArray(candidate.insights) ||
+    !candidate.lifeAreas ||
+    !Array.isArray(candidate.reflectionQuestions) ||
+    typeof candidate.limitations !== 'string'
+  ) {
+    throw new Error('DeepSeek returned an invalid interpretation shape');
+  }
+  return value as ReturnType<typeof localInterpretation>;
+}
+
+// Retained only as a migration reference for the old fixture implementation;
+// the request path above never calls this fallback normalizer anymore.
+// eslint-disable-next-line no-unused-vars
 function normalizeInterpretation(
   value: unknown,
   fallback: ReturnType<typeof localInterpretation>,
@@ -525,7 +562,6 @@ export async function POST(request: Request) {
       gender?: 'male' | 'female' | 'undisclosed';
       locale?: 'en' | 'zh';
       topic?: 'overview' | 'career' | 'relationships' | 'year-ahead';
-      tier?: 'free' | 'premium';
       turnstileToken?: string;
       shareForImprovement?: boolean;
     }>(request);
@@ -577,11 +613,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const testReading = getTestReading(body.birthDate);
-    if (testReading) {
-      return jsonWithRequestId(testReading, id, 200, {
-        'X-Ming-Test-Fixture': body.birthDate,
-      });
+    if (ENABLE_TEST_FIXTURES) {
+      const testReading = getTestReading(body.birthDate);
+      if (testReading) {
+        return jsonWithRequestId(testReading, id, 200, {
+          'X-Ming-Test-Fixture': body.birthDate,
+        });
+      }
     }
 
     const resolvedPlace = await resolveBirthPlace(body.birthPlace);
@@ -592,52 +630,43 @@ export async function POST(request: Request) {
       birthPlace: resolvedPlace,
     });
 
-    const localReading = localInterpretation(chart, topic, body.locale ?? 'en');
-    let interpretation = localReading;
-    let interpretationSource: 'deepseek' | 'local' = 'local';
-    let modelNotice: string | undefined;
-
     try {
-      interpretation = normalizeInterpretation(
-        await generateInterpretation(
-          {
-            chart,
-            topic,
-            locale: body.locale ?? 'en',
-            birthContext: {
-              birthDate: body.birthDate,
-              readingDate: new Date().toISOString().slice(0, 10),
-              resolvedPlace,
-              name: body.name?.trim() || undefined,
-              gender: body.gender ?? 'undisclosed',
-            },
+      const interpretation = requireInterpretation(
+        await generateInterpretation({
+          chart,
+          topic,
+          locale: body.locale ?? 'en',
+          birthContext: {
+            birthDate: body.birthDate,
+            readingDate: new Date().toISOString().slice(0, 10),
+            resolvedPlace,
+            name: body.name?.trim() || undefined,
+            gender: body.gender ?? 'undisclosed',
           },
-          body.tier === 'premium' ? 'premium' : 'free',
-        ),
-        localReading,
+        }),
       );
-      interpretationSource = 'deepseek';
+      return jsonWithRequestId(
+        {
+          resolvedPlace,
+          chart,
+          interpretation,
+          interpretationSource: 'deepseek',
+        },
+        id,
+      );
     } catch (error) {
       console.warn(
-        '[interpretation-fallback]',
+        '[interpretation-error]',
         error instanceof Error ? error.message : 'unknown model error',
       );
-      modelNotice =
-        error instanceof Error && error.message.includes('not configured')
-          ? 'AI interpretation is not configured; showing the calculated local reading.'
-          : 'The AI interpretation was unavailable; showing the calculated local reading.';
+      const detail =
+        error instanceof Error ? error.message : 'unknown model error';
+      return jsonWithRequestId(
+        { error: `AI interpretation failed: ${detail}` },
+        id,
+        502,
+      );
     }
-
-    return jsonWithRequestId(
-      {
-        resolvedPlace,
-        chart,
-        interpretation,
-        interpretationSource,
-        modelNotice,
-      },
-      id,
-    );
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'REQUEST_TOO_LARGE') {

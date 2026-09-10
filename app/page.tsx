@@ -14,7 +14,6 @@ import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
 import { TurnstileField } from '@/components/turnstile-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
 type Gender = 'male' | 'female' | 'undisclosed';
@@ -96,7 +95,7 @@ interface Reading {
     reflectionQuestions: string[];
     limitations: string;
   };
-  interpretationSource: 'deepseek' | 'local' | 'fixture';
+  interpretationSource: 'deepseek' | 'fixture';
   locale?: ReadingLocale;
   testFixture?: boolean;
   feedbackConsent?: boolean;
@@ -185,9 +184,6 @@ const intakeCopy = {
     locationConfirmed: 'Location confirmed',
     confirmThisCity: 'Confirm this city',
     confirmingCity: 'Confirming city',
-    readingDepth: 'Reading depth',
-    essential: 'Essential · quicker',
-    deep: 'Deep reading · slower',
     share:
       "I'm willing to share anonymous feedback to help us make this prototype better. This is optional.",
     provider:
@@ -230,9 +226,6 @@ const intakeCopy = {
     locationConfirmed: '地点已确认',
     confirmThisCity: '确认这个城市',
     confirmingCity: '正在确认城市',
-    readingDepth: '解读深度',
-    essential: '基础 · 更快',
-    deep: '深度 · 较慢',
     share: '我愿意分享匿名反馈，帮助我们改进这个原型。此项为自愿选择。',
     provider:
       '为了生成解读，你提供的生日、城市和其他选填信息会发送给 AI 服务。',
@@ -251,14 +244,6 @@ function friendlyTimeZone(value: string) {
   return value.replaceAll('_', ' ');
 }
 
-function birthDateKey(value: BirthWheelValue) {
-  return `${value.year}-${pad(value.month)}-${pad(value.day)}`;
-}
-
-function isTestDate(value: BirthWheelValue) {
-  return ['1000-01-01', '1000-01-02'].includes(birthDateKey(value));
-}
-
 export default function Home() {
   const [birthValue, setBirthValue] =
     useState<BirthWheelValue>(initialBirthValue);
@@ -270,7 +255,6 @@ export default function Home() {
   const [confirmedPlace, setConfirmedPlace] = useState<
     Reading['resolvedPlace'] | null
   >(null);
-  const [tier, setTier] = useState<'free' | 'premium'>('free');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [directInput, setDirectInput] = useState(false);
   const [dateInteracted, setDateInteracted] = useState(false);
@@ -335,7 +319,6 @@ export default function Home() {
     setGender('undisclosed');
     setLocale('en');
     setConfirmedPlace(null);
-    setTier('free');
     setStep(1);
     setDirectInput(false);
     setDateInteracted(false);
@@ -346,16 +329,6 @@ export default function Home() {
   }
 
   async function confirmPlace() {
-    if (isTestDate(birthValue)) {
-      setBirthPlace('Melbourne, Australia');
-      setConfirmedPlace({
-        label: 'Melbourne, Victoria, Australia',
-        ianaTimeZone: 'Australia/Melbourne',
-      });
-      setError('');
-      return;
-    }
-
     setResolvingPlace(true);
     setError('');
     try {
@@ -410,7 +383,6 @@ export default function Home() {
           name: name.trim() || undefined,
           gender,
           locale,
-          tier,
           turnstileToken,
           shareForImprovement,
         }),
@@ -750,16 +722,7 @@ export default function Home() {
                         !timeConfidence ||
                         (timeConfidence !== 'unknown' && !timeInteracted)
                       }
-                      onClick={() => {
-                        if (isTestDate(birthValue)) {
-                          setBirthPlace('Melbourne, Australia');
-                          setConfirmedPlace({
-                            label: 'Melbourne, Victoria, Australia',
-                            ianaTimeZone: 'Australia/Melbourne',
-                          });
-                        }
-                        setStep(3);
-                      }}
+                      onClick={() => setStep(3)}
                       type="button"
                     >
                       {copy.continue} <ArrowUpRight className="size-4" />
@@ -869,25 +832,6 @@ export default function Home() {
                       )}
                     </Button>
                   )}
-
-                  <div className="mt-7 block">
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <span className="max-w-xs">
-                        <span className="field-label">{copy.readingDepth}</span>
-                        <NativeSelect
-                          className="minimal-select"
-                          id="tier"
-                          onChange={(event) =>
-                            setTier(event.target.value as 'free' | 'premium')
-                          }
-                          value={tier}
-                        >
-                          <option value="free">{copy.essential}</option>
-                          <option value="premium">{copy.deep}</option>
-                        </NativeSelect>
-                      </span>
-                    </div>
-                  </div>
 
                   <div className="mt-7 space-y-4 border-t border-black/10 pt-6">
                     <label className="flex items-start gap-3 text-xs leading-5 text-black/52">
@@ -1292,12 +1236,12 @@ function ReadingResult({
                 ? 'DeepSeek 解读 · 命盘由本地计算'
                 : reading.interpretationSource === 'fixture'
                   ? '已保存测试结果 · 未调用 API'
-                  : '本地计算结果 · AI 备用解读'
+                  : 'AI 解读不可用'
               : reading.interpretationSource === 'deepseek'
                 ? 'DeepSeek interpretation · locally calculated chart'
                 : reading.interpretationSource === 'fixture'
                   ? 'Saved test fixture · no API request'
-                  : 'Locally calculated reading · AI fallback'}
+                  : 'AI interpretation unavailable'}
           </p>
         </div>
       </section>

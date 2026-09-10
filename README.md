@@ -9,10 +9,10 @@ An English-language, mobile-first prototype for Chinese BaZi and Five Element re
 - Exact, approximate, and unknown birth-time paths.
 - Birthplace lookup with city label, coordinates, IANA time zone, civil-time handling, and local solar-time adjustment.
 - Deterministic BaZi pillars, Day Master, visible element balance, calculation notes, and annual timing signals.
-- DeepSeek-backed English interpretation with server-side model selection and a local fallback.
+- DeepSeek V4.1 Flash interpretation with server-side calls and explicit error reporting when the provider is unavailable.
 - Result views for Looking Back, Character, Career, Relationships, Timing, and Method.
 - Relationship content lock with the prototype Jade Pass `666`.
-- Two instant test fixtures that never call geocoding or DeepSeek.
+- Saved test fixtures remain in the repository but are currently disabled while model quality is being evaluated.
 - Responsive local preview available to phones on the same LAN.
 
 ## Technology
@@ -34,16 +34,14 @@ An English-language, mobile-first prototype for Chinese BaZi and Five Element re
 5. Run `npm run dev`.
 6. Open `http://localhost:3000/`.
 
-Never commit `.env.local`, place the key in a `NEXT_PUBLIC_` variable, or call DeepSeek directly from browser code. The same key can use the configured Flash and Pro model aliases:
+Never commit `.env.local`, place the key in a `NEXT_PUBLIC_` variable, or call DeepSeek directly from browser code. The same key uses the DeepSeek V4.1 Flash API model:
 
 ```env
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_FREE_MODEL=deepseek-v4-flash
-DEEPSEEK_PREMIUM_MODEL=deepseek-v4-pro
-DEEPSEEK_AUDIT_MODEL=deepseek-v4-flash
+DEEPSEEK_MODEL=deepseek-flash
 GOOGLE_MAPS_API_KEY=
-DEEPSEEK_TIMEOUT_MS=90000
+DEEPSEEK_TIMEOUT_MS=60000
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
 ```
@@ -51,7 +49,7 @@ TURNSTILE_SECRET_KEY=
 `GOOGLE_MAPS_API_KEY` is optional. When it is absent, the place resolver uses its configured fallback.
 Turnstile is optional for local development; configure the public site key at build time and the secret key at runtime to enforce bot protection in production.
 
-## Instant test backdoors
+## Saved test fixtures (currently disabled)
 
 Use direct date entry rather than the wheel, because the normal wheel intentionally starts at 1920:
 
@@ -60,7 +58,7 @@ Use direct date entry rather than the wheel, because the normal wheel intentiona
 | `1000-01-01` | Exact-time chart, 乙 Day Master   | Standard result, tabs, timeline, and lock testing |
 | `1000-01-02` | Unknown-time chart, 丙 Day Master | Missing-hour and alternate-copy testing           |
 
-After either date is confirmed, Melbourne is filled and confirmed automatically. Submitting returns a saved fixture from `lib/fixtures/test-readings.ts`. No place lookup or model request occurs. The result page displays “Saved test fixture · no API request”.
+The fixture records remain in `lib/fixtures/test-readings.ts` for later QA, but the API currently bypasses this branch so both dates use normal geocoding and the live DeepSeek request.
 
 ## Test on a phone over the local network
 
@@ -83,9 +81,9 @@ The production build currently succeeds. Full-project lint still reports issues 
 
 ## Request flow
 
-`birth details → place/time-zone resolution → deterministic chart calculation → anonymised chart facts → DeepSeek interpretation → response normalisation → result UI`
+`birth details → place/time-zone resolution → deterministic chart calculation → anonymised chart facts → DeepSeek V4.1 Flash interpretation → result UI`
 
-The test dates branch immediately to a stored fixture before any external service call.
+The saved test-date branch is currently disabled.
 
 ## API protection
 
@@ -93,7 +91,7 @@ The test dates branch immediately to a stored fixture before any external servic
 - `/api/place` is limited to 20 requests per IP per minute.
 - JSON bodies are capped at 16 KB and city input at 100 characters.
 - Responses include an `X-Request-Id` for support and abuse investigation.
-- DeepSeek requests use a shared 90-second ceiling, configurable with `DEEPSEEK_TIMEOUT_MS`; premium reasoning may take longer than the fast path.
+- DeepSeek V4.1 Flash requests use a 60-second ceiling, configurable with `DEEPSEEK_TIMEOUT_MS`; failures are returned directly instead of being replaced by a local fallback.
 - Set `RATE_LIMIT_ENABLED=false` only for local or private testing to temporarily disable API rate limits; keep it `true` for public use.
 - Configure Cloudflare Turnstile with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at build time and `TURNSTILE_SECRET_KEY` at runtime. Local development skips verification when the secret is absent.
 - Protect the deployed Worker with Cloudflare Access for private testing; application-level limits remain necessary if the URL is public.
