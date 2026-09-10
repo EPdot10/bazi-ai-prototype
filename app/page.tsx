@@ -184,6 +184,7 @@ export default function Home() {
   const [dateInteracted, setDateInteracted] = useState(false);
   const [timeInteracted, setTimeInteracted] = useState(false);
   const [reading, setReading] = useState<Reading | null>(null);
+  const [hasStarted, setHasStarted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resolvingPlace, setResolvingPlace] = useState(false);
@@ -234,6 +235,7 @@ export default function Home() {
 
   function resetReading() {
     setReading(null);
+    setHasStarted(false);
     setBirthValue(initialBirthValue);
     setTimeConfidence('exact');
     setBirthPlace('');
@@ -349,6 +351,8 @@ export default function Home() {
           locale={reading.locale ?? locale}
           onReset={resetReading}
         />
+      ) : !hasStarted ? (
+        <LandingPage onBegin={() => setHasStarted(true)} />
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
@@ -874,6 +878,88 @@ export default function Home() {
       )}
       {loading ? <ReadingLoading /> : null}
     </main>
+  );
+}
+
+function LandingPage({ onBegin }: { onBegin: () => void }) {
+  return (
+    <section className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[1280px] items-center gap-14 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20 lg:px-14 lg:py-24">
+      <div className="animate-rise max-w-2xl">
+        <p className="mb-7 text-[10px] font-semibold tracking-[0.24em] text-[#9d3027] uppercase">
+          Four pillars · one moment in time
+        </p>
+        <h1 className="max-w-3xl font-serif text-[clamp(3.5rem,8vw,7.4rem)] leading-[0.88] font-medium tracking-[-0.06em]">
+          Read the pattern
+          <span className="block text-[#9d3027]">beneath the moment.</span>
+        </h1>
+        <p className="mt-9 max-w-xl font-serif text-2xl leading-9 text-black/70 sm:text-3xl sm:leading-10">
+          Discover what your birth date, time, and city reveal through an old
+          Chinese system of timing and balance.
+        </p>
+        <p className="mt-5 max-w-lg text-sm leading-7 text-black/52">
+          MING turns BaZi into a clear, personal reflection on your character,
+          work, relationships, and the chapters you have already lived.
+        </p>
+        <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <Button
+            className="glow-control h-14 rounded-none bg-[#1b1a17] px-7 text-xs tracking-[0.16em] uppercase hover:bg-[#9d3027]"
+            onClick={onBegin}
+            type="button"
+          >
+            Begin your reading
+            <ArrowUpRight className="size-4" />
+          </Button>
+          <span className="text-xs text-black/38">
+            Free first reading · no account required
+          </span>
+        </div>
+        <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
+          <span className="h-px w-10 bg-[#9d3027]/55" />
+          No prophecy · a pattern to consider
+        </div>
+      </div>
+
+      <div className="animate-rise-delayed relative mx-auto w-full max-w-md lg:justify-self-end">
+        <div className="absolute -inset-8 rounded-full bg-[#9d3027]/[0.04] blur-3xl" />
+        <div className="relative border border-black/10 bg-white/30 p-6 shadow-[0_24px_80px_rgb(55_35_22_/_6%)] sm:p-8">
+          <div className="flex items-center justify-between border-b border-black/10 pb-5">
+            <div>
+              <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
+                Your starting point
+              </p>
+              <p className="mt-2 font-serif text-2xl">
+                Three details. One map.
+              </p>
+            </div>
+            <span className="grid size-12 place-items-center border border-[#9d3027]/30 font-serif text-2xl text-[#9d3027]">
+              命
+            </span>
+          </div>
+          <div className="divide-y divide-black/10">
+            {[
+              ['01', 'Date', 'The day your story began'],
+              ['02', 'Time', 'The rhythm within the day'],
+              ['03', 'City', 'The place that sets the clock'],
+            ].map(([number, title, description]) => (
+              <div className="flex gap-5 py-6" key={number}>
+                <span className="pt-1 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027]">
+                  {number}
+                </span>
+                <div>
+                  <p className="font-serif text-xl">{title}</p>
+                  <p className="mt-1 text-sm leading-6 text-black/45">
+                    {description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="border-t border-black/10 pt-5 text-xs leading-5 text-black/40">
+            Exact time gives more detail. Unknown is still a valid way to begin.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
