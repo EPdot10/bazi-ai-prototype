@@ -919,7 +919,7 @@ export default function Home() {
 
               {error ? (
                 <p
-                  className="mt-6 border-l-2 border-[#9d3027] pl-4 text-sm leading-6 text-[#8b2b24]"
+                  className="mt-6 whitespace-pre-wrap break-words border-l-2 border-[#9d3027] pl-4 text-sm leading-6 text-[#8b2b24]"
                   role="alert"
                 >
                   {error}

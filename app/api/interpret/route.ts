@@ -371,8 +371,19 @@ function requireInterpretation(
   value: unknown,
   chart: ReturnType<typeof calculateBaziChart>,
 ) {
+  const safeKeys = (input: unknown) =>
+    input && typeof input === "object" && !Array.isArray(input)
+      ? Object.keys(input as Record<string, unknown>).slice(0, 40)
+      : [];
+  const formatKeys = (keys: string[]) =>
+    keys.length ? keys.join(", ") : "<none>";
+  const valueType = (input: unknown) =>
+    input === null ? "null" : Array.isArray(input) ? "array" : typeof input;
+
   if (!value || typeof value !== "object") {
-    throw new Error("DeepSeek returned a non-object interpretation");
+    throw new Error(
+      `DeepSeek returned a non-object interpretation. Received type: ${Array.isArray(value) ? "array" : typeof value}.`,
+    );
   }
   const candidate = value as Record<string, unknown>;
   const requiredKeys = [
@@ -386,8 +397,11 @@ function requireInterpretation(
     "reflectionQuestions",
     "limitations",
   ];
-  if (requiredKeys.some((key) => !(key in candidate))) {
-    throw new Error("DeepSeek returned incomplete interpretation JSON");
+  const missingTopLevelKeys = requiredKeys.filter((key) => !(key in candidate));
+  if (missingTopLevelKeys.length) {
+    throw new Error(
+      `DeepSeek returned incomplete interpretation JSON. Missing top-level keys: ${formatKeys(missingTopLevelKeys)}. Received top-level keys: ${formatKeys(safeKeys(candidate))}.`,
+    );
   }
   if (
     typeof candidate.summary !== "string" ||
@@ -414,14 +428,28 @@ function requireInterpretation(
     basis: ["basis", "依据", "基础"],
     confidence: ["confidence", "置信度", "信心"],
   } as const;
+  const normalizeAreaField = (
+    field: keyof typeof areaFieldAliases,
+    input: unknown,
+  ) => {
+    if (typeof input === "string") return input;
+    if (
+      field === "basis" &&
+      Array.isArray(input) &&
+      input.every((item) => typeof item === "string")
+    ) {
+      return input.join("；");
+    }
+    return undefined;
+  };
   const readAreaField = (
     area: Record<string, unknown>,
     field: keyof typeof areaFieldAliases,
   ) => {
     const sourceKey = areaFieldAliases[field].find(
-      (key) => typeof area[key] === "string",
+      (key) => normalizeAreaField(field, area[key]) !== undefined,
     );
-    return sourceKey ? area[sourceKey] : undefined;
+    return sourceKey ? normalizeAreaField(field, area[sourceKey]) : undefined;
   };
   const validArea = (area: unknown) => {
     if (!area || typeof area !== "object") return false;
@@ -458,8 +486,33 @@ function requireInterpretation(
     (key) => !validArea(resolvedLifeAreas[key]),
   );
   if (invalidAreaKeys.length) {
+    const receivedLifeAreaKeys = safeKeys(lifeAreas);
+    const areaFieldDetails = areaKeys
+      .map((key) => {
+        const sourceKey = areaAliases[key].find((alias) =>
+          Object.prototype.hasOwnProperty.call(lifeAreas, alias),
+        );
+        if (!sourceKey) return `${key}=missing`;
+        const source = lifeAreas[sourceKey];
+        if (!source || typeof source !== "object" || Array.isArray(source)) {
+          return `${key}<-\"${sourceKey}\":valueType=${valueType(source)}`;
+        }
+        const sourceRecord = source as Record<string, unknown>;
+        const requiredFieldTypes = (
+          Object.keys(areaFieldAliases) as Array<keyof typeof areaFieldAliases>
+        )
+          .map((field) => {
+            const fieldKey = areaFieldAliases[field].find((alias) =>
+              Object.prototype.hasOwnProperty.call(sourceRecord, alias),
+            );
+            return `${field}=${fieldKey ? valueType(sourceRecord[fieldKey]) : "missing"}`;
+          })
+          .join(",");
+        return `${key}<-\"${sourceKey}\":fields[${formatKeys(safeKeys(source))}] types[${requiredFieldTypes}]`;
+      })
+      .join("; ");
     throw new Error(
-      `DeepSeek returned incomplete life-area analysis (${invalidAreaKeys.join(", ")})`,
+      `DeepSeek returned incomplete life-area analysis. Missing or invalid areas: ${invalidAreaKeys.join(", ")}. Received life-area keys: ${formatKeys(receivedLifeAreaKeys)}. Area fields: ${areaFieldDetails}. Top-level keys: ${formatKeys(safeKeys(candidate))}.`,
     );
   }
   // Keep the model response as the source of truth, but accept the older
@@ -514,7 +567,29 @@ function requireInterpretation(
     );
   });
   if (!validForecast) {
-    throw new Error("DeepSeek returned invalid future forecasts");
+    const invalidForecastIndexes = candidate.futureForecasts
+      .map((forecast, index) => {
+        if (!forecast || typeof forecast !== "object") return index;
+        const item = forecast as Record<string, unknown>;
+        const requiredForecastKeys = [
+          "year",
+          "theme",
+          "opportunity",
+          "pressure",
+          "riskScenario",
+          "triggerConditions",
+          "earlySignals",
+          "actions",
+          "avoid",
+          "basis",
+          "confidence",
+        ];
+        return requiredForecastKeys.every((key) => key in item) ? -1 : index;
+      })
+      .filter((index) => index >= 0);
+    throw new Error(
+      `DeepSeek returned invalid future forecasts. Invalid indexes: ${invalidForecastIndexes.join(", ") || "unknown"}. Forecast count: ${candidate.futureForecasts.length}.`,
+    );
   }
 
   const expectedFutureYears = chart.futureSignals.map((signal) => signal.year);
@@ -525,7 +600,9 @@ function requireInterpretation(
     expectedFutureYears.length !== returnedFutureYears.length ||
     expectedFutureYears.some((year) => !returnedFutureYears.includes(year))
   ) {
-    throw new Error("DeepSeek returned unsupported or missing future years");
+    throw new Error(
+      `DeepSeek returned unsupported or missing future years. Expected: ${expectedFutureYears.join(", ") || "<none>"}. Received: ${returnedFutureYears.join(", ") || "<none>"}.`,
+    );
   }
 
   return value;
@@ -810,7 +887,10 @@ export async function POST(request: Request) {
       const detail =
         error instanceof Error ? error.message : "unknown model error";
       return jsonWithRequestId(
-        { error: `AI interpretation failed: ${detail}` },
+        {
+          error: `AI interpretation failed: ${detail}\nRequest ID: ${id}`,
+          requestId: id,
+        },
         id,
         502,
       );
