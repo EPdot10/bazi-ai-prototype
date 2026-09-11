@@ -1,6 +1,9 @@
 import { calculateBaziChart } from "@/lib/bazi/calculate";
 import type { BirthTimeConfidence } from "@/lib/bazi/types";
-import { generateInterpretation } from "@/lib/deepseek";
+import {
+  generateInterpretation,
+  type InterpretationPhase,
+} from "@/lib/deepseek";
 import { getTestReading } from "@/lib/fixtures/test-readings";
 import { resolveBirthPlace } from "@/lib/geocode";
 import {
@@ -22,6 +25,14 @@ const validTopics = new Set([
   "career",
   "relationships",
   "year-ahead",
+]);
+const validPhases = new Set<InterpretationPhase>([
+  "past",
+  "future",
+  "character",
+  "career",
+  "relationships",
+  "timing",
 ]);
 // Keep the old fixtures in the repository for future QA, but do not serve them
 // during the current model evaluation pass.
@@ -608,6 +619,237 @@ function requireInterpretation(
   return value;
 }
 
+function normalizePhaseInterpretation(
+  value: unknown,
+  phase: InterpretationPhase,
+  chart: ReturnType<typeof calculateBaziChart>,
+) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(
+      `DeepSeek returned a non-object ${phase} phase. Received type: ${Array.isArray(value) ? "array" : typeof value}.`,
+    );
+  }
+  const candidate = value as Record<string, unknown>;
+  const asRecord = (input: unknown) =>
+    input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : undefined;
+  const pick = (record: Record<string, unknown>, keys: string[]) => {
+    for (const key of keys) {
+      if (record[key] !== undefined && record[key] !== null) return record[key];
+    }
+    return undefined;
+  };
+  const toText = (input: unknown, joinArrays = false) => {
+    if (typeof input === "string") return input;
+    if (
+      joinArrays &&
+      Array.isArray(input) &&
+      input.every((item) => typeof item === "string")
+    ) {
+      return input.join("；");
+    }
+    if (typeof input === "number" || typeof input === "boolean") {
+      return String(input);
+    }
+    return undefined;
+  };
+  const toStringArray = (input: unknown) => {
+    if (typeof input === "string") return input ? [input] : [];
+    return Array.isArray(input)
+      ? input.filter((item): item is string => typeof item === "string")
+      : [];
+  };
+  const requireText = (input: unknown, label: string, joinArrays = false) => {
+    const text = toText(input, joinArrays);
+    if (!text?.trim())
+      throw new Error(`DeepSeek phase ${phase} missing ${label}`);
+    return text;
+  };
+
+  if (phase === "past") {
+    const overview = asRecord(
+      pick(candidate, ["pastOverview", "过去概览", "回望概览"]),
+    );
+    const pastOverview = {
+      characterSentence: requireText(
+        overview && pick(overview, ["characterSentence", "性格总结", "性格"]),
+        "pastOverview.characterSentence",
+      ),
+      trajectorySentence: requireText(
+        overview && pick(overview, ["trajectorySentence", "走势总结", "走势"]),
+        "pastOverview.trajectorySentence",
+      ),
+    };
+    const rawPatterns = Array.isArray(
+      pick(candidate, ["pastPatterns", "过去模式", "过去事件"]),
+    )
+      ? (pick(candidate, ["pastPatterns", "过去模式", "过去事件"]) as unknown[])
+      : [];
+    const pastPatterns = rawPatterns.flatMap((raw) => {
+      const item = asRecord(raw);
+      if (!item) return [];
+      const period = toText(pick(item, ["period", "时期", "年份"]));
+      const headline = toText(pick(item, ["headline", "标题", "主题"]));
+      const narrative = toText(pick(item, ["narrative", "解读", "叙述"]));
+      if (!period || !headline || !narrative) return [];
+      return [
+        {
+          period,
+          headline,
+          narrative,
+          possibilities: toStringArray(
+            pick(item, ["possibilities", "可能性", "可能事件"]),
+          ),
+          principle: toText(pick(item, ["principle", "原理", "依据"])) ?? "",
+          basis: toText(pick(item, ["basis", "依据", "基础"]), true) ?? "",
+          confidence:
+            toText(pick(item, ["confidence", "置信度", "信心"])) ?? "low",
+        },
+      ];
+    });
+    const rawInsights = Array.isArray(pick(candidate, ["insights", "线索"]))
+      ? (pick(candidate, ["insights", "线索"]) as unknown[])
+      : [];
+    const insights = rawInsights.flatMap((raw) => {
+      const item = asRecord(raw);
+      if (!item) return [];
+      const title = toText(pick(item, ["title", "标题", "主题"]));
+      const interpretation = toText(
+        pick(item, ["interpretation", "解读", "分析"]),
+      );
+      if (!title || !interpretation) return [];
+      return [
+        {
+          title,
+          interpretation,
+          basis: toText(pick(item, ["basis", "依据", "基础"]), true) ?? "",
+          confidence:
+            toText(pick(item, ["confidence", "置信度", "信心"])) ?? "low",
+        },
+      ];
+    });
+    return {
+      summary: requireText(
+        pick(candidate, ["summary", "总结", "概述"]),
+        "summary",
+      ),
+      pastOverview,
+      pastPatterns,
+      insights,
+      reflectionQuestions: toStringArray(
+        pick(candidate, ["reflectionQuestions", "反思问题", "问题"]),
+      ),
+      limitations:
+        toText(pick(candidate, ["limitations", "限制", "说明"])) ?? "",
+    };
+  }
+
+  if (phase === "future") {
+    const rawForecasts = Array.isArray(
+      pick(candidate, ["futureForecasts", "未来预测", "未来窗口"]),
+    )
+      ? (pick(candidate, [
+          "futureForecasts",
+          "未来预测",
+          "未来窗口",
+        ]) as unknown[])
+      : [];
+    const expectedYears = chart.futureSignals.map((signal) => signal.year);
+    const forecasts = rawForecasts.flatMap((raw) => {
+      const item = asRecord(raw);
+      if (!item) return [];
+      const numericYear = Number(pick(item, ["year", "年份"]));
+      if (!Number.isFinite(numericYear)) return [];
+      return [
+        {
+          year: numericYear,
+          age: Number(pick(item, ["age", "年龄"])) || undefined,
+          theme: toText(pick(item, ["theme", "主题"])) ?? "",
+          opportunity: toText(pick(item, ["opportunity", "机会"])) ?? "",
+          pressure: toText(pick(item, ["pressure", "压力"])) ?? "",
+          riskScenario:
+            toText(pick(item, ["riskScenario", "风险场景", "风险"])) ?? "",
+          triggerConditions: toStringArray(
+            pick(item, ["triggerConditions", "触发条件"]),
+          ),
+          earlySignals: toStringArray(pick(item, ["earlySignals", "早期信号"])),
+          actions: toStringArray(pick(item, ["actions", "行动"])),
+          avoid: toStringArray(pick(item, ["avoid", "避免"])),
+          basis: toText(pick(item, ["basis", "依据", "基础"]), true) ?? "",
+          confidence:
+            toText(pick(item, ["confidence", "置信度", "信心"])) ?? "low",
+          hourSensitive: Boolean(pick(item, ["hourSensitive", "时辰敏感"])),
+        },
+      ];
+    });
+    const returnedYears = forecasts.map((forecast) => forecast.year);
+    if (
+      expectedYears.length !== returnedYears.length ||
+      expectedYears.some((year) => !returnedYears.includes(year))
+    ) {
+      throw new Error(
+        `DeepSeek phase future returned unsupported or missing years. Expected: ${expectedYears.join(", ") || "<none>"}. Received: ${returnedYears.join(", ") || "<none>"}.`,
+      );
+    }
+    return {
+      futureOverview:
+        toText(pick(candidate, ["futureOverview", "未来概览", "未来总结"])) ??
+        "",
+      futureForecasts: forecasts,
+    };
+  }
+
+  const rawAreas =
+    asRecord(pick(candidate, ["lifeAreas", "生活领域"])) ?? candidate;
+  const rawArea =
+    asRecord(
+      pick(rawAreas, [
+        phase,
+        phase === "character"
+          ? "性格"
+          : phase === "career"
+            ? "事业"
+            : phase === "relationships"
+              ? "关系"
+              : "时机",
+      ]),
+    ) ?? {};
+  const headline = toText(pick(rawArea, ["headline", "标题", "主题"]));
+  const narrative = toText(
+    pick(rawArea, ["narrative", "解读", "叙述", "分析"]),
+  );
+  if (!headline || !narrative) {
+    throw new Error(
+      `DeepSeek phase ${phase} missing core life-area fields. Received fields: ${Object.keys(rawArea).join(", ") || "<none>"}.`,
+    );
+  }
+  const signals = toStringArray(pick(rawArea, ["signals", "信号"]));
+  const strengths = toStringArray(pick(rawArea, ["strengths", "优势"]));
+  const frictions = toStringArray(pick(rawArea, ["frictions", "摩擦", "挑战"]));
+  const actions = toStringArray(pick(rawArea, ["actions", "行动"]));
+  return {
+    lifeAreas: {
+      [phase]: {
+        headline,
+        narrative,
+        strengths: strengths.length ? strengths : signals.slice(0, 2),
+        frictions: frictions.length ? frictions : signals.slice(2),
+        stressPattern:
+          toText(pick(rawArea, ["stressPattern", "压力模式", "压力"])) ?? "",
+        possibleCost:
+          toText(pick(rawArea, ["possibleCost", "可能代价", "代价"])) ?? "",
+        actions: actions.length
+          ? actions
+          : toStringArray(pick(rawArea, ["guidance", "建议"])),
+        basis: toText(pick(rawArea, ["basis", "依据", "基础"]), true) ?? "",
+        confidence:
+          toText(pick(rawArea, ["confidence", "置信度", "信心"])) ?? "low",
+      },
+    },
+  };
+}
+
 // Retained only as a migration reference for the old fixture implementation;
 // the request path above never calls this fallback normalizer anymore.
 // eslint-disable-next-line no-unused-vars
@@ -749,9 +991,28 @@ function normalizeInterpretation(
 export async function POST(request: Request) {
   const id = requestId();
   try {
+    const body = await readJsonBody<{
+      birthDate?: string;
+      birthTime?: string;
+      birthTimeConfidence?: BirthTimeConfidence;
+      birthPlace?: string;
+      name?: string;
+      gender?: "male" | "female" | "undisclosed";
+      locale?: "en" | "zh";
+      topic?: "overview" | "career" | "relationships" | "year-ahead";
+      phase?: InterpretationPhase;
+      turnstileToken?: string;
+      shareForImprovement?: boolean;
+    }>(request);
+
+    const confidence = body.birthTimeConfidence;
+    const topic = body.topic ?? "overview";
+    const phase = body.phase;
+    const rateLimitKey = phase ? "interpret-phase" : "interpret";
+    const rateLimit = phase ? 12 : 4;
     if (
       rateLimitsEnabled() &&
-      !withinRateLimit(request, "interpret", 4, 10 * 60_000)
+      !withinRateLimit(request, rateLimitKey, rateLimit, 10 * 60_000)
     ) {
       return jsonWithRequestId(
         {
@@ -762,22 +1023,6 @@ export async function POST(request: Request) {
         { "Retry-After": "600" },
       );
     }
-
-    const body = await readJsonBody<{
-      birthDate?: string;
-      birthTime?: string;
-      birthTimeConfidence?: BirthTimeConfidence;
-      birthPlace?: string;
-      name?: string;
-      gender?: "male" | "female" | "undisclosed";
-      locale?: "en" | "zh";
-      topic?: "overview" | "career" | "relationships" | "year-ahead";
-      turnstileToken?: string;
-      shareForImprovement?: boolean;
-    }>(request);
-
-    const confidence = body.birthTimeConfidence;
-    const topic = body.topic ?? "overview";
     const parsedBirthDate = body.birthDate
       ? new Date(`${body.birthDate}T00:00:00Z`)
       : null;
@@ -797,6 +1042,7 @@ export async function POST(request: Request) {
       !confidence ||
       !validConfidence.has(confidence) ||
       !validTopics.has(topic) ||
+      (phase !== undefined && !validPhases.has(phase)) ||
       (confidence !== "unknown" && !/^\d{2}:\d{2}$/.test(body.birthTime ?? ""))
     ) {
       return jsonWithRequestId(
@@ -814,7 +1060,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const turnstile = await verifyTurnstile(body.turnstileToken, request);
+    // Turnstile tokens are single-use. Verify the initial request and let the
+    // short-lived continuation phases rely on the same IP rate limit instead
+    // of rejecting every background section after the first page.
+    const turnstile =
+      phase && phase !== "past"
+        ? { ok: true }
+        : await verifyTurnstile(body.turnstileToken, request);
     if (!turnstile.ok) {
       return jsonWithRequestId(
         { error: "Please complete the bot-protection check and try again." },
@@ -853,6 +1105,43 @@ export async function POST(request: Request) {
           gender: body.gender ?? "undisclosed",
         },
       } as const;
+      if (phase) {
+        let rawPhase = await generateInterpretation(interpretationRequest, {
+          phase,
+        });
+        let phaseInterpretation;
+        try {
+          phaseInterpretation = normalizePhaseInterpretation(
+            rawPhase,
+            phase,
+            chart,
+          );
+        } catch (firstError) {
+          const schemaFailure =
+            firstError instanceof Error &&
+            firstError.message.startsWith("DeepSeek phase");
+          if (!schemaFailure) throw firstError;
+          rawPhase = await generateInterpretation(interpretationRequest, {
+            phase,
+            repairSchema: true,
+          });
+          phaseInterpretation = normalizePhaseInterpretation(
+            rawPhase,
+            phase,
+            chart,
+          );
+        }
+        return jsonWithRequestId(
+          {
+            resolvedPlace,
+            chart,
+            interpretation: phaseInterpretation,
+            phase,
+            interpretationSource: "deepseek",
+          },
+          id,
+        );
+      }
       let rawInterpretation = await generateInterpretation(
         interpretationRequest,
       );

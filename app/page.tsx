@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -28,6 +28,7 @@ type ResultView =
   | 'future'
   | 'method';
 type LifeAreaKey = 'character' | 'career' | 'relationships' | 'timing';
+type ReadingPhase = 'past' | 'future' | LifeAreaKey;
 
 interface LifeArea {
   headline: string;
@@ -124,7 +125,7 @@ interface Reading {
       basis: string;
       confidence: string;
     }>;
-    lifeAreas: Record<LifeAreaKey, LifeArea>;
+    lifeAreas: Record<LifeAreaKey, LifeArea | null>;
     futureOverview?: string;
     futureForecasts?: FutureForecast[];
     reflectionQuestions: string[];
@@ -135,6 +136,38 @@ interface Reading {
   testFixture?: boolean;
   feedbackConsent?: boolean;
   modelNotice?: string;
+  progress?: {
+    completed: ReadingPhase[];
+    active?: ReadingPhase;
+    failed?: ReadingPhase[];
+  };
+}
+
+type InterpretationPatch = Omit<
+  Partial<Reading['interpretation']>,
+  'lifeAreas'
+> & {
+  lifeAreas?: Partial<Record<LifeAreaKey, LifeArea>>;
+};
+
+interface PhaseResponse {
+  resolvedPlace: Reading['resolvedPlace'];
+  chart: Reading['chart'];
+  interpretation: InterpretationPatch;
+  phase: ReadingPhase;
+  interpretationSource: 'deepseek' | 'fixture';
+}
+
+interface ReadingRequestPayload {
+  birthDate: string;
+  birthTime: string;
+  birthTimeConfidence: TimeConfidence;
+  birthPlace: string;
+  name?: string;
+  gender: Gender;
+  locale: ReadingLocale;
+  turnstileToken?: string;
+  shareForImprovement: boolean;
 }
 
 const currentYear = new Date().getFullYear();
@@ -182,6 +215,15 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'relationships', label: '关系' },
   { value: 'timing', label: '时机' },
   { value: 'method', label: '方法' },
+];
+
+const readingPhaseOrder: ReadingPhase[] = [
+  'past',
+  'future',
+  'character',
+  'career',
+  'relationships',
+  'timing',
 ];
 
 const sessionReadingKey = 'ming:last-reading:v2';
@@ -276,9 +318,93 @@ function pad(value: number) {
   return String(value).padStart(2, '0');
 }
 
+function createReadingFromPhase(
+  payload: PhaseResponse,
+  locale: ReadingLocale,
+  feedbackConsent: boolean,
+): Reading {
+  const patch = payload.interpretation;
+  return {
+    resolvedPlace: payload.resolvedPlace,
+    chart: payload.chart,
+    interpretation: {
+      summary: patch.summary ?? '',
+      pastOverview: patch.pastOverview ?? {
+        characterSentence: '',
+        trajectorySentence: '',
+      },
+      pastPatterns: patch.pastPatterns ?? [],
+      insights: patch.insights ?? [],
+      lifeAreas: {
+        character: patch.lifeAreas?.character ?? null,
+        career: patch.lifeAreas?.career ?? null,
+        relationships: patch.lifeAreas?.relationships ?? null,
+        timing: patch.lifeAreas?.timing ?? null,
+      },
+      futureOverview: patch.futureOverview,
+      futureForecasts: patch.futureForecasts ?? [],
+      reflectionQuestions: patch.reflectionQuestions ?? [],
+      limitations: patch.limitations ?? '',
+    },
+    interpretationSource: payload.interpretationSource,
+    locale,
+    feedbackConsent,
+    progress: {
+      completed: [payload.phase],
+      active: undefined,
+      failed: [],
+    },
+  };
+}
+
+function mergeReadingPhase(reading: Reading, payload: PhaseResponse): Reading {
+  const patch = payload.interpretation;
+  const completed = new Set(reading.progress?.completed ?? []);
+  completed.add(payload.phase);
+  return {
+    ...reading,
+    resolvedPlace: payload.resolvedPlace,
+    chart: payload.chart,
+    interpretation: {
+      ...reading.interpretation,
+      ...patch,
+      lifeAreas: {
+        ...reading.interpretation.lifeAreas,
+        ...(patch.lifeAreas ?? {}),
+      },
+    },
+    progress: {
+      completed: readingPhaseOrder.filter((phase) => completed.has(phase)),
+      active: undefined,
+      failed: reading.progress?.failed ?? [],
+    },
+  };
+}
+
 function friendlyTimeZone(value: string) {
   if (value === 'Asia/Shanghai') return 'China Standard Time · UTC+8';
   return value.replaceAll('_', ' ');
+}
+
+function phaseLabel(phase: ReadingPhase, locale: ReadingLocale) {
+  if (locale === 'zh') {
+    return {
+      past: '回望过去',
+      future: '展望未来',
+      character: '性格',
+      career: '事业',
+      relationships: '关系',
+      timing: '时机',
+    }[phase];
+  }
+  return {
+    past: 'Looking back',
+    future: 'Looking ahead',
+    character: 'Character',
+    career: 'Career',
+    relationships: 'Relationships',
+    timing: 'Timing',
+  }[phase];
 }
 
 export default function Home() {
@@ -304,6 +430,7 @@ export default function Home() {
   const [turnstileToken, setTurnstileToken] = useState('');
   const [shareForImprovement, setShareForImprovement] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
+  const generationRef = useRef(0);
 
   useEffect(() => {
     let savedReading: Reading | null = null;
@@ -347,6 +474,7 @@ export default function Home() {
   }, [reading, sessionRestored]);
 
   function resetReading() {
+    generationRef.current += 1;
     setReading(null);
     setHasStarted(false);
     setBirthValue(initialBirthValue);
@@ -392,6 +520,82 @@ export default function Home() {
     }
   }
 
+  async function requestReadingPhase(
+    requestPayload: ReadingRequestPayload,
+    phase: ReadingPhase,
+  ) {
+    const response = await fetch('/api/interpret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...requestPayload,
+        phase,
+        // Turnstile is verified only for the first request because tokens are
+        // single-use. Continuation phases are still rate-limited server-side.
+        turnstileToken:
+          phase === 'past' ? requestPayload.turnstileToken : undefined,
+      }),
+    });
+    const payload = (await response.json()) as PhaseResponse & {
+      error?: string;
+    };
+    if (!response.ok) {
+      throw new Error(
+        payload.error ?? 'Unable to create this reading section.',
+      );
+    }
+    return payload;
+  }
+
+  async function continueReading(
+    requestPayload: ReadingRequestPayload,
+    generation: number,
+  ) {
+    for (const phase of readingPhaseOrder.slice(1)) {
+      if (generationRef.current !== generation) return;
+      setReading((current) =>
+        current
+          ? {
+              ...current,
+              progress: {
+                completed: current.progress?.completed ?? ['past'],
+                active: phase,
+                failed: current.progress?.failed ?? [],
+              },
+            }
+          : current,
+      );
+      try {
+        const payload = await requestReadingPhase(requestPayload, phase);
+        if (generationRef.current !== generation) return;
+        setReading((current) =>
+          current ? mergeReadingPhase(current, payload) : current,
+        );
+      } catch (caught) {
+        if (generationRef.current !== generation) return;
+        setReading((current) =>
+          current
+            ? {
+                ...current,
+                progress: {
+                  completed: current.progress?.completed ?? ['past'],
+                  active: undefined,
+                  failed: [...(current.progress?.failed ?? []), phase],
+                },
+              }
+            : current,
+        );
+        // Continue with the next section so one malformed model response does
+        // not block all of the remaining pages.
+        console.warn(
+          '[reading-phase-error]',
+          phase,
+          caught instanceof Error ? caught.message : caught,
+        );
+      }
+    }
+  }
+
   async function submitReading() {
     if (!confirmedPlace) {
       setError('Confirm the city before creating your reading.');
@@ -401,44 +605,46 @@ export default function Home() {
       setError('Choose how certain you are about the birth time.');
       return;
     }
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
+    const requestPayload: ReadingRequestPayload = {
+      birthDate: `${birthValue.year}-${pad(birthValue.month)}-${pad(birthValue.day)}`,
+      birthTime:
+        timeConfidence === 'unknown'
+          ? ''
+          : `${pad(birthValue.hour)}:${pad(birthValue.minute)}`,
+      birthTimeConfidence: timeConfidence,
+      birthPlace,
+      name: name.trim() || undefined,
+      gender,
+      locale,
+      turnstileToken,
+      shareForImprovement,
+    };
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/interpret', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          birthDate: `${birthValue.year}-${pad(birthValue.month)}-${pad(birthValue.day)}`,
-          birthTime:
-            timeConfidence === 'unknown'
-              ? ''
-              : `${pad(birthValue.hour)}:${pad(birthValue.minute)}`,
-          birthTimeConfidence: timeConfidence,
-          birthPlace,
-          name: name.trim() || undefined,
-          gender,
-          locale,
-          turnstileToken,
-          shareForImprovement,
-        }),
-      });
-      const payload = (await response.json()) as Reading & { error?: string };
-      if (!response.ok)
-        throw new Error(payload.error ?? 'Unable to create reading.');
-      setReading({
-        ...payload,
+      const payload = await requestReadingPhase(requestPayload, 'past');
+      if (generationRef.current !== generation) return;
+      const initialReading = createReadingFromPhase(
+        payload,
         locale,
-        testFixture: response.headers.has('X-Ming-Test-Fixture'),
-        feedbackConsent: shareForImprovement,
+        shareForImprovement,
+      );
+      setReading({
+        ...initialReading,
+        testFixture: false,
       });
+      setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      void continueReading(requestPayload, generation);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : 'Unable to create reading.',
       );
     } finally {
-      setLoading(false);
+      if (generationRef.current === generation) setLoading(false);
     }
   }
 
@@ -1121,9 +1327,9 @@ const loadingStages = [
     zh: '寻找过去的重要转折',
   },
   {
-    character: '解',
-    en: 'Composing your complete reading',
-    zh: '整理完整解读',
+    character: '回',
+    en: 'Preparing the first page: looking back',
+    zh: '先整理第一部分：回望过去',
   },
 ] as const;
 
@@ -1169,8 +1375,8 @@ function ReadingLoading({ locale }: { locale: ReadingLocale }) {
         </div>
         <p className="mt-5 text-xs leading-5 text-white/35">
           {isZh
-            ? '先由系统完成命盘计算，再由模型解读已核验的结构。'
-            : 'The chart is calculated first. The model interprets only the verified pattern.'}
+            ? '回望过去完成后会先开放页面，其他章节会在后台按顺序生成。'
+            : 'Looking back will open first. The remaining chapters continue in the background.'}
         </p>
       </div>
     </div>
@@ -1188,16 +1394,35 @@ function ReadingResult({
 }) {
   const [view, setView] = useState<ResultView>('past');
   const [premiumUnlocked, setPremiumUnlocked] = useState(false);
+  const [notice, setNotice] = useState('');
   const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
+  const completedPhases = new Set(reading.progress?.completed ?? ['past']);
+
+  function selectTab(next: ResultView) {
+    const phase = next === 'method' ? null : next;
+    if (phase && !completedPhases.has(phase)) {
+      setNotice(
+        locale === 'zh'
+          ? '这一部分正在分析中，请稍等。完成后会自动开放。'
+          : 'This section is still being analysed. Please wait a moment.',
+      );
+      return;
+    }
+    setNotice('');
+    setView(next);
+  }
 
   function moveTab(direction: -1 | 1) {
     const currentIndex = tabs.findIndex((tab) => tab.value === view);
     const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
     const next = tabs[nextIndex];
-    setView(next.value);
-    requestAnimationFrame(() =>
-      document.getElementById(`reading-tab-${next.value}`)?.focus(),
-    );
+    selectTab(next.value);
+    const nextPhase = next.value === 'method' ? null : next.value;
+    if (!nextPhase || completedPhases.has(nextPhase)) {
+      requestAnimationFrame(() =>
+        document.getElementById(`reading-tab-${next.value}`)?.focus(),
+      );
+    }
   }
 
   return (
@@ -1233,7 +1458,7 @@ function ReadingResult({
             aria-selected={view === tab.value}
             id={`reading-tab-${tab.value}`}
             key={tab.value}
-            onClick={() => setView(tab.value)}
+            onClick={() => selectTab(tab.value)}
             onKeyDown={(event) => {
               if (event.key === 'ArrowRight') {
                 event.preventDefault();
@@ -1252,6 +1477,22 @@ function ReadingResult({
           </button>
         ))}
       </nav>
+      {notice ? (
+        <p
+          aria-live="polite"
+          className="-mt-5 mb-7 text-xs text-[#9d3027]"
+          role="status"
+        >
+          {notice}
+        </p>
+      ) : null}
+      {reading.progress?.active ? (
+        <p className="-mt-5 mb-7 text-[10px] tracking-[0.12em] text-black/35 uppercase">
+          {locale === 'zh'
+            ? `正在生成${phaseLabel(reading.progress.active, locale)} · 可先阅读已完成部分`
+            : `Generating ${phaseLabel(reading.progress.active, locale)} · completed sections remain available`}
+        </p>
+      ) : null}
 
       <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
         <div>
@@ -1327,23 +1568,30 @@ function ReadingResult({
         {(['character', 'career', 'relationships', 'timing'] as const).includes(
           view as LifeAreaKey,
         ) ? (
-          view === 'relationships' && !premiumUnlocked ? (
+          view === 'relationships' &&
+          !reading.interpretation.lifeAreas.relationships ? (
+            <PendingSection phase="relationships" locale={locale} />
+          ) : view === 'relationships' && !premiumUnlocked ? (
             <LockedLifeArea
               area={reading.interpretation.lifeAreas.relationships}
               locale={locale}
               onUnlock={() => setPremiumUnlocked(true)}
             />
-          ) : (
+          ) : reading.interpretation.lifeAreas[view as LifeAreaKey] ? (
             <LifeAreaView
               area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
               areaKey={view as LifeAreaKey}
               locale={locale}
               showIntro={view !== 'timing'}
             />
+          ) : (
+            <PendingSection phase={view as ReadingPhase} locale={locale} />
           )
         ) : null}
         {view === 'future' ? (
-          premiumUnlocked ? (
+          !completedPhases.has('future') ? (
+            <PendingSection phase="future" locale={locale} />
+          ) : premiumUnlocked ? (
             <FutureView reading={reading} locale={locale} />
           ) : (
             <LockedFutureView
@@ -1358,6 +1606,35 @@ function ReadingResult({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function PendingSection({
+  phase,
+  locale,
+}: {
+  phase: ReadingPhase;
+  locale: ReadingLocale;
+}) {
+  return (
+    <section className="border border-black/10 p-8 sm:p-12">
+      <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+        {locale === 'zh' ? '正在分析' : 'Analysis in progress'}
+      </p>
+      <h2 className="mt-3 font-serif text-4xl">
+        {locale === 'zh'
+          ? `${phaseLabel(phase, locale)}正在生成`
+          : `${phaseLabel(phase, locale)} is being prepared`}
+      </h2>
+      <p className="mt-5 max-w-xl text-sm leading-7 text-black/52">
+        {locale === 'zh'
+          ? '模型正在按顺序完成这一章节。你可以先阅读已经开放的部分，完成后本页会自动更新。'
+          : 'The model is completing this chapter in sequence. You can read the available sections first; this page will update when it is ready.'}
+      </p>
+      <div className="mt-8 h-px overflow-hidden bg-black/10">
+        <div className="h-full w-1/3 animate-pulse bg-[#9d3027]" />
+      </div>
+    </section>
   );
 }
 

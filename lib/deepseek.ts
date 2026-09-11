@@ -18,6 +18,9 @@ export interface InterpretationRequest {
   };
 }
 
+export type InterpretationPhase =
+  "past" | "future" | "character" | "career" | "relationships" | "timing";
+
 const ALLOWED_FLASH_MODELS = new Set([
   "deepseek-flash",
   "deepseek-v4-flash",
@@ -103,21 +106,35 @@ Return valid JSON with exactly these top-level keys: summary, pastOverview, past
 FINAL SILENT AUDIT
 Rewrite any sentence that could fit almost anyone, flatters without a cost, predicts certainty, cites unsupplied evidence, or repeats another section. Every adverse claim must have a basis, trigger condition, and useful response.`;
 
+const PHASE_PROMPTS: Record<InterpretationPhase, string> = {
+  past: `PHASE OUTPUT: Generate only the retrospective page. Return JSON with exactly these keys: summary, pastOverview, pastPatterns, insights, reflectionQuestions, limitations. Do not include lifeAreas, futureOverview, or futureForecasts. Use every supplied eventCandidate and make adjacent periods materially different.`,
+  future: `PHASE OUTPUT: Generate only the outlook page. Return JSON with exactly these keys: futureOverview, futureForecasts. Create one forecast for every supplied futureSignal and no unsupported year.`,
+  character: `PHASE OUTPUT: Generate only the character life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only character. The character object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
+  career: `PHASE OUTPUT: Generate only the career life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only career. The career object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
+  relationships: `PHASE OUTPUT: Generate only the relationships life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only relationships. The relationships object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
+  timing: `PHASE OUTPUT: Generate only the timing life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only timing. The timing object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
+};
+
 export async function generateInterpretation(
   input: InterpretationRequest,
-  options: { repairSchema?: boolean } = {},
+  options: { repairSchema?: boolean; phase?: InterpretationPhase } = {},
 ) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
   const baseUrl = process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
   const model = configuredModel();
+  const phase = options.phase;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), deepSeekTimeoutMs());
   try {
     const schemaInstruction = options.repairSchema
-      ? "SCHEMA REPAIR PASS: The previous response did not satisfy the contract. Return a complete JSON object now. Keep every property name exactly as specified in English; translate string values only. Do not omit any of the four lifeAreas or any required child field. Do not add commentary or markdown."
-      : "SCHEMA LOCK: Every JSON property name must remain exactly as specified in English, including character, career, relationships, timing, headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence, futureForecasts, and all other keys. Translate string values only; never translate, rename, or omit keys.";
+      ? phase
+        ? `SCHEMA REPAIR PASS FOR ${phase}: Return only the phase JSON contract. Keep every property name exactly as specified in English; translate string values only. Do not add commentary or markdown.`
+        : "SCHEMA REPAIR PASS: The previous response did not satisfy the contract. Return a complete JSON object now. Keep every property name exactly as specified in English; translate string values only. Do not omit any of the four lifeAreas or any required child field. Do not add commentary or markdown."
+      : phase
+        ? `SCHEMA LOCK FOR ${phase}: Keep every property name exactly as specified in English. Translate string values only; never translate, rename, or omit keys. ${PHASE_PROMPTS[phase]}`
+        : "SCHEMA LOCK: Every JSON property name must remain exactly as specified in English, including character, career, relationships, timing, headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence, futureForecasts, and all other keys. Translate string values only; never translate, rename, or omit keys.";
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -132,11 +149,17 @@ export async function generateInterpretation(
         thinking: { type: "disabled" },
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "system",
+            content: phase
+              ? `${SYSTEM_PROMPT}\n\n${PHASE_PROMPTS[phase]}`
+              : SYSTEM_PROMPT,
+          },
           {
             role: "user",
             content: JSON.stringify({
               ...input,
+              requestedPhase: phase ?? "complete",
               outputLanguageInstruction:
                 input.locale === "zh"
                   ? "MANDATORY: every user-visible field in the JSON, including summary, pastOverview, pastPatterns, insights, lifeAreas, futureOverview, futureForecasts, reflectionQuestions, and limitations, must be written in Simplified Chinese. Keep pillar characters and technical terms, but explain them in Chinese."
@@ -146,7 +169,14 @@ export async function generateInterpretation(
           },
         ],
         temperature: 0.5,
-        max_tokens: 9000,
+        max_tokens:
+          phase === "past"
+            ? 4_200
+            : phase === "future"
+              ? 5_000
+              : phase
+                ? 2_600
+                : 9_000,
       }),
       signal: controller.signal,
     });
