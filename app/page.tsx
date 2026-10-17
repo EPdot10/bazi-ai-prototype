@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -1210,6 +1211,17 @@ function LandingPage({
               : 'Free first reading · no account required'}
           </span>
         </div>
+        {process.env.NEXT_PUBLIC_QUESTION_BETA_ENABLED === 'true' ? (
+          <Link
+            className="mt-5 inline-flex items-center gap-2 text-sm text-[#9d3027] underline-offset-4 hover:underline"
+            href={`/question?lang=${locale}`}
+          >
+            {isZh
+              ? '想问一件具体的事？试试三币易经起卦'
+              : 'Have one specific question? Try a three-coin I Ching cast'}
+            <ArrowUpRight className="size-4" />
+          </Link>
+        ) : null}
         <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
           <span className="h-px w-10 bg-[#9d3027]/55" />
           {isZh
@@ -2269,10 +2281,7 @@ function FutureView({
                       ? `${locale === 'zh' ? '约' : 'around age'} ${forecast.age}`
                       : ''}
                   </p>
-                  <p>
-                    {forecast.confidence}{' '}
-                    {locale === 'zh' ? '置信度' : 'confidence'}
-                  </p>
+                  <p>{confidenceLabel(forecast.confidence, locale)}</p>
                   {forecast.hourSensitive ? (
                     <p className="mt-1 text-[#9d3027]">
                       {locale === 'zh' ? '时辰敏感' : 'hour-sensitive'}
@@ -2329,10 +2338,16 @@ function FutureView({
                   items={forecast.avoid}
                 />
               </div>
-              <p className="mt-6 border-t border-black/8 pt-4 text-[10px] leading-5 text-black/30">
-                {locale === 'zh' ? '依据：' : 'Basis: '}
-                {forecast.basis}
-              </p>
+              {forecast.basis ? (
+                <details className="mt-6 border-t border-black/8 pt-4 text-xs leading-5 text-black/42">
+                  <summary className="cursor-pointer">
+                    {locale === 'zh'
+                      ? '为什么这样推测'
+                      : 'Why this interpretation?'}
+                  </summary>
+                  <p className="mt-2">{forecast.basis}</p>
+                </details>
+              ) : null}
             </article>
           ))}
         </div>

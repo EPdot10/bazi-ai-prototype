@@ -9,6 +9,7 @@ declare global {
         container: HTMLElement,
         options: {
           sitekey: string;
+          action?: string;
           callback: (token: string) => void;
           'expired-callback'?: () => void;
           'error-callback'?: () => void;
@@ -16,6 +17,7 @@ declare global {
         },
       ) => string;
       remove?: (widgetId: string) => void;
+      reset?: (widgetId: string) => void;
     };
   }
 }
@@ -25,12 +27,17 @@ const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export function TurnstileField({
   onToken,
   locale = 'en',
+  resetKey = 0,
+  action,
 }: {
   onToken: (token: string) => void;
   locale?: 'en' | 'zh';
+  resetKey?: number;
+  action?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<string | undefined>(undefined);
+  const lastResetKey = useRef(resetKey);
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) return;
@@ -40,6 +47,7 @@ export function TurnstileField({
         return;
       widgetRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
+        action,
         theme: 'light',
         callback: onToken,
         'expired-callback': () => onToken(''),
@@ -53,7 +61,11 @@ export function TurnstileField({
     if (existing) {
       mount();
       existing.addEventListener('load', mount);
-      return () => existing.removeEventListener('load', mount);
+      return () => {
+        existing.removeEventListener('load', mount);
+        if (widgetRef.current) window.turnstile?.remove?.(widgetRef.current);
+        widgetRef.current = undefined;
+      };
     }
 
     const script = document.createElement('script');
@@ -72,7 +84,13 @@ export function TurnstileField({
       }
       widgetRef.current = undefined;
     };
-  }, [onToken]);
+  }, [onToken, action]);
+
+  useEffect(() => {
+    if (resetKey === lastResetKey.current) return;
+    lastResetKey.current = resetKey;
+    if (widgetRef.current) window.turnstile?.reset?.(widgetRef.current);
+  }, [resetKey]);
 
   if (!siteKey) {
     return (

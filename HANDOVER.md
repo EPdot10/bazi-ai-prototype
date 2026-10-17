@@ -79,7 +79,16 @@ October 18 redesign increment:
 - At 390px mobile width, the Overview and bottom of Looking Back showed no horizontal overflow; Next opened Looking Ahead and scrolled the new panel below the sticky header after a scroll-margin adjustment.
 - A synthetic 1955 unknown-time Chinese past phase covered ages about 6, 24, 44, 57, and 63. This confirms later-life *coverage*, not predictive accuracy.
 - `npm run build` and targeted lint of changed code passed. Full repository lint still includes unrelated generated-component findings.
-- [READING_EVALUATION.md](./READING_EVALUATION.md) defines consent-based human validation. [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md) scopes the separate, not-yet-built question flow.
+- [READING_EVALUATION.md](./READING_EVALUATION.md) defines consent-based human validation. [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md) now describes the locally implemented, public-disabled question beta.
+- The preceding redesign commit `aa39881` passed Cloudflare Workers Builds and a production API smoke test: a synthetic London reading returned HTTP 200, `interpretationSource=deepseek`, and a populated past section. This confirms release wiring, not predictive accuracy.
+
+October 18 question-beta increment (currently local; not yet released):
+
+- Separate `/question` page with one question, timeframe, six browser-generated three-coin throws, original/changed hexagram, moving lines, and bilingual AI answer with an expandable rationale. After the first throw, the question/timeframe are frozen until the user resets the cast; tab-scoped session storage survives refresh and has a clear control.
+- `lib/iching.ts` deterministically maps bottom-to-top 6/7/8/9 lines into King Wen hexagram numbers; the API re-derives the facts and never lets AI choose or change them.
+- `tests/iching.test.mjs` checks the orientation traps Tai/Fou and Gou/Xiao Chu, moving lines, malformed input, and all 64 identities.
+- A synthetic Chinese career-change question completed through the local browser and returned a conditional Chinese answer; 390px mobile had no horizontal overflow.
+- Production homepage entry and `/api/iching` are off by default. The release gate is in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
 
 Earlier verification retained below:
 
@@ -118,14 +127,14 @@ Earlier verification retained below:
 - Feedback buttons are session-only and do not persist analytics.
 - There is no account, payment, report history, rate limiting, or abuse protection.
 - The input year wheel starts at 1920; earlier dates require direct input.
-- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone and the deployed production Worker still need smoke testing after release.
+- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone check remains outstanding. The deployed BaZi production Worker did pass a smoke test after `aa39881`; the separate question beta has not been released.
 - Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
 - Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
 - Ziwei Dou Shu is approved as the next experimental methodology, without requiring a proprietary user dataset first. It still needs a separate deterministic star-chart layer and a small reference-chart regression set before its facts can enter the model prompt.
 
 ## Recommended next implementation sequence
 
-The October 2026 initiative is tracked in [PRODUCT_REDESIGN_ROADMAP.md](./PRODUCT_REDESIGN_ROADMAP.md). Its prompt, result-layout, navigation, and initial explanation changes are implemented locally. The user-video analogy is framed as a metaphor, not evidence of personal prediction. Real-user validation, a full Chinese/English audit, and the separate Liu Yao calculation/UI are still open. The sequence below is older backlog, not the immediate release checklist.
+The October 2026 initiative is tracked in [PRODUCT_REDESIGN_ROADMAP.md](./PRODUCT_REDESIGN_ROADMAP.md). Its prompt, result-layout, navigation, and initial explanation changes are implemented and deployed. The user-video analogy is framed as a metaphor, not evidence of personal prediction. Real-user validation and a full Chinese/English audit remain open. The separate three-coin question beta exists locally but must pass its release gate before public activation. The sequence below is older backlog, not the immediate release checklist.
 
 1. Manually review the page-specific leads, reordered tabs, looping hour/minute wheel, and Chinese loading overlay on desktop and phone using a live reading.
 2. Implement a deterministic Ziwei Dou Shu chart module, document its calculation conventions, and compare a small set of public/reference charts. A large proprietary user dataset is not a prerequisite.

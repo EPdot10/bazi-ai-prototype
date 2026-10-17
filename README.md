@@ -1,6 +1,6 @@
 # MING — BaZi AI Prototype
 
-An English-language, mobile-first prototype for Chinese BaZi and Five Element readings. The application calculates chart facts locally, resolves the birth city and historical time zone, then asks DeepSeek to interpret the verified chart instead of asking the model to invent the calculation.
+A bilingual, mobile-first prototype for Chinese BaZi and Five Element readings. The application calculates chart facts on the server, resolves the birth city and historical time zone, then asks DeepSeek to interpret those facts instead of asking the model to invent the calculation.
 
 ## What currently works
 
@@ -10,15 +10,16 @@ An English-language, mobile-first prototype for Chinese BaZi and Five Element re
 - Birthplace lookup with city label, coordinates, IANA time zone, civil-time handling, and local solar-time adjustment.
 - Deterministic BaZi pillars, Day Master, visible element balance, calculation notes, and annual timing signals.
 - DeepSeek V4.1 Flash interpretation with server-side calls and explicit error reporting when the provider is unavailable.
-- Result views ordered Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method.
+- Result views ordered Overview, Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method, with bottom-page Previous/Next navigation.
 - A separate Looking Ahead view built from server-calculated future annual signals, with conditional opportunity, pressure, risk, warning, and action fields.
 - Relationship and Looking Ahead content share the prototype Jade Pass `666`.
-- Result pages use page-specific leads: retrospective summary/signatures stay with Looking Back, future opportunity/pressure stay with Looking Ahead, and Timing goes directly to its detailed reading.
+- The two-line summary and chart appear only in Overview. Each later section has its own lead, where useful; chart rationale is folded away by default and Timing goes directly to its detailed reading.
 - Balanced life-area sections explicitly cover strengths, friction, stress behaviour, possible costs, and actions instead of defaulting to flattering prose.
 - Hour and minute wheels loop through three cycles for faster wraparound selection; exact-time minutes default to `30`.
 - The staged loading overlay follows the selected English or Simplified Chinese locale.
 - Saved test fixtures remain in the repository but are currently disabled while model quality is being evaluated.
 - Responsive local preview available to phones on the same LAN.
+- A separate `/question` three-coin I Ching experiment runs locally. It computes hexagram facts deterministically and uses DeepSeek only for a conditional interpretation; the public entry and production API are disabled by default pending novice testing and shared abuse protection. It is not a full Na Jia Liu Yao calculation.
 
 ## Technology
 
@@ -49,10 +50,11 @@ GOOGLE_MAPS_API_KEY=
 DEEPSEEK_TIMEOUT_MS=60000
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
+TURNSTILE_HOSTNAMES=
 ```
 
 `GOOGLE_MAPS_API_KEY` is optional. When it is absent, the place resolver uses its configured fallback.
-Turnstile is optional for local development; configure the public site key at build time and the secret key at runtime to enforce bot protection in production.
+Turnstile is optional for local development; configure the public site key at build time and the secret key at runtime to enforce bot protection in production. Before opening the question experiment, set `TURNSTILE_HOSTNAMES` to the exact public hostname(s), comma-separated, without `localhost`.
 
 ## Saved test fixtures (currently disabled)
 
@@ -79,6 +81,7 @@ The address can change when the router reconnects. Use the `192.168.x.x` or `10.
 npm run dev
 npm run build
 npm run lint
+npm run test:unit
 npm run format
 ```
 
@@ -92,7 +95,7 @@ The saved test-date branch is currently disabled.
 
 ## API protection
 
-- `/api/interpret` is limited to 4 requests per IP per 10 minutes.
+- `/api/interpret` has a best-effort per-isolate limit of 4 initial requests per IP per 10 minutes; background reading phases have a separate limit.
 - `/api/place` is limited to 20 requests per IP per minute.
 - JSON bodies are capped at 16 KB and city input at 100 characters.
 - Responses include an `X-Request-Id` for support and abuse investigation.
@@ -100,6 +103,7 @@ The saved test-date branch is currently disabled.
 - Set `RATE_LIMIT_ENABLED=false` only for local or private testing to temporarily disable API rate limits; keep it `true` for public use.
 - Configure Cloudflare Turnstile with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at build time and `TURNSTILE_SECRET_KEY` at runtime. Local development skips verification when the secret is absent.
 - Protect the deployed Worker with Cloudflare Access for private testing; application-level limits remain necessary if the URL is public.
+- `/api/iching` is off in production unless `QUESTION_BETA_ENABLED=true`; the public link/page also requires `NEXT_PUBLIC_QUESTION_BETA_ENABLED=true` at build time. The endpoint requires a production Turnstile secret and `TURNSTILE_HOSTNAMES`, and checks the `iching` widget action and approved hostname. Do not enable this beta until a real-token success/replay test, novice usability check, and shared Cloudflare-side rate protection are in place.
 
 ## Important limitations
 
