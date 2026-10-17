@@ -15,6 +15,7 @@ interface BirthWheelProps {
   value: BirthWheelValue;
   onChange: (value: BirthWheelValue) => void;
   mode: 'date' | 'time';
+  locale?: 'en' | 'zh';
   approximateTime?: boolean;
   onInteract?: () => void;
 }
@@ -61,6 +62,7 @@ export function BirthWheel({
   value,
   onChange,
   mode,
+  locale = 'en',
   approximateTime = false,
   onInteract,
 }: BirthWheelProps) {
@@ -244,7 +246,15 @@ export function BirthWheel({
   return (
     <div
       className="birth-wheel"
-      aria-label={mode === 'date' ? 'Birth date wheel' : 'Birth time wheel'}
+      aria-label={
+        locale === 'zh'
+          ? mode === 'date'
+            ? '出生日期滚轮'
+            : '出生时间滚轮'
+          : mode === 'date'
+            ? 'Birth date wheel'
+            : 'Birth time wheel'
+      }
       ref={wheelRoot}
       onKeyDownCapture={onInteract}
       onPointerDownCapture={handleMouseDown}
@@ -256,13 +266,14 @@ export function BirthWheel({
       }}
     >
       <p className="sr-only">
-        Use touch drag or the mouse wheel to change a column. A direct input
-        option follows this picker.
+        {locale === 'zh'
+          ? '用手指拖动或鼠标滚轮调整数字；也可以在下方切换为手动输入。'
+          : 'Use touch drag or the mouse wheel to change a column. A direct input option follows this picker.'}
       </p>
       <output className="sr-only" aria-live="polite">
         {mode === 'date'
-          ? `Selected date ${value.year}-${String(value.month).padStart(2, '0')}-${String(value.day).padStart(2, '0')}`
-          : `Selected time ${String(value.hour).padStart(2, '0')}${approximateTime ? ', approximately' : `:${String(value.minute).padStart(2, '0')}`}`}
+          ? `${locale === 'zh' ? '已选日期' : 'Selected date'} ${value.year}-${String(value.month).padStart(2, '0')}-${String(value.day).padStart(2, '0')}`
+          : `${locale === 'zh' ? '已选时间' : 'Selected time'} ${String(value.hour).padStart(2, '0')}${approximateTime ? (locale === 'zh' ? '时左右' : ', approximately') : `:${String(value.minute).padStart(2, '0')}`}`}
       </output>
 
       <div
@@ -270,14 +281,16 @@ export function BirthWheel({
       >
         {mode === 'date' ? (
           <>
-            <span>Year</span>
-            <span>Month</span>
-            <span>Day</span>
+            <span>{locale === 'zh' ? '年' : 'Year'}</span>
+            <span>{locale === 'zh' ? '月' : 'Month'}</span>
+            <span>{locale === 'zh' ? '日' : 'Day'}</span>
           </>
         ) : (
           <>
-            <span>Hour</span>
-            {approximateTime ? null : <span>Minute</span>}
+            <span>{locale === 'zh' ? '时' : 'Hour'}</span>
+            {approximateTime ? null : (
+              <span>{locale === 'zh' ? '分' : 'Minute'}</span>
+            )}
           </>
         )}
       </div>
@@ -348,7 +361,7 @@ export function BirthWheel({
       <p className="mt-4 text-center font-serif text-lg text-black/65">
         {mode === 'date'
           ? `${value.year} · ${String(value.month).padStart(2, '0')} · ${String(value.day).padStart(2, '0')}`
-          : `${String(value.hour).padStart(2, '0')}${approximateTime ? ':00 approximately' : `:${String(value.minute).padStart(2, '0')}`}`}
+          : `${String(value.hour).padStart(2, '0')}${approximateTime ? (locale === 'zh' ? ':00 左右' : ':00 approximately') : `:${String(value.minute).padStart(2, '0')}`}`}
       </p>
     </div>
   );

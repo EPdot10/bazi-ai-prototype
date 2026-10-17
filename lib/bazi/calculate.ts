@@ -213,7 +213,7 @@ function annualRisk(god: string) {
 
 const pillarDomains: Record<string, string> = {
   year: 'family, origin, and belonging',
-  month: 'school, authority, and career formation',
+  month: 'responsibilities, institutions, and work settings',
   day: 'close relationships and self-regulation',
   hour: 'private ambition, future plans, and personal projects',
 };
@@ -361,38 +361,56 @@ function calculateTimingSignals(
 function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
   const currentYear = new Date().getUTCFullYear();
   const past = signals.filter((signal) => signal.year < currentYear);
-  const adultSignals = past.filter((signal) => signal.age >= 18);
-  const youngerSignals = past.filter((signal) => signal.age < 18);
-  // For adults, prioritise evidence from life periods that are less likely to
-  // be explained by universal school milestones. Younger signals remain a
-  // fallback rather than a quota the reading must fill.
-  const ranked =
-    adultSignals.length >= 3 ? [...adultSignals, ...youngerSignals] : past;
   const selected: typeof past = [];
-
-  for (const signal of ranked) {
-    if (
-      adultSignals.length >= 3 &&
-      signal.age < 18 &&
-      selected.some((item) => item.age < 18)
-    ) {
-      continue;
-    }
+  const ageBands = [
+    { min: 60, max: Infinity, limit: 2 },
+    { min: 45, max: 59, limit: 2 },
+    { min: 30, max: 44, limit: 2 },
+    { min: 18, max: 29, limit: 2 },
+    { min: 0, max: 17, limit: 1 },
+  ];
+  const ranked = [...past].sort(
+    (left, right) => right.score - left.score || right.year - left.year,
+  );
+  const canSelect = (signal: (typeof past)[number]) => {
+    const repeatedPrimaryDomain =
+      selected.filter((item) => item.domains[0] === signal.domains[0]).length >=
+      2;
     const tooClose = selected.some(
       (item) => Math.abs(item.year - signal.year) < 3,
     );
     const sameSignature = selected.some(
       (item) =>
-        item.relationTypes.join('|') === signal.relationTypes.join('|') &&
-        item.domains[0] === signal.domains[0],
+        [...item.relationTypes].sort().join('|') ===
+          [...signal.relationTypes].sort().join('|') &&
+        [...item.domains].sort().join('|') ===
+          [...signal.domains].sort().join('|'),
     );
-    if (!tooClose && !sameSignature) selected.push(signal);
-    if (selected.length === 6) break;
+    return !repeatedPrimaryDomain && !tooClose && !sameSignature;
+  };
+
+  // Round-robin across life stages before filling any stage twice. This keeps
+  // later adulthood visible instead of allowing early adult years to consume
+  // all six slots merely because they occur first chronologically.
+  for (let round = 0; round < 2 && selected.length < 6; round += 1) {
+    for (const band of ageBands) {
+      if (round >= band.limit || selected.length === 6) continue;
+      const candidate = ranked.find(
+        (signal) =>
+          signal.age >= band.min && signal.age <= band.max && canSelect(signal),
+      );
+      if (candidate) selected.push(candidate);
+    }
   }
 
   if (selected.length < 3) {
-    for (const signal of past) {
-      if (!selected.includes(signal)) selected.push(signal);
+    for (const signal of ranked) {
+      if (
+        !selected.includes(signal) &&
+        selected.every((item) => Math.abs(item.year - signal.year) >= 3)
+      ) {
+        selected.push(signal);
+      }
       if (selected.length === 3) break;
     }
   }

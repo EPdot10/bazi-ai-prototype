@@ -1,6 +1,6 @@
 # MING Project Handover
 
-Last updated: 2026-09-11
+Last updated: 2026-10-18
 
 ## Product intent
 
@@ -10,11 +10,11 @@ The immediate goal is product/marketing validation, not a defensible long-term c
 
 ## Current user journey
 
-1. Select a birth date using the wheel or direct input.
+1. Open the landing page, choose a language, then select a birth date using the wheel or direct input.
 2. Choose Exact, Approximate, or Unknown birth time; Exact is the default.
 3. Enter and confirm a birth city. City plus country is recommended when names are ambiguous.
 4. Wait through the staged reading animation while the server calls DeepSeek V4.1 Flash.
-5. Review retrospective periods first, then Looking Ahead, Character, Career, Relationships, Timing, and Method.
+5. Review the one-time Overview, then Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method. The bottom navigation moves through the report without returning to the top.
 6. Unlock Relationships and Looking Ahead with the shared prototype Jade Pass `666`.
 7. Start another reading using New reading.
 
@@ -71,6 +71,18 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 ## Verification completed in this handover
 
+October 18 redesign increment:
+
+- The prompt now separates birthplace from lived context and turns chart clues into conditional, modern-life hypotheses without claiming scientific proof.
+- Event candidates are selected across life stages, with normalised signature comparison and a two-per-primary-domain ceiling to limit repetitive retrospective scenes.
+- A live, synthetic, Simplified Chinese 1985 unknown-time local reading returned `interpretationSource=deepseek`; desktop navigation, Overview, Looking Back, Method, and bottom Next were exercised in the browser.
+- At 390px mobile width, the Overview and bottom of Looking Back showed no horizontal overflow; Next opened Looking Ahead and scrolled the new panel below the sticky header after a scroll-margin adjustment.
+- A synthetic 1955 unknown-time Chinese past phase covered ages about 6, 24, 44, 57, and 63. This confirms later-life *coverage*, not predictive accuracy.
+- `npm run build` and targeted lint of changed code passed. Full repository lint still includes unrelated generated-component findings.
+- [READING_EVALUATION.md](./READING_EVALUATION.md) defines consent-based human validation. [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md) scopes the separate, not-yet-built question flow.
+
+Earlier verification retained below:
+
 - Targeted lint passes for the edited product files.
 - Production build completes successfully.
 - `1000-01-01` was verified after the change to return a live DeepSeek response with no fixture header.
@@ -81,11 +93,12 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 
 ## Result information architecture
 
-- The global two-line summary and distinctive-signature strip now appear only inside Looking Back, where they introduce the retrospective evidence.
+- The global two-line summary, distinctive-signature strip, and chart appear once in Overview. Looking Back begins directly with the checkable time periods.
 - Character, Career, and Relationships each have a page-specific lead showing that area's headline, confidence, usable strength, and likely friction before the detailed narrative.
 - Looking Ahead has its own future overview plus separate opening/pressure cards before the year-by-year forecasts.
 - Timing deliberately skips the extra summary/feature lead and goes directly to its detailed timing reading and basis, as requested.
-- The result tabs are ordered Looking Back → Looking Ahead → Character → Career → Relationships → Timing → Method.
+- The result tabs are ordered Overview → Looking Back → Looking Ahead → Character → Career → Relationships → Timing → Method. The bottom Previous/Next controls show progress and navigate page by page.
+- Retrospective and life-area calculation rationale is collapsed behind a “Why this interpretation?” control. Method begins with a plain-language seasonal-map analogy and its evidence boundary.
 
 ## Wheel and loading UX
 
@@ -105,12 +118,14 @@ The LAN address is assigned by the router and may change. Phone and computer mus
 - Feedback buttons are session-only and do not persist analytics.
 - There is no account, payment, report history, rate limiting, or abuse protection.
 - The input year wheel starts at 1920; earlier dates require direct input.
-- Automated browser control was unavailable during the latest iteration, so the final regression used build, HTTP, and API verification. A manual phone/desktop visual review is still recommended.
+- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone and the deployed production Worker still need smoke testing after release.
 - Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
 - Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
 - Ziwei Dou Shu is approved as the next experimental methodology, without requiring a proprietary user dataset first. It still needs a separate deterministic star-chart layer and a small reference-chart regression set before its facts can enter the model prompt.
 
 ## Recommended next implementation sequence
+
+The October 2026 initiative is tracked in [PRODUCT_REDESIGN_ROADMAP.md](./PRODUCT_REDESIGN_ROADMAP.md). Its prompt, result-layout, navigation, and initial explanation changes are implemented locally. The user-video analogy is framed as a metaphor, not evidence of personal prediction. Real-user validation, a full Chinese/English audit, and the separate Liu Yao calculation/UI are still open. The sequence below is older backlog, not the immediate release checklist.
 
 1. Manually review the page-specific leads, reordered tabs, looping hour/minute wheel, and Chinese loading overlay on desktop and phone using a live reading.
 2. Implement a deterministic Ziwei Dou Shu chart module, document its calculation conventions, and compare a small set of public/reference charts. A large proprietary user dataset is not a prerequisite.

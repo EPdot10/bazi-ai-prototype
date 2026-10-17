@@ -24,8 +24,10 @@ const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export function TurnstileField({
   onToken,
+  locale = 'en',
 }: {
   onToken: (token: string) => void;
+  locale?: 'en' | 'zh';
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<string | undefined>(undefined);
@@ -75,10 +77,17 @@ export function TurnstileField({
   if (!siteKey) {
     return (
       <p className="text-[10px] leading-4 text-black/35">
-        Bot protection is enabled after the site is configured for production.
+        {locale === 'zh'
+          ? '正式环境配置完成后会启用防机器人验证。'
+          : 'Bot protection is enabled after the site is configured for production.'}
       </p>
     );
   }
 
-  return <div aria-label="Bot protection" ref={containerRef} />;
+  return (
+    <div
+      aria-label={locale === 'zh' ? '防机器人验证' : 'Bot protection'}
+      ref={containerRef}
+    />
+  );
 }

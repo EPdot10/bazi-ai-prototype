@@ -20,6 +20,7 @@ type Gender = 'male' | 'female' | 'undisclosed';
 type ReadingLocale = 'en' | 'zh';
 type FeedbackChoice = 'Match' | 'Partial' | 'Miss';
 type ResultView =
+  | 'overview'
   | 'past'
   | 'character'
   | 'career'
@@ -198,6 +199,7 @@ const stemNames: Record<string, string> = {
   癸: 'Yin Water',
 };
 const resultTabs: Array<{ value: ResultView; label: string }> = [
+  { value: 'overview', label: 'Overview' },
   { value: 'past', label: 'Looking back' },
   { value: 'future', label: 'Looking ahead' },
   { value: 'character', label: 'Character' },
@@ -208,6 +210,7 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
 ];
 
 const resultTabsZh: Array<{ value: ResultView; label: string }> = [
+  { value: 'overview', label: '总览' },
   { value: 'past', label: '回望过去' },
   { value: 'future', label: '展望未来' },
   { value: 'character', label: '性格' },
@@ -216,6 +219,16 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'timing', label: '时机' },
   { value: 'method', label: '方法' },
 ];
+
+function confidenceLabel(value: string, locale: ReadingLocale) {
+  if (locale === 'en') return `${value} confidence`;
+  const labels: Record<string, string> = {
+    high: '较高把握',
+    medium: '中等把握',
+    low: '较低把握',
+  };
+  return labels[value.toLowerCase()] ?? '待验证';
+}
 
 const readingPhaseOrder: ReadingPhase[] = [
   'past',
@@ -280,7 +293,7 @@ const intakeCopy = {
     setTime: '设定时间',
     confirmCity: '确认城市',
     exactHint:
-      '建议输入 Exact time（准确时间）。时间越准确，四柱解读越清晰；不知道也可以继续。',
+      '建议输入准确出生时间。时间越准确，四柱解读越清晰；不知道也可以继续。',
     timeQuestion: '出生时间的准确程度',
     exact: '准确',
     approximate: '大概',
@@ -370,7 +383,7 @@ function mergeReadingPhase(reading: Reading, payload: PhaseResponse): Reading {
       ...patch,
       lifeAreas: {
         ...reading.interpretation.lifeAreas,
-        ...(patch.lifeAreas ?? {}),
+        ...patch.lifeAreas,
       },
     },
     progress: {
@@ -827,6 +840,7 @@ export default function Home() {
                     </label>
                   ) : (
                     <BirthWheel
+                      locale={locale}
                       mode="date"
                       onChange={setBirthValue}
                       onInteract={() => setDateInteracted(true)}
@@ -932,6 +946,7 @@ export default function Home() {
                     <div className="mt-8">
                       <BirthWheel
                         approximateTime={timeConfidence === 'approximate'}
+                        locale={locale}
                         mode="time"
                         onChange={setBirthValue}
                         onInteract={() => setTimeInteracted(true)}
@@ -1091,7 +1106,10 @@ export default function Home() {
                     <p className="text-[11px] leading-5 text-black/38">
                       {copy.provider}
                     </p>
-                    <TurnstileField onToken={setTurnstileToken} />
+                    <TurnstileField
+                      locale={locale}
+                      onToken={setTurnstileToken}
+                    />
                   </div>
 
                   <div className="sticky bottom-0 -mx-6 mt-8 grid grid-cols-[0.7fr_1.3fr] gap-3 border-t border-black/10 bg-[#f2efe8]/95 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
@@ -1111,7 +1129,9 @@ export default function Home() {
                       {loading ? (
                         <>
                           <LoaderCircle className="size-4 animate-spin" />
-                          Reading your chart
+                          {locale === 'zh'
+                            ? '正在解读命盘'
+                            : 'Reading your chart'}
                         </>
                       ) : (
                         <>
@@ -1392,14 +1412,14 @@ function ReadingResult({
   locale: ReadingLocale;
   onReset: () => void;
 }) {
-  const [view, setView] = useState<ResultView>('past');
+  const [view, setView] = useState<ResultView>('overview');
   const [premiumUnlocked, setPremiumUnlocked] = useState(false);
   const [notice, setNotice] = useState('');
   const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
   const completedPhases = new Set(reading.progress?.completed ?? ['past']);
 
-  function selectTab(next: ResultView) {
-    const phase = next === 'method' ? null : next;
+  function selectTab(next: ResultView, scrollToPanel = false) {
+    const phase = next === 'method' || next === 'overview' ? null : next;
     if (phase && !completedPhases.has(phase)) {
       setNotice(
         locale === 'zh'
@@ -1410,6 +1430,14 @@ function ReadingResult({
     }
     setNotice('');
     setView(next);
+    if (scrollToPanel) {
+      requestAnimationFrame(() =>
+        document.getElementById('reading-panel')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
+      );
+    }
   }
 
   function moveTab(direction: -1 | 1) {
@@ -1417,7 +1445,8 @@ function ReadingResult({
     const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
     const next = tabs[nextIndex];
     selectTab(next.value);
-    const nextPhase = next.value === 'method' ? null : next.value;
+    const nextPhase =
+      next.value === 'method' || next.value === 'overview' ? null : next.value;
     if (!nextPhase || completedPhases.has(nextPhase)) {
       requestAnimationFrame(() =>
         document.getElementById(`reading-tab-${next.value}`)?.focus(),
@@ -1444,7 +1473,7 @@ function ReadingResult({
       </div>
 
       <nav
-        aria-label="Reading sections"
+        aria-label={locale === 'zh' ? '解读章节' : 'Reading sections'}
         className="result-tabs mb-10 flex snap-x snap-mandatory overflow-x-auto border-y border-black/10"
       >
         {tabs.map((tab) => (
@@ -1478,13 +1507,12 @@ function ReadingResult({
         ))}
       </nav>
       {notice ? (
-        <p
+        <output
           aria-live="polite"
           className="-mt-5 mb-7 text-xs text-[#9d3027]"
-          role="status"
         >
           {notice}
-        </p>
+        </output>
       ) : null}
       {reading.progress?.active ? (
         <p className="-mt-5 mb-7 text-[10px] tracking-[0.12em] text-black/35 uppercase">
@@ -1494,74 +1522,104 @@ function ReadingResult({
         </p>
       ) : null}
 
-      <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
-        <div>
-          <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-            Your elemental profile
-          </p>
-          <h1 className="relative z-10 mt-3 max-w-lg font-serif text-5xl tracking-[-0.04em] sm:text-6xl">
-            {reading.chart.dayMaster} ·{' '}
-            {stemNames[reading.chart.dayMaster] ?? 'Elemental'} Day Master
-          </h1>
-          <p className="mt-5 max-w-sm text-xs leading-5 text-black/45">
-            {reading.resolvedPlace.label}
-            <br />
-            {friendlyTimeZone(reading.resolvedPlace.ianaTimeZone)}
-          </p>
-          <div className="mt-7 flex flex-wrap gap-2 text-[9px] font-semibold tracking-[0.1em] text-black/42 uppercase">
-            {Object.entries(reading.chart.elementBalance).map(
-              ([element, count]) => (
-                <span
-                  className="border border-black/10 px-2.5 py-1.5"
-                  key={element}
-                >
-                  {elementNames[element]} {count}
-                </span>
-              ),
-            )}
+      {view === 'overview' ? (
+        <section className="result-hero grid gap-10 border-b border-black/10 pb-12 lg:grid-cols-[0.82fr_1.18fr]">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
+              {locale === 'zh' ? '你的五行命盘' : 'Your elemental profile'}
+            </p>
+            <h1 className="relative z-10 mt-3 max-w-lg font-serif text-5xl tracking-[-0.04em] sm:text-6xl">
+              {reading.chart.dayMaster} ·{' '}
+              {locale === 'zh'
+                ? '日主'
+                : `${stemNames[reading.chart.dayMaster] ?? 'Elemental'} Day Master`}
+            </h1>
+            <p className="mt-5 max-w-sm text-xs leading-5 text-black/45">
+              {reading.resolvedPlace.label}
+              <br />
+              {friendlyTimeZone(reading.resolvedPlace.ianaTimeZone)}
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2 text-[9px] font-semibold tracking-[0.1em] text-black/42 uppercase">
+              {Object.entries(reading.chart.elementBalance).map(
+                ([element, count]) => (
+                  <span
+                    className="border border-black/10 px-2.5 py-1.5"
+                    key={element}
+                  >
+                    {locale === 'zh'
+                      ? (
+                          {
+                            wood: '木',
+                            fire: '火',
+                            earth: '土',
+                            metal: '金',
+                            water: '水',
+                          } as Record<string, string>
+                        )[element]
+                      : elementNames[element]}{' '}
+                    {count}
+                  </span>
+                ),
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="relative z-10">
-          <div className="grid grid-cols-4 border-y border-black/10 py-5">
-            {(['year', 'month', 'day', 'hour'] as const).map((key) => (
-              <div key={key} className="text-center">
-                <p className="text-[9px] tracking-[0.14em] text-black/35 uppercase">
-                  {key}
-                </p>
-                <p className="mt-2 font-serif text-2xl">
-                  {reading.chart.pillars[key] ?? '—'}
-                </p>
-              </div>
-            ))}
+          <div className="relative z-10">
+            <div className="grid grid-cols-4 border-y border-black/10 py-5">
+              {(['year', 'month', 'day', 'hour'] as const).map((key) => (
+                <div key={key} className="text-center">
+                  <p className="text-[9px] tracking-[0.14em] text-black/35 uppercase">
+                    {locale === 'zh'
+                      ? (
+                          {
+                            year: '年',
+                            month: '月',
+                            day: '日',
+                            hour: '时',
+                          } as const
+                        )[key]
+                      : key}
+                  </p>
+                  <p className="mt-2 font-serif text-2xl">
+                    {reading.chart.pillars[key] ?? '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 max-w-xl font-serif text-2xl leading-8 sm:text-3xl sm:leading-10">
+              {reading.interpretation.summary}
+            </p>
+            <p className="mt-5 text-[9px] tracking-[0.12em] text-black/32 uppercase">
+              {locale === 'zh'
+                ? reading.interpretationSource === 'deepseek'
+                  ? 'DeepSeek 解读 · 命盘由本地计算'
+                  : reading.interpretationSource === 'fixture'
+                    ? '已保存测试结果 · 未调用 API'
+                    : 'AI 解读不可用'
+                : reading.interpretationSource === 'deepseek'
+                  ? 'DeepSeek interpretation · locally calculated chart'
+                  : reading.interpretationSource === 'fixture'
+                    ? 'Saved test fixture · no API request'
+                    : 'AI interpretation unavailable'}
+            </p>
           </div>
-          <p className="mt-6 max-w-xl font-serif text-2xl leading-8 sm:text-3xl sm:leading-10">
-            {reading.interpretation.summary}
-          </p>
-          <p className="mt-5 text-[9px] tracking-[0.12em] text-black/32 uppercase">
-            {locale === 'zh'
-              ? reading.interpretationSource === 'deepseek'
-                ? 'DeepSeek 解读 · 命盘由本地计算'
-                : reading.interpretationSource === 'fixture'
-                  ? '已保存测试结果 · 未调用 API'
-                  : 'AI 解读不可用'
-              : reading.interpretationSource === 'deepseek'
-                ? 'DeepSeek interpretation · locally calculated chart'
-                : reading.interpretationSource === 'fixture'
-                  ? 'Saved test fixture · no API request'
-                  : 'AI interpretation unavailable'}
-          </p>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role -- WAI-ARIA tabs require a labelled tabpanel. */}
       <div
         aria-labelledby={`reading-tab-${view}`}
-        className="mx-auto min-h-[520px] max-w-3xl animate-rise-delayed py-12"
+        className="mx-auto min-h-[520px] max-w-3xl scroll-mt-24 animate-rise-delayed py-12"
         id="reading-panel"
         role="tabpanel"
         tabIndex={0}
       >
+        {view === 'overview' ? (
+          <>
+            <ReadingSummary reading={reading} locale={locale} />
+            <InsightStrip reading={reading} locale={locale} />
+          </>
+        ) : null}
         {view === 'past' ? (
           <PastView reading={reading} locale={locale} />
         ) : null}
@@ -1573,13 +1631,13 @@ function ReadingResult({
             <PendingSection phase="relationships" locale={locale} />
           ) : view === 'relationships' && !premiumUnlocked ? (
             <LockedLifeArea
-              area={reading.interpretation.lifeAreas.relationships}
+              area={reading.interpretation.lifeAreas.relationships!}
               locale={locale}
               onUnlock={() => setPremiumUnlocked(true)}
             />
           ) : reading.interpretation.lifeAreas[view as LifeAreaKey] ? (
             <LifeAreaView
-              area={reading.interpretation.lifeAreas[view as LifeAreaKey]}
+              area={reading.interpretation.lifeAreas[view as LifeAreaKey]!}
               areaKey={view as LifeAreaKey}
               locale={locale}
               showIntro={view !== 'timing'}
@@ -1605,6 +1663,41 @@ function ReadingResult({
           <MethodView reading={reading} locale={locale} />
         ) : null}
       </div>
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-black/10 py-6 text-xs">
+        <button
+          className="glow-control min-w-0 text-left text-black/60 disabled:cursor-not-allowed disabled:opacity-25"
+          disabled={tabs[0].value === view}
+          onClick={() => {
+            const index = tabs.findIndex((tab) => tab.value === view);
+            if (index > 0) selectTab(tabs[index - 1].value, true);
+          }}
+          type="button"
+        >
+          {locale === 'zh' ? '← 上一页' : '← Previous'}
+        </button>
+        <span className="shrink-0 text-[10px] tracking-[0.14em] text-black/35">
+          {tabs.findIndex((tab) => tab.value === view) + 1} / {tabs.length}
+        </span>
+        <button
+          className="glow-control min-w-0 text-right text-[#9d3027] disabled:cursor-not-allowed disabled:opacity-25"
+          disabled={tabs[tabs.length - 1].value === view}
+          onClick={() => {
+            const index = tabs.findIndex((tab) => tab.value === view);
+            if (index < tabs.length - 1) selectTab(tabs[index + 1].value, true);
+          }}
+          type="button"
+        >
+          {locale === 'zh' ? '下一页 →' : 'Next →'}
+        </button>
+      </div>
+      {notice ? (
+        <output
+          aria-live="polite"
+          className="mx-auto block max-w-3xl pb-6 text-xs text-[#9d3027]"
+        >
+          {notice}
+        </output>
+      ) : null}
     </div>
   );
 }
@@ -1766,7 +1859,8 @@ function InsightStrip({
           </p>
         </div>
         <span className="hidden text-[9px] tracking-[0.12em] text-black/30 uppercase sm:block">
-          {reading.interpretation.insights.length} signals
+          {reading.interpretation.insights.length}{' '}
+          {locale === 'zh' ? '条线索' : 'signals'}
         </span>
       </div>
       <div className="mt-6 grid gap-px bg-black/10 sm:grid-cols-2">
@@ -1780,18 +1874,23 @@ function InsightStrip({
                 0{index + 1}
               </span>
               <span className="text-[9px] tracking-[0.1em] text-black/30 uppercase">
-                {locale === 'zh'
-                  ? `${insight.confidence} 置信度`
-                  : `${insight.confidence} confidence`}
+                {confidenceLabel(insight.confidence, locale)}
               </span>
             </div>
             <h2 className="mt-4 text-sm font-semibold">{insight.title}</h2>
             <p className="mt-3 text-sm leading-6 text-black/58">
               {insight.interpretation}
             </p>
-            <p className="mt-4 text-[10px] leading-5 text-black/32">
-              {insight.basis}
-            </p>
+            {insight.basis ? (
+              <details className="mt-4 text-[10px] leading-5 text-black/42">
+                <summary className="cursor-pointer">
+                  {locale === 'zh'
+                    ? '为什么这样推测'
+                    : 'Why this interpretation?'}
+                </summary>
+                <p className="mt-2">{insight.basis}</p>
+              </details>
+            ) : null}
           </article>
         ))}
       </div>
@@ -1887,8 +1986,6 @@ function PastView({
 
   return (
     <section>
-      <ReadingSummary reading={reading} locale={locale} />
-      <InsightStrip reading={reading} locale={locale} />
       <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
         {locale === 'zh' ? '先验证，再谈预测' : 'Recognition before prediction'}
       </p>
@@ -1923,7 +2020,7 @@ function PastView({
                 {pattern.period}
               </p>
               <p className="mt-2 text-[9px] tracking-[0.1em] text-black/30 uppercase">
-                {pattern.confidence} confidence
+                {confidenceLabel(pattern.confidence, locale)}
               </p>
             </div>
             <div>
@@ -1942,22 +2039,30 @@ function PastView({
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 text-xs leading-5 text-black/34">
-                {pattern.principle || pattern.basis}
-              </p>
-              {pattern.basis && pattern.basis !== pattern.principle ? (
-                <details className="mt-3 text-[10px] leading-5 text-black/32">
-                  <summary className="cursor-pointer tracking-[0.08em] uppercase">
+              {pattern.principle || pattern.basis ? (
+                <details className="mt-4 text-xs leading-5 text-black/42">
+                  <summary className="cursor-pointer">
                     {locale === 'zh'
-                      ? '查看计算依据'
-                      : 'View calculation basis'}
+                      ? '为什么这样推测'
+                      : 'Why this interpretation?'}
                   </summary>
-                  <p className="mt-2">{pattern.basis}</p>
+                  {pattern.principle ? (
+                    <p className="mt-2">{pattern.principle}</p>
+                  ) : null}
+                  {pattern.basis && pattern.basis !== pattern.principle ? (
+                    <p className="mt-2 text-[10px] text-black/35">
+                      {pattern.basis}
+                    </p>
+                  ) : null}
                 </details>
               ) : null}
               <div
                 className="mt-5 flex flex-wrap gap-2"
-                aria-label={`Does ${pattern.period} match your experience?`}
+                aria-label={
+                  locale === 'zh'
+                    ? `${pattern.period}与你的经历相符吗？`
+                    : `Does ${pattern.period} match your experience?`
+                }
               >
                 {(['Match', 'Partial', 'Miss'] as const).map((choice) => (
                   <button
@@ -2337,9 +2442,7 @@ function LifeAreaLead({
           {area.headline}
         </h2>
         <span className="shrink-0 text-[9px] tracking-[0.1em] text-black/30 uppercase">
-          {locale === 'zh'
-            ? `${area.confidence} 置信度`
-            : `${area.confidence} confidence`}
+          {confidenceLabel(area.confidence, locale)}
         </span>
       </div>
       <div className="mt-6 grid gap-px bg-black/10 sm:grid-cols-2">
@@ -2384,9 +2487,7 @@ function LifeAreaView({
             {area.headline}
           </h2>
           <span className="shrink-0 text-[9px] tracking-[0.1em] text-black/30 uppercase">
-            {locale === 'zh'
-              ? `${area.confidence} 置信度`
-              : `${area.confidence} confidence`}
+            {confidenceLabel(area.confidence, locale)}
           </span>
         </div>
       )}
@@ -2449,10 +2550,14 @@ function LifeAreaView({
           ))}
         </ul>
       </div>
-      <p className="mt-8 text-[10px] leading-5 text-black/30">
-        {locale === 'zh' ? '依据：' : 'Basis: '}
-        {area.basis}
-      </p>
+      {area.basis ? (
+        <details className="mt-8 text-xs leading-5 text-black/42">
+          <summary className="cursor-pointer">
+            {locale === 'zh' ? '为什么这样推测' : 'Why this interpretation?'}
+          </summary>
+          <p className="mt-2">{area.basis}</p>
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -2473,6 +2578,24 @@ function MethodView({
         {locale === 'zh' ? '这次解读使用了什么。' : 'What the reading used.'}
       </h2>
 
+      <div className="mt-7 space-y-4 border-l-2 border-[#9d3027] pl-5 text-sm leading-7 text-black/65">
+        <p>
+          {locale === 'zh'
+            ? '可以把命盘想成一张“出生时的季节地图”：它记录了当时的时间与地点，再用传统符号描述不同力量之间的关系。地图给的是观察角度，不是人生剧本。'
+            : 'Think of the chart as a seasonal map of birth time and place. Traditional symbols describe relationships in that map; they offer a lens, not a script for your life.'}
+        </p>
+        <p>
+          {locale === 'zh'
+            ? '我们先计算命盘，再让 AI 结合当代生活提出可能的经历与选择。居住环境、时代、资源和个人决定都可能改变结果；出生城市也不等于成长或居住城市。'
+            : 'We calculate the chart first, then ask AI to suggest possible experiences in today’s world. Era, environment, resources, and choices matter; birthplace is not the same as where you grew up or live.'}
+        </p>
+        <p>
+          {locale === 'zh'
+            ? '因此，请把过去的描述当作可核对的假设，把未来的描述当作思考提示。八字并没有被证明能准确预测某个人的具体事件；不吻合时，不需要勉强对号入座。'
+            : 'Treat the past as checkable hypotheses and the future as prompts for reflection. BaZi is not scientifically proven to predict a person’s specific events; a miss is a miss.'}
+        </p>
+      </div>
+
       <div className="mt-6 border border-black/10 bg-black/[0.015] p-5 text-sm leading-6 text-black/52">
         <p className="font-semibold text-black/65">
           {locale === 'zh' ? '系统范围' : 'System scope'}
@@ -2490,7 +2613,17 @@ function MethodView({
             {locale === 'zh' ? '日主元素' : 'Day Master element'}
           </p>
           <p className="mt-2 font-serif text-2xl">
-            {reading.chart.dayMasterElement ?? '—'}
+            {locale === 'zh'
+              ? ((
+                  {
+                    wood: '木',
+                    fire: '火',
+                    earth: '土',
+                    metal: '金',
+                    water: '水',
+                  } as Record<string, string>
+                )[reading.chart.dayMasterElement ?? ''] ?? '—')
+              : (reading.chart.dayMasterElement ?? '—')}
           </p>
         </div>
         <div className="bg-[#f2efe8] p-5">
@@ -2498,7 +2631,15 @@ function MethodView({
             {locale === 'zh' ? '季节强弱' : 'Seasonal strength'}
           </p>
           <p className="mt-2 font-serif text-2xl">
-            {reading.chart.seasonalStrength ?? '—'}
+            {locale === 'zh'
+              ? ((
+                  {
+                    supported: '有季节助力',
+                    balanced: '较均衡',
+                    challenged: '季节助力较弱',
+                  } as Record<string, string>
+                )[reading.chart.seasonalStrength ?? ''] ?? '待核对')
+              : (reading.chart.seasonalStrength ?? '—')}
           </p>
         </div>
         <div className="bg-[#f2efe8] p-5">
@@ -2541,10 +2682,10 @@ function MethodView({
         </div>
       ) : null}
 
-      {reading.chart.strengthNotes?.length ? (
+      {reading.chart.strengthNotes?.length && locale === 'en' ? (
         <div className="mt-7 border-l-2 border-[#9d3027] pl-4">
           <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
-            {locale === 'zh' ? '强弱说明' : 'Strength notes'}
+            Strength notes
           </p>
           <ul className="mt-2 space-y-1 text-sm leading-6 text-black/52">
             {reading.chart.strengthNotes.map((note) => (
@@ -2554,10 +2695,10 @@ function MethodView({
         </div>
       ) : null}
 
-      {reading.chart.structuralRelations?.length ? (
+      {reading.chart.structuralRelations?.length && locale === 'en' ? (
         <div className="mt-7">
           <p className="text-[9px] font-semibold tracking-[0.15em] text-black/35 uppercase">
-            {locale === 'zh' ? '命盘结构关系' : 'Natal structural relations'}
+            Natal structural relations
           </p>
           <p className="mt-2 text-sm leading-6 text-black/52">
             {reading.chart.structuralRelations.join(' · ')}
@@ -2605,7 +2746,18 @@ function MethodView({
         {Object.entries(reading.chart.elementBalance).map(
           ([element, count]) => (
             <span key={element}>
-              {elementNames[element]} {count}
+              {locale === 'zh'
+                ? (
+                    {
+                      wood: '木',
+                      fire: '火',
+                      earth: '土',
+                      metal: '金',
+                      water: '水',
+                    } as Record<string, string>
+                  )[element]
+                : elementNames[element]}{' '}
+              {count}
             </span>
           ),
         )}
@@ -2613,18 +2765,34 @@ function MethodView({
 
       {reading.chart.birthTimeConfidence === 'unknown' ? (
         <p className="mt-7 border-l-2 border-[#9d3027] pl-4 text-sm leading-6 text-black/55">
-          The hour pillar is intentionally omitted. The reading does not invent
-          claims that require a birth hour.
+          {locale === 'zh'
+            ? '你没有提供出生时辰，因此我们省略时柱，也不会编造依赖时辰才能判断的内容。'
+            : 'The hour pillar is intentionally omitted. The reading does not invent claims that require a birth hour.'}
         </p>
       ) : null}
 
-      <ul className="mt-8 space-y-3">
-        {reading.chart.calculationNotes.map((note) => (
-          <li className="text-sm leading-6 text-black/52" key={note}>
-            {note}
+      {locale === 'zh' ? (
+        <ul className="mt-8 space-y-3 text-sm leading-6 text-black/52">
+          <li>
+            出生城市用于确认当地时区：{reading.resolvedPlace.label}（
+            {reading.resolvedPlace.ianaTimeZone}）。
           </li>
-        ))}
-      </ul>
+          <li>
+            四柱按节气历计算；上方五行数量只统计可见天干与地支，不能据此断言某元素完全不存在。
+          </li>
+          {reading.chart.birthTimeConfidence === 'unknown' ? (
+            <li>出生时辰未知，因此时柱未计算，相关判断也已省略。</li>
+          ) : null}
+        </ul>
+      ) : (
+        <ul className="mt-8 space-y-3">
+          {reading.chart.calculationNotes.map((note) => (
+            <li className="text-sm leading-6 text-black/52" key={note}>
+              {note}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {reading.chart.timeAdjustment ? (
         <div className="mt-8 grid gap-4 border border-black/10 p-5 sm:grid-cols-2">
@@ -2634,7 +2802,8 @@ function MethodView({
             </p>
             <p className="mt-2 font-serif text-2xl">
               {reading.chart.timeAdjustment.minutes >= 0 ? '+' : ''}
-              {reading.chart.timeAdjustment.minutes} min
+              {reading.chart.timeAdjustment.minutes}{' '}
+              {locale === 'zh' ? '分钟' : 'min'}
             </p>
           </div>
           <div>
