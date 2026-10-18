@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
 type Gender = 'male' | 'female' | 'undisclosed';
 type ReadingLocale = 'en' | 'zh';
-type FeedbackChoice = 'Match' | 'Partial' | 'Miss';
+type FeedbackChoice = 'Match' | 'Partial' | 'Miss' | 'CannotJudge';
 type ResultView =
   | 'overview'
   | 'past'
@@ -115,6 +115,7 @@ interface Reading {
     pastPatterns: Array<{
       period: string;
       headline: string;
+      checkableEvent?: string;
       narrative: string;
       possibilities: string[];
       principle: string;
@@ -222,13 +223,13 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
 ];
 
 function confidenceLabel(value: string, locale: ReadingLocale) {
-  if (locale === 'en') return `${value} confidence`;
-  const labels: Record<string, string> = {
-    high: '较高把握',
-    medium: '中等把握',
-    low: '较低把握',
+  const labels: Record<string, { en: string; zh: string }> = {
+    high: { en: 'Chart signal: stronger', zh: '命盘线索：强' },
+    medium: { en: 'Chart signal: moderate', zh: '命盘线索：中' },
+    low: { en: 'Chart signal: limited', zh: '命盘线索：弱' },
   };
-  return labels[value.toLowerCase()] ?? '待验证';
+  return labels[value.toLowerCase()]?.[locale] ??
+    (locale === 'zh' ? '未经验证' : 'Not validated');
 }
 
 const readingPhaseOrder: ReadingPhase[] = [
@@ -1919,34 +1920,49 @@ function PastView({
 }) {
   const [matches, setMatches] = useState<Record<number, FeedbackChoice>>({});
   const [savedFeedback, setSavedFeedback] = useState(false);
-  const feedbackKey = `ming:feedback:v1:${Object.values(reading.chart.pillars).join('')}`;
+  const [legacyFeedback, setLegacyFeedback] = useState<Record<string, FeedbackChoice>>({});
+  const [submissionStatus, setSubmissionStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'failed'
+  >('idle');
+  const submissionSequence = useRef(0);
+  const feedbackKey = `ming:feedback:v2:${Object.values(reading.chart.pillars).join('')}`;
+  const legacyFeedbackKey = `ming:feedback:v1:${Object.values(reading.chart.pillars).join('')}`;
 
   useEffect(() => {
     if (!reading.feedbackConsent) return;
     try {
       const saved = window.localStorage.getItem(feedbackKey);
-      if (!saved) return;
-      const parsed = JSON.parse(saved) as Record<string, FeedbackChoice>;
+      const parsed = saved
+        ? (JSON.parse(saved) as Record<string, FeedbackChoice>)
+        : {};
+      const legacy = window.localStorage.getItem(legacyFeedbackKey);
+      const parsedLegacy = legacy
+        ? (JSON.parse(legacy) as Record<string, FeedbackChoice>)
+        : {};
       const restored = Object.fromEntries(
-        reading.interpretation.pastPatterns.flatMap((pattern, index) =>
-          parsed[pattern.period] ? [[index, parsed[pattern.period]]] : [],
-        ),
+        reading.interpretation.pastPatterns.flatMap((pattern, index) => {
+          const claimKey = `${pattern.period}::${pattern.checkableEvent || pattern.headline}`;
+          return parsed[claimKey] ? [[index, parsed[claimKey]]] : [];
+        }),
       ) as Record<number, FeedbackChoice>;
       queueMicrotask(() => {
         setMatches(restored);
         setSavedFeedback(Object.keys(restored).length > 0);
+        setLegacyFeedback(parsedLegacy);
       });
     } catch {
       // Feedback is an enhancement; a malformed local entry is ignored.
     }
   }, [
     feedbackKey,
+    legacyFeedbackKey,
     reading.feedbackConsent,
     reading.interpretation.pastPatterns,
   ]);
 
   function recordFeedback(
     period: string,
+    claim: string,
     index: number,
     choice: FeedbackChoice,
   ) {
@@ -1957,24 +1973,39 @@ function PastView({
       const current = saved
         ? (JSON.parse(saved) as Record<string, FeedbackChoice>)
         : {};
-      current[period] = choice;
+      current[`${period}::${claim}`] = choice;
       window.localStorage.setItem(feedbackKey, JSON.stringify(current));
       setSavedFeedback(true);
-      void fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consent: true,
-          period,
-          choice,
-          locale,
-        }),
-      }).catch(() => {
-        // Local storage remains the source of truth if the network is unavailable.
-      });
     } catch {
-      // Do not block the reading if storage is unavailable.
+      // A blocked local store should not prevent an explicitly consented send.
     }
+    const sequence = ++submissionSequence.current;
+    setSubmissionStatus('sending');
+    void (async () => {
+      try {
+        const bytes = new TextEncoder().encode(`v2|${period}|${claim}`);
+        const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+        const claimId = Array.from(new Uint8Array(digest), (byte) =>
+          byte.toString(16).padStart(2, '0'),
+        ).join('');
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            consent: true,
+            period,
+            claimId,
+            calibrationVersion: 2,
+            choice,
+            locale,
+          }),
+        });
+        if (!response.ok) throw new Error('FEEDBACK_SEND_FAILED');
+        if (sequence === submissionSequence.current) setSubmissionStatus('sent');
+      } catch {
+        if (sequence === submissionSequence.current) setSubmissionStatus('failed');
+      }
+    })();
   }
 
   function exportFeedback() {
@@ -1982,16 +2013,33 @@ function PastView({
     const records = reading.interpretation.pastPatterns.flatMap(
       (pattern, index) =>
         matches[index]
-          ? [{ period: pattern.period, choice: matches[index] }]
+          ? [{
+              period: pattern.period,
+              claim: pattern.checkableEvent || pattern.headline,
+              choice: matches[index],
+            }]
           : [],
     );
-    const blob = new Blob([JSON.stringify({ version: 1, records }, null, 2)], {
+    const blob = new Blob([JSON.stringify({ version: 2, records }, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = 'ming-calibration-feedback.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportLegacyFeedback() {
+    const blob = new Blob(
+      [JSON.stringify({ version: 1, records: legacyFeedback }, null, 2)],
+      { type: 'application/json' },
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ming-legacy-feedback.json';
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -2016,10 +2064,15 @@ function PastView({
         </div>
         <span className="hidden text-[9px] text-black/32 sm:block">
           {locale === 'zh'
-            ? '符合 · 部分符合 · 不符合'
-            : 'Match · Partial · Miss'}
+            ? '符合 · 部分符合 · 不符合 · 无法判断'
+            : 'Match · Partial · Miss · Cannot judge'}
         </span>
       </div>
+      <p className="mt-4 text-[11px] leading-5 text-black/40">
+        {locale === 'zh'
+          ? '下方“命盘线索”只表示传统规则中的线索强弱，不是经过验证的预测准确率。反馈时只评价每段突出显示的单条假设。'
+          : '“Chart signal” describes an interpretive clue, not a measured hit rate. When giving feedback, rate only the highlighted claim in each period.'}
+      </p>
 
       <div className="divide-y divide-black/10">
         {reading.interpretation.pastPatterns.map((pattern, patternIndex) => (
@@ -2037,20 +2090,94 @@ function PastView({
             </div>
             <div>
               <h3 className="text-sm font-semibold">{pattern.headline}</h3>
+              {pattern.checkableEvent ? (
+                <div className="mt-4 border-l-2 border-[#9d3027] bg-[#9d3027]/[0.04] px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
+                    {locale === 'zh' ? '请核对这一条' : 'The claim to check'}
+                  </p>
+                  <p className="mt-2 text-base leading-7 text-[#25231e]">
+                    {pattern.checkableEvent}
+                  </p>
+                </div>
+              ) : null}
+              {pattern.checkableEvent ? (
+                <div
+                  className="mt-3 flex flex-wrap items-center gap-2"
+                  aria-label={
+                    locale === 'zh'
+                      ? `${pattern.period}的核对假设与你的经历相符吗？`
+                      : `Does the highlighted claim for ${pattern.period} match your experience?`
+                  }
+                >
+                  <span className="mr-1 text-[10px] text-black/42">
+                    {locale === 'zh' ? '只评价上方这一条' : 'Rate only this claim'}
+                  </span>
+                  {(['Match', 'Partial', 'Miss', 'CannotJudge'] as const).map((choice) => (
+                    <button
+                      aria-pressed={matches[patternIndex] === choice}
+                      className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
+                      key={choice}
+                      onClick={() =>
+                        recordFeedback(
+                          pattern.period,
+                          pattern.checkableEvent!,
+                          patternIndex,
+                          choice,
+                        )
+                      }
+                      type="button"
+                    >
+                      {locale === 'zh'
+                        ? choice === 'Match'
+                          ? '符合'
+                          : choice === 'Partial'
+                            ? '部分符合'
+                            : choice === 'Miss'
+                              ? '不符合'
+                              : '无法判断'
+                        : choice}
+                    </button>
+                  ))}
+                  <span className="w-full text-[10px] leading-4 text-black/35">
+                    {reading.feedbackConsent
+                      ? locale === 'zh'
+                        ? '点击后会立即提交；反馈内容仅含年份、假设指纹和评分。'
+                        : 'Clicking sends the year, claim fingerprint, and rating immediately.'
+                      : locale === 'zh'
+                        ? '未同意分享：评分只在当前页面显示。'
+                        : 'Sharing is off: your rating stays on this page.'}
+                  </span>
+                </div>
+              ) : (
+                <p className="mt-5 text-xs text-black/38">
+                  {locale === 'zh'
+                    ? '旧版解读没有单独的核对假设，无法计入反馈；重新生成后可使用。'
+                    : 'This older reading has no separate claim to rate. Create a new reading to use feedback.'}
+                </p>
+              )}
               <p className="mt-3 text-[15px] leading-7 text-black/62">
                 {pattern.narrative}
               </p>
-              <ul className="mt-3 space-y-2">
-                {pattern.possibilities.map((possibility) => (
-                  <li
-                    className="grid grid-cols-[0.75rem_1fr] text-sm leading-6 text-black/58"
-                    key={possibility}
-                  >
-                    <span className="text-[#9d3027]">·</span>
-                    <span>{possibility}</span>
-                  </li>
-                ))}
-              </ul>
+              {pattern.possibilities.length ? (
+                <details className="mt-3 text-xs leading-5 text-black/48">
+                  <summary className="cursor-pointer">
+                    {locale === 'zh'
+                      ? '其他可能的表现（不计入反馈）'
+                      : 'Other possible expressions (not rated)'}
+                  </summary>
+                  <ul className="mt-2 space-y-2">
+                    {pattern.possibilities.map((possibility) => (
+                      <li
+                        className="grid grid-cols-[0.75rem_1fr] text-sm leading-6 text-black/58"
+                        key={possibility}
+                      >
+                        <span className="text-[#9d3027]">·</span>
+                        <span>{possibility}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
               {pattern.principle || pattern.basis ? (
                 <details className="mt-4 text-xs leading-5 text-black/42">
                   <summary className="cursor-pointer">
@@ -2068,51 +2195,38 @@ function PastView({
                   ) : null}
                 </details>
               ) : null}
-              <div
-                className="mt-5 flex flex-wrap gap-2"
-                aria-label={
-                  locale === 'zh'
-                    ? `${pattern.period}与你的经历相符吗？`
-                    : `Does ${pattern.period} match your experience?`
-                }
-              >
-                {(['Match', 'Partial', 'Miss'] as const).map((choice) => (
-                  <button
-                    aria-pressed={matches[patternIndex] === choice}
-                    className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
-                    key={choice}
-                    onClick={() =>
-                      recordFeedback(pattern.period, patternIndex, choice)
-                    }
-                    type="button"
-                  >
-                    {locale === 'zh'
-                      ? choice === 'Match'
-                        ? '符合'
-                        : choice === 'Partial'
-                          ? '部分符合'
-                          : '不符合'
-                      : choice}
-                  </button>
-                ))}
-              </div>
             </div>
           </article>
         ))}
       </div>
-      <p className="mt-7 text-[11px] leading-5 text-black/35">
+      <p className="mt-7 text-[11px] leading-5 text-black/45">
         {reading.feedbackConsent
-          ? savedFeedback
-            ? locale === 'zh'
-              ? '你的反馈已保存在本设备，并可匿名提交用于校准。不会上传生日、姓名或城市。'
-              : 'Your feedback is saved on this device and may be submitted anonymously for calibration. Birth date, name, and city are not uploaded.'
-            : locale === 'zh'
-              ? '选择一段经历进行标记，帮助我们校准候选事件。'
-              : 'Mark a period to help calibrate future event candidates.'
+          ? locale === 'zh'
+            ? '你已同意分享：点击评分后，会立即发送年份、该条假设的指纹及评分。反馈请求不含生日、姓名或城市；云服务仍会处理 IP 等请求元数据。'
+            : 'You opted to share feedback. Rating sends the year, a fingerprint of this claim, and your choice immediately. The feedback request excludes birth date, name, and city; the service still processes IP and other request metadata.'
           : locale === 'zh'
-            ? '你未同意分享反馈，因此这些标记不会保存。'
-            : 'Feedback sharing was not enabled, so these marks will not be saved.'}
+            ? '你未同意分享反馈，因此这些标记只在当前页面显示，不会保存或发送。'
+            : 'Feedback sharing is off. Marks stay on this page only; they are not saved or sent.'}
       </p>
+      {reading.feedbackConsent && savedFeedback ? (
+        <output className="mt-2 block text-[11px] leading-5 text-black/45">
+          {locale === 'zh'
+            ? submissionStatus === 'sending'
+              ? '已保存到本设备，正在提交。'
+              : submissionStatus === 'sent'
+                ? '已保存到本设备，提交成功。'
+                : submissionStatus === 'failed'
+                  ? '已保存到本设备，但提交失败；可再次点击评分重试。'
+                  : '已保存到本设备；之前的线上提交状态未知。'
+            : submissionStatus === 'sending'
+              ? 'Saved on this device; sending now.'
+              : submissionStatus === 'sent'
+                ? 'Saved on this device and submitted.'
+                : submissionStatus === 'failed'
+                  ? 'Saved on this device, but sending failed. Click a rating again to retry.'
+                  : 'Saved on this device; earlier online submission status is unknown.'}
+        </output>
+      ) : null}
       {reading.feedbackConsent && Object.keys(matches).length ? (
         <button
           className="mt-3 text-[10px] font-semibold tracking-[0.1em] text-[#9d3027] uppercase underline underline-offset-4"
@@ -2123,6 +2237,22 @@ function PastView({
             ? '导出匿名校准样本'
             : 'Export anonymous calibration sample'}
         </button>
+      ) : null}
+      {reading.feedbackConsent && Object.keys(legacyFeedback).length ? (
+        <div className="mt-5 border-t border-black/10 pt-4">
+          <p className="text-[11px] leading-5 text-black/42">
+            {locale === 'zh'
+              ? '旧版评分仍保存在本设备，但不能对应新版的单条假设，也不会自动计入当前反馈。'
+              : 'Older ratings remain on this device, but cannot be matched to the new single-claim format.'}
+          </p>
+          <button
+            className="mt-2 text-[10px] font-semibold tracking-[0.1em] text-[#9d3027] uppercase underline underline-offset-4"
+            onClick={exportLegacyFeedback}
+            type="button"
+          >
+            {locale === 'zh' ? '导出旧版评分' : 'Export older ratings'}
+          </button>
+        </div>
       ) : null}
     </section>
   );

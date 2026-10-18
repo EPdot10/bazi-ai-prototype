@@ -506,7 +506,7 @@ function requireInterpretation(
         if (!sourceKey) return `${key}=missing`;
         const source = lifeAreas[sourceKey];
         if (!source || typeof source !== "object" || Array.isArray(source)) {
-          return `${key}<-\"${sourceKey}\":valueType=${valueType(source)}`;
+          return `${key}<-"${sourceKey}":valueType=${valueType(source)}`;
         }
         const sourceRecord = source as Record<string, unknown>;
         const requiredFieldTypes = (
@@ -519,7 +519,7 @@ function requireInterpretation(
             return `${field}=${fieldKey ? valueType(sourceRecord[fieldKey]) : "missing"}`;
           })
           .join(",");
-        return `${key}<-\"${sourceKey}\":fields[${formatKeys(safeKeys(source))}] types[${requiredFieldTypes}]`;
+        return `${key}<-"${sourceKey}":fields[${formatKeys(safeKeys(source))}] types[${requiredFieldTypes}]`;
       })
       .join("; ");
     throw new Error(
@@ -697,6 +697,9 @@ function normalizePhaseInterpretation(
         {
           period,
           headline,
+          checkableEvent:
+            toText(pick(item, ["checkableEvent", "可核对事件", "核对假设"])) ??
+            "",
           narrative,
           possibilities: toStringArray(
             pick(item, ["possibilities", "可能性", "可能事件"]),

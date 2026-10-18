@@ -6,7 +6,7 @@ import {
   withinRateLimit,
 } from '@/lib/request-guard';
 
-const choices = new Set(['Match', 'Partial', 'Miss']);
+const choices = new Set(['Match', 'Partial', 'Miss', 'CannotJudge']);
 
 export async function POST(request: Request) {
   const id = requestId();
@@ -21,6 +21,8 @@ export async function POST(request: Request) {
     const body = await readJsonBody<{
       consent?: boolean;
       period?: string;
+      claimId?: string;
+      calibrationVersion?: number;
       choice?: string;
       locale?: 'en' | 'zh';
     }>(request, 2_048);
@@ -29,6 +31,8 @@ export async function POST(request: Request) {
       body.consent !== true ||
       !body.period ||
       body.period.length > 80 ||
+      (body.claimId !== undefined && !/^[a-f0-9]{64}$/.test(body.claimId)) ||
+      (body.calibrationVersion !== undefined && body.calibrationVersion !== 2) ||
       !body.choice ||
       !choices.has(body.choice) ||
       !['en', 'zh'].includes(body.locale ?? 'en')
@@ -41,6 +45,8 @@ export async function POST(request: Request) {
     console.log('[ming-feedback]', {
       requestId: id,
       period: body.period,
+      claimId: body.claimId ?? null,
+      calibrationVersion: body.calibrationVersion ?? 1,
       choice: body.choice,
       locale: body.locale ?? 'en',
     });

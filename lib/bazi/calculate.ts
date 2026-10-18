@@ -360,13 +360,19 @@ function calculateTimingSignals(
 
 function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
   const currentYear = new Date().getUTCFullYear();
-  const past = signals.filter((signal) => signal.year < currentYear);
+  // 2020–21 changes were widespread enough that a "hit" can be explained by
+  // the era rather than this individual's chart. Keep those years in the raw
+  // timing signals, but do not score them as distinctive retrospective clues.
+  const past = signals.filter(
+    (signal) =>
+      signal.year < currentYear && signal.year !== 2020 && signal.year !== 2021,
+  );
   const selected: typeof past = [];
   const ageBands = [
-    { min: 60, max: Infinity, limit: 2 },
-    { min: 45, max: 59, limit: 2 },
-    { min: 30, max: 44, limit: 2 },
-    { min: 18, max: 29, limit: 2 },
+    { min: 60, max: Infinity, limit: 1 },
+    { min: 45, max: 59, limit: 1 },
+    { min: 30, max: 44, limit: 1 },
+    { min: 18, max: 29, limit: 1 },
     { min: 0, max: 17, limit: 1 },
   ];
   const ranked = [...past].sort(
@@ -389,26 +395,21 @@ function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
     return !repeatedPrimaryDomain && !tooClose && !sameSignature;
   };
 
-  // Round-robin across life stages before filling any stage twice. This keeps
-  // later adulthood visible instead of allowing early adult years to consume
-  // all six slots merely because they occur first chronologically.
-  for (let round = 0; round < 2 && selected.length < 6; round += 1) {
-    for (const band of ageBands) {
-      if (round >= band.limit || selected.length === 6) continue;
-      const candidate = ranked.find(
-        (signal) =>
-          signal.age >= band.min && signal.age <= band.max && canSelect(signal),
-      );
-      if (candidate) selected.push(candidate);
-    }
+  // Fewer distinct hypotheses are preferable to a longer timeline that
+  // repeats the same psychological story under different years. Cover adult
+  // and later-life stages first, then add a childhood clue only if room remains.
+  for (const band of ageBands) {
+    if (selected.length === 4) break;
+    const candidate = ranked.find(
+      (signal) =>
+        signal.age >= band.min && signal.age <= band.max && canSelect(signal),
+    );
+    if (candidate) selected.push(candidate);
   }
 
   if (selected.length < 3) {
     for (const signal of ranked) {
-      if (
-        !selected.includes(signal) &&
-        selected.every((item) => Math.abs(item.year - signal.year) >= 3)
-      ) {
+      if (!selected.includes(signal) && canSelect(signal)) {
         selected.push(signal);
       }
       if (selected.length === 3) break;

@@ -82,13 +82,22 @@ October 18 redesign increment:
 - [READING_EVALUATION.md](./READING_EVALUATION.md) defines consent-based human validation. [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md) now describes the locally implemented, public-disabled question beta.
 - The preceding redesign commit `aa39881` passed Cloudflare Workers Builds and a production API smoke test: a synthetic London reading returned HTTP 200, `interpretationSource=deepseek`, and a populated past section. This confirms release wiring, not predictive accuracy.
 
-October 18 question-beta increment (currently local; not yet released):
+October 18 question-beta increment (code deployed, public feature disabled):
 
 - Separate `/question` page with one question, timeframe, six browser-generated three-coin throws, original/changed hexagram, moving lines, and bilingual AI answer with an expandable rationale. After the first throw, the question/timeframe are frozen until the user resets the cast; tab-scoped session storage survives refresh and has a clear control.
 - `lib/iching.ts` deterministically maps bottom-to-top 6/7/8/9 lines into King Wen hexagram numbers; the API re-derives the facts and never lets AI choose or change them.
-- `tests/iching.test.mjs` checks the orientation traps Tai/Fou and Gou/Xiao Chu, moving lines, malformed input, and all 64 identities.
+- `npm run test:unit` checks the orientation traps Tai/Fou and Gou/Xiao Chu, moving lines, malformed input, all 64 identities, and Turnstile action/hostname matching with mocked siteverify responses. These mocks do not replace a real-token success/replay test.
 - A synthetic Chinese career-change question completed through the local browser and returned a conditional Chinese answer; 390px mobile had no horizontal overflow.
 - Production homepage entry and `/api/iching` are off by default. The release gate is in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
+- Commit `279bfe8` was pushed to `main` and Cloudflare Workers Builds succeeded. Production browser checks found no question link, `/question?lang=zh` displayed “实验功能尚未开放,” and `/api/iching` returned 404. A synthetic London BaZi past-phase request still returned HTTP 200, `interpretationSource=deepseek`, and three periods (request ID `42e4ab29-70c5-48e1-a234-5765ea1a24a6`).
+
+October 18 retrospective calibration increment (local verification, pending push at the time of this note):
+
+- An independent synthetic review identified repeated psychological narratives, weakly checkable claims, and era-wide 2020 disruptions presented as personal clues. We tightened the past prompt, capped candidates at four while preserving life-stage spread, and excluded 2020–21 from *retrospective candidate scoring* only. Raw timing signals are unchanged.
+- Each new retrospective item now has one `checkableEvent` shown in a dedicated card. Match/Partial/Miss/Cannot judge explicitly evaluates that claim; alternative readings are collapsed and excluded from feedback. Legacy saved reports without `checkableEvent` remain readable but cannot submit a misleading score.
+- “Confidence” in the UI is relabelled as chart-signal strength, with a visible note that it is not a validated hit rate. Feedback storage is versioned and keyed by period + claim; local export includes that exact wording. The server feedback endpoint receives a SHA-256 claim fingerprint, calibration version, period, and choice, but not claim wording or birth details. It still processes normal IP/request metadata. The UI now distinguishes local save from successful or failed submission, and offers separate export of old period-only ratings.
+- Local live samples: 2005 London (English, unknown hour) returned 2014/2017/2023; 1955 Melbourne (Chinese, unknown hour) returned 1979/1994/2014/2024. The result page at 390px had no horizontal overflow. Claims remain sometimes broad or compound; see [READING_EVALUATION.md](./READING_EVALUATION.md). These synthetic checks cannot establish personal accuracy.
+- [PUBLIC_BIO_BENCHMARK.md](./PUBLIC_BIO_BENCHMARK.md) records a pre-registered two-person public-biography process run. It found one posthumous claim and mostly uncheckable wording; do not market this as an accuracy test. The site has no historic/deceased-person input mode, so old public lives can produce years after death. Do not silently infer lifespan from a chart.
 
 Earlier verification retained below:
 
@@ -125,9 +134,9 @@ Earlier verification retained below:
 - Full `npm run lint` reports pre-existing accessibility/type rules in unused generated `components/ui` primitives. Active files pass targeted lint.
 - The fixed Jade Pass `666` is visible in browser code and is not an entitlement system.
 - Feedback buttons are session-only and do not persist analytics.
-- There is no account, payment, report history, rate limiting, or abuse protection.
+- There is no account, payment, or durable report history; rate limiting is per isolate and Turnstile depends on production key configuration, so these are not sufficient public abuse controls.
 - The input year wheel starts at 1920; earlier dates require direct input.
-- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone check remains outstanding. The deployed BaZi production Worker did pass a smoke test after `aa39881`; the separate question beta has not been released.
+- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone check remains outstanding. The deployed BaZi production Worker passed smoke tests after `aa39881` and `279bfe8`; the separate question beta remains publicly disabled.
 - Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
 - Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
 - Ziwei Dou Shu is approved as the next experimental methodology, without requiring a proprietary user dataset first. It still needs a separate deterministic star-chart layer and a small reference-chart regression set before its facts can enter the model prompt.

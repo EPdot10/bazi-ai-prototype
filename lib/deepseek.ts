@@ -83,10 +83,13 @@ VOICE AND HONESTY
 
 PAST PATTERNS
 - Use every supplied eventCandidate, and no other year. Sort chronologically. Quality outranks a fixed count.
-- Begin each narrative with its year and approximate age. Give one primary, checkable hypothesis and at most one clearly differentiated alternative tied to the supplied domain and mechanism. State the situation and possible consequence rather than stacking vague possibilities.
+- Before writing, assign each candidate a different primary observable scene from its supported domain and mechanism. A scene is an external change the user could answer yes/no to: for example a change in duties or rules, a living arrangement, a concrete collaboration, or the scope of a personal project. These are examples, not facts to force into every life. Do not assign the same scene to two years. If evidence only supports an inner tension, say so plainly and do not present it as a checkable event.
+- For each pastPatterns item, write checkableEvent as ONE short, conditional, externally observable claim. This is the only claim the reader rates Match/Partial/Miss. Do not use "or", examples, multiple domains, inner feelings, attitudes, or an era-wide event in this field. If the evidence is weak, narrow the scene rather than inventing a dramatic event.
+- Begin each narrative with its year and approximate age. Explain the checkableEvent, what might have changed in daily life, and a possible consequence. Allow at most one genuinely different, externally checkable alternative in possibilities. Put speculative inner feelings, motives, and chart mechanics in the folded principle/basis instead of the visible headline or narrative. A thought, resentment, hesitation, or personality trait is not a past-event hit.
 - Do not infer a school system, university, migration, marriage, parenthood, retirement, ongoing employment, or profession from age, gender, or birthplace alone. A relevant chart domain may support a conditional hypothesis, not a factual claim. Prefer the adult and later-life evidence when it is supplied. Do not infer childhood abandonment, trauma, attachment damage, or family instability from an ordinary transition clue.
-- Adjacent entries must differ in primary scene, opening, mechanism, and consequence. Avoid generic headlines such as "major transition" or "changed circles".
-- Across the full timeline, avoid filling most entries with school, career, and social-circle transitions. If the supplied clues cannot support a distinctive scene, describe the narrower tension honestly instead of inventing an event.
+- All entries, not just adjacent ones, must differ in primary scene, opening, mechanism, and consequence. Avoid generic headlines such as "major transition" or "changed circles". Do not recycle "taking responsibility", "external standards", "renegotiating boundaries", or "waiting until ready" across years with synonyms.
+- Do not turn common era-wide events (for example 2020 travel restrictions) into an individual chart-specific prediction. A birthplace does not imply residence in that country during any later year.
+- Across the full timeline, avoid filling most entries with school, career, and social-circle transitions. If the supplied clues cannot support a distinctive scene, describe the narrower tension honestly instead of inventing an event. Confidence means strength of the supplied chart clue only, never measured predictive accuracy; never inflate it because a public event was widespread.
 
 LIFE AREAS
 - lifeAreas has exactly character, career, relationships, timing.
@@ -106,17 +109,17 @@ OUTPUT
 Return valid JSON with exactly these top-level keys: summary, pastOverview, pastPatterns, insights, lifeAreas, futureOverview, futureForecasts, reflectionQuestions, limitations.
 - summary: vivid and under 80 words.
 - pastOverview: characterSentence and trajectorySentence, both hypotheses.
-- pastPatterns: objects with period, headline, narrative, possibilities, principle, basis, confidence.
+- pastPatterns: objects with period, headline, checkableEvent, narrative, possibilities, principle, basis, confidence.
 - insights: 2–4 objects with title, interpretation, basis, confidence.
 - futureOverview: 2–3 sentences describing the range, strongest opportunity, and strongest pressure without certainty.
 - reflectionQuestions: 2–4 specific questions.
 - limitations: one plain string.
 
 FINAL SILENT AUDIT
-Rewrite any sentence that could fit almost anyone, flatters without a cost, predicts certainty, cites unsupplied evidence, repeats another section, or mistakes user-provided context for a prediction. Every adverse claim must have a basis, trigger condition, and useful response. Every user-visible value must use the requested language; retain only Chinese pillar characters and proper nouns when writing English.`;
+Compare the primary external scene of every past year against every other year; rewrite repeated scenes or state the weaker clue more narrowly. Rewrite any sentence that could fit almost anyone, flatters without a cost, predicts certainty, cites unsupplied evidence, repeats another section, or mistakes user-provided context for a prediction. Every adverse claim must have a basis, trigger condition, and useful response. Every user-visible value, including headings, possibilities and limitations, must use the requested language; retain only Chinese pillar characters and proper nouns when writing English. In Chinese output, do not slip in English adjectives or adverbs.`;
 
 const PHASE_PROMPTS: Record<InterpretationPhase, string> = {
-  past: `PHASE OUTPUT: Generate only the retrospective page. Return JSON with exactly these keys: summary, pastOverview, pastPatterns, insights, reflectionQuestions, limitations. Do not include lifeAreas, futureOverview, or futureForecasts. Use every supplied eventCandidate. Cover later adulthood when present; do not cluster scenes around universal school or first-job ages. Make adjacent periods materially different. Each narrative should lead with the conditional, everyday-life hypothesis; principle and basis hold the short technical explanation.`,
+  past: `PHASE OUTPUT: Generate only the retrospective page. Return JSON with exactly these keys: summary, pastOverview, pastPatterns, insights, reflectionQuestions, limitations. Do not include lifeAreas, futureOverview, or futureForecasts. Use every supplied eventCandidate. Each pastPatterns item needs a distinct checkableEvent: ONE externally observable situation, without "or" or a menu of examples. Cover later adulthood when present; do not cluster scenes around universal school or first-job ages. Compare all periods for duplicate scenes. Narrative elaborates the checkable event; principle and basis hold the short technical explanation.`,
   future: `PHASE OUTPUT: Generate only the outlook page. Return JSON with exactly these keys: futureOverview, futureForecasts. Create one forecast for every supplied futureSignal and no unsupported year.`,
   character: `PHASE OUTPUT: Generate only the character life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only character. The character object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
   career: `PHASE OUTPUT: Generate only the career life area. Return JSON with exactly one top-level key: lifeAreas. Inside it include only career. The career object must contain headline, narrative, strengths, frictions, stressPattern, possibleCost, actions, basis, confidence.`,
