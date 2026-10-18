@@ -1,6 +1,6 @@
 # Zi Wei Dou Shu experiment: calculation scope
 
-Status: deterministic local prototype only. It is not yet connected to the BaZi report, user-facing reading, or AI prompt. Do not describe it as validated prediction.
+Status: deterministic chart-only page is connected to the reading flow. It remains an experimental, separate lens: no Zi Wei AI interpretation is generated, and chart-rule validation does not validate predictions.
 
 ## Selected convention
 
@@ -23,9 +23,9 @@ The output should eventually be presented as a separate lens from BaZi and Liu Y
 
 ## Regression and evidence gate
 
-`tests/ziwei.test.mjs` covers the canonical 子、丑、寅 命/身 examples, a 甲年命宫寅/火六局/初一紫微酉 example, a leap-month case, the fourteen-star offsets for the resulting chart, all ten birth-year transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid input rejection. These are deterministic regression checks; they are not a full cross-product of all five bureaus and all lunar days.
+`tests/ziwei.test.mjs` covers the canonical 子、丑、寅 命/身 examples, a 甲年命宫寅/火六局/初一紫微酉 example, a leap-month case, the fourteen-star offsets for the resulting chart, all ten birth-year transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid input rejection. It also compares 30 solar-date/time charts against the independent MIT-licensed `iztro@2.6.2` implementation, covering all ten year stems and all five bureaus; leap-month samples are excluded from that comparison because the packages intentionally use different leap-month conventions.
 
-Before exposing to users, add multiple independent reference charts across all five bureaus and ten year stems, review leap-month and 子初 boundaries, and conduct a chart-only comparison with a practitioner or a reference system whose conventions are explicitly matched. The current tests verify deterministic rule wiring, not interpretive accuracy or scientific validity.
+The first implementation discrepancy found during comparison was a convention mismatch, not a formula defect: for a leap-month date, the selected classical rule counts the whole leap month as the following month, while the oracle's `fixLeap=false` behavior treats it as the preceding month. That date is covered by a separate expected-value test and is not included in the non-leap oracle matrix. Remaining gaps before calling the chart layer fully validated: compare matched-convention charts from an additional independently maintained tool or practitioner, and expand the reference matrix around month/year boundaries. The current tests verify chart-rule agreement in sampled cases, not interpretive accuracy or scientific validity.
 
 ## References
 
@@ -33,5 +33,6 @@ Before exposing to users, add multiple independent reference charts across all f
 - [《紫微斗数全书》卷二：安紫微星诀·五行局](https://libokang.com/classics/ziwei/%E7%B4%AB%E5%BE%AE%E6%96%97%E6%95%B0%E5%85%A8%E4%B9%A6/): bureau/day and 补数 parity method.
 - [《紫微斗数全书》卷二：生年四化诀](https://libokang.com/classics/ziwei/%E7%B4%AB%E5%BE%AE%E6%96%97%E6%95%B0%E5%85%A8%E4%B9%A6/): ten-stem four-transformation sequence.
 - [NCC Zi Wei software manual](https://www.ncc.to/soft/download/T00/manual/Book-T07_new.pdf): documents selectable calendar, leap-month, early/late 子时 and transformation conventions in common software; these are configuration differences, not one universal setting.
+- [iztro source repository](https://github.com/SylarLong/iztro): independent JavaScript charting library used only by development regression tests (`iztro@2.6.2`, MIT); its default leap-month convention is not treated as interchangeable with the selected classical convention.
 
 These sources describe a historical divination tradition. They do not establish that its personal predictions are scientifically reliable.

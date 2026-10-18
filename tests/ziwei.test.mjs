@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { astro } from 'iztro';
 import {
   calculateZiweiChart,
   ZIWEI_CONVENTION,
@@ -131,6 +132,70 @@ test('birth-year four transformations cover all ten heavenly stems', () => {
     assert.equal(chart.yearGanzhi[0], stem);
     assert.deepEqual(chart.transformations.map(({ star }) => star), expected);
   }
+});
+
+test('non-leap charts across all ten year stems and five bureaus match iztro 2.6.2', () => {
+  const majorStarNames = [
+    '紫微', '天机', '太阳', '武曲', '天同', '廉贞', '天府', '太阴',
+    '贪狼', '巨门', '天相', '天梁', '七杀', '破军',
+  ];
+  const oracleBureauNumbers = {
+    水二局: 2,
+    木三局: 3,
+    金四局: 4,
+    土五局: 5,
+    火六局: 6,
+  };
+  const seenStems = new Set();
+  const seenBureaus = new Set();
+  let comparedCharts = 0;
+
+  for (let year = 1984; year <= 1993; year += 1) {
+    for (const day of [3, 15, 28]) {
+      const birthDate = `${year}-06-${String(day).padStart(2, '0')}`;
+      const chart = calculateZiweiChart({
+        birthDate,
+        birthTime: '12:00',
+        birthTimeConfidence: 'exact',
+        timeZone: 'Australia/Sydney',
+      });
+      if (chart.lunarDate.isLeapMonth) continue;
+      const oracle = astro.bySolar(birthDate, 6, '女', false, 'zh-CN');
+      const localStarsByBranch = Object.fromEntries(
+        chart.palaces.map((palace) => [
+          palace.branch,
+          palace.stars
+            .filter((star) => majorStarNames.includes(star))
+            .sort((left, right) => left.localeCompare(right)),
+        ]),
+      );
+      const oracleStarsByBranch = Object.fromEntries(
+        oracle.palaces.map((palace) => [
+          palace.earthlyBranch,
+          palace.majorStars
+            .map((star) => star.name)
+            .sort((left, right) => left.localeCompare(right)),
+        ]),
+      );
+
+      assert.equal(chart.complete, true, birthDate);
+      assert.equal(chart.mingBranch, oracle.earthlyBranchOfSoulPalace, birthDate);
+      assert.equal(chart.shenBranch, oracle.earthlyBranchOfBodyPalace, birthDate);
+      assert.equal(
+        chart.bureau.number,
+        oracleBureauNumbers[oracle.fiveElementsClass],
+        birthDate,
+      );
+      assert.deepEqual(localStarsByBranch, oracleStarsByBranch, birthDate);
+      seenStems.add(chart.yearGanzhi[0]);
+      seenBureaus.add(chart.bureau.number);
+      comparedCharts += 1;
+    }
+  }
+
+  assert.ok(comparedCharts >= 25, `compared ${comparedCharts} reference charts`);
+  assert.equal(seenStems.size, 10);
+  assert.deepEqual([...seenBureaus].sort((left, right) => left - right), [2, 3, 4, 5, 6]);
 });
 
 test('unknown birth time returns an explicit incomplete chart, never a guessed hour', () => {

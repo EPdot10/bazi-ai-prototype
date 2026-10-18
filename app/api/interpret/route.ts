@@ -1,4 +1,5 @@
 import { calculateBaziChart } from "@/lib/bazi/calculate";
+import { calculateZiweiChart } from "@/lib/ziwei/calculate";
 import type { BirthTimeConfidence } from "@/lib/bazi/types";
 import {
   generateInterpretation,
@@ -1094,6 +1095,12 @@ export async function POST(request: Request) {
       birthTimeConfidence: confidence,
       birthPlace: resolvedPlace,
     });
+    const ziweiChart = calculateZiweiChart({
+      birthDate: body.birthDate,
+      birthTime: confidence === "unknown" ? undefined : body.birthTime,
+      birthTimeConfidence: confidence,
+      timeZone: resolvedPlace.ianaTimeZone,
+    });
 
     try {
       const interpretationRequest = {
@@ -1138,6 +1145,7 @@ export async function POST(request: Request) {
           {
             resolvedPlace,
             chart,
+            ziweiChart,
             interpretation: phaseInterpretation,
             phase,
             interpretationSource: "deepseek",
@@ -1166,6 +1174,7 @@ export async function POST(request: Request) {
         {
           resolvedPlace,
           chart,
+          ziweiChart,
           interpretation,
           interpretationSource: "deepseek",
         },

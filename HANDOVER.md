@@ -99,12 +99,13 @@ October 18 Liu Yao chart-structure increment (pushed to GitHub; public feature g
 - The local `/question?lang=zh` page rendered in Simplified Chinese after hydration. The production feature gate remains closed; no public or Cloudflare configuration was changed. Historical convention references and remaining layers (month/day strength, voids, clashes, automatic 用神, school-specific judgement) are documented in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
 - Next: add a vetted deterministic reference-chart regression set and optionally an explicit question-category / 用神 workflow before novice beta. A Ziwei calculation-only prototype has since been added as a separately computed lens; it is not wired to the product or report and remains behind the no-exposure rule until chart reference checks and practitioner review.
 
-October 18 Zi Wei Dou Shu calculation-only prototype (local validation passed; not exposed):
+October 18 Zi Wei Dou Shu chart-only release increment (local validation passed; page connected; awaiting production deployment check):
 
 - Added `lib/ziwei/calculate.ts`, an independent deterministic chart core using the named `ziwei-quanshu-volume-2-v1` convention. It computes lunar date, 命/身, palace stems, 五行局, 紫微/天府, fourteen principal stars, and birth-year 四化 positions. Unknown birth time returns an explicitly incomplete chart, not a guessed chart.
 - The input contract is local birth civil date and clock time as recorded at the birthplace. The IANA time-zone string is validated and retained as context only; it does not convert UTC, infer the birth city, or apply longitude/true-solar-time correction. Leap lunar month and 子时 behavior are declared convention choices, not universal rules.
-- Regression tests cover canonical 命/身 examples, the classic 甲年火六局初一安紫微 example, leap-month handling, all fourteen main-star offsets for a reference chart, all ten four-transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid inputs. A second-agent read-only review found no clear discrepancy in the implemented core formulas, but requested better time-zone wording and broader test coverage; both were addressed.
-- This is chart-rule validation only, not validation of personal predictions. The core is not connected to the AI prompt, API, report UI, or Cloudflare production feature.
+- Regression tests cover canonical 命/身 examples, the classic 甲年火六局初一安紫微 example, leap-month handling, all fourteen main-star offsets for a reference chart, all ten four-transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid inputs. Thirty non-leap date/time charts also match `iztro@2.6.2` across all ten year stems and five bureaus. An observed leap-month divergence is explained by the selected conventions and has its own expected-value test.
+- The API now returns deterministic Ziwei chart facts alongside BaZi phases. A separate bilingual result tab displays the twelve palaces and chart limits; unknown birth hour shows an explicit incomplete state. Ziwei facts are not sent to the BaZi interpretation prompt, and no AI-generated Ziwei prediction is offered.
+- This is chart-rule validation only, not validation of personal predictions. Practitioner comparison and production smoke checks remain outstanding.
 - References, named assumptions, and release gates are in [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md). Keep Liu Yao and Ziwei behind separate feature gates; do not combine their claims into one AI-generated certainty.
 
 October 18 retrospective calibration increment (deployed; real-user validation pending):
@@ -158,7 +159,7 @@ Earlier verification retained below:
 - The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone check remains outstanding. The deployed BaZi production Worker passed smoke tests after `aa39881`, `279bfe8`, and `1a19f58`; the separate question beta remains publicly disabled.
 - Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
 - Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
-- Ziwei Dou Shu is approved as a separate experimental methodology. A local deterministic core now exists, but it is not wired into the report or AI prompt. See [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md); it still needs independent reference charts across bureaus/year stems and practitioner review before any user-facing activation.
+- Ziwei Dou Shu is a separate experimental chart-only lens. The report integration shows calculated chart facts but not AI predictions. See [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md); a practitioner chart comparison and a production smoke check remain necessary before describing the method as fully validated.
 
 ## Recommended next implementation sequence
 

@@ -15,6 +15,7 @@ import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
 import { TurnstileField } from '@/components/turnstile-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { ZiweiCalculation } from '@/lib/ziwei/calculate';
 
 type TimeConfidence = 'exact' | 'approximate' | 'unknown';
 type Gender = 'male' | 'female' | 'undisclosed';
@@ -28,6 +29,7 @@ type ResultView =
   | 'relationships'
   | 'timing'
   | 'future'
+  | 'ziwei'
   | 'method';
 type LifeAreaKey = 'character' | 'career' | 'relationships' | 'timing';
 type ReadingPhase = 'past' | 'future' | LifeAreaKey;
@@ -106,6 +108,7 @@ interface Reading {
       ziweiNote: string;
     };
   };
+  ziweiChart?: ZiweiCalculation;
   interpretation: {
     summary: string;
     pastOverview: {
@@ -156,6 +159,7 @@ type InterpretationPatch = Omit<
 interface PhaseResponse {
   resolvedPlace: Reading['resolvedPlace'];
   chart: Reading['chart'];
+  ziweiChart?: Reading['ziweiChart'];
   interpretation: InterpretationPatch;
   phase: ReadingPhase;
   interpretationSource: 'deepseek' | 'fixture';
@@ -208,6 +212,7 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: 'Career' },
   { value: 'relationships', label: 'Relationships' },
   { value: 'timing', label: 'Timing' },
+  { value: 'ziwei', label: 'Zi Wei Dou Shu' },
   { value: 'method', label: 'Method' },
 ];
 
@@ -219,6 +224,7 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: '事业' },
   { value: 'relationships', label: '关系' },
   { value: 'timing', label: '时机' },
+  { value: 'ziwei', label: '紫微斗数' },
   { value: 'method', label: '方法' },
 ];
 
@@ -342,6 +348,7 @@ function createReadingFromPhase(
   return {
     resolvedPlace: payload.resolvedPlace,
     chart: payload.chart,
+    ziweiChart: payload.ziweiChart,
     interpretation: {
       summary: patch.summary ?? '',
       pastOverview: patch.pastOverview ?? {
@@ -380,6 +387,7 @@ function mergeReadingPhase(reading: Reading, payload: PhaseResponse): Reading {
     ...reading,
     resolvedPlace: payload.resolvedPlace,
     chart: payload.chart,
+    ziweiChart: payload.ziweiChart ?? reading.ziweiChart,
     interpretation: {
       ...reading.interpretation,
       ...patch,
@@ -1428,11 +1436,16 @@ function ReadingResult({
   const [view, setView] = useState<ResultView>('overview');
   const [premiumUnlocked, setPremiumUnlocked] = useState(false);
   const [notice, setNotice] = useState('');
-  const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
+  const tabs = (locale === 'zh' ? resultTabsZh : resultTabs).filter(
+    (tab) => tab.value !== 'ziwei' || Boolean(reading.ziweiChart),
+  );
   const completedPhases = new Set(reading.progress?.completed ?? ['past']);
 
   function selectTab(next: ResultView, scrollToPanel = false) {
-    const phase = next === 'method' || next === 'overview' ? null : next;
+    const phase =
+      next === 'method' || next === 'overview' || next === 'ziwei'
+        ? null
+        : next;
     if (phase && !completedPhases.has(phase)) {
       setNotice(
         locale === 'zh'
@@ -1459,7 +1472,11 @@ function ReadingResult({
     const next = tabs[nextIndex];
     selectTab(next.value);
     const nextPhase =
-      next.value === 'method' || next.value === 'overview' ? null : next.value;
+      next.value === 'method' ||
+      next.value === 'overview' ||
+      next.value === 'ziwei'
+        ? null
+        : next.value;
     if (!nextPhase || completedPhases.has(nextPhase)) {
       requestAnimationFrame(() =>
         document.getElementById(`reading-tab-${next.value}`)?.focus(),
@@ -1675,6 +1692,9 @@ function ReadingResult({
         {view === 'method' ? (
           <MethodView reading={reading} locale={locale} />
         ) : null}
+        {view === 'ziwei' && reading.ziweiChart ? (
+          <ZiweiView chart={reading.ziweiChart} locale={locale} />
+        ) : null}
       </div>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-black/10 py-6 text-xs">
         <button
@@ -1712,6 +1732,139 @@ function ReadingResult({
         </output>
       ) : null}
     </div>
+  );
+}
+
+function ZiweiView({
+  chart,
+  locale,
+}: {
+  chart: ZiweiCalculation;
+  locale: ReadingLocale;
+}) {
+  const isZh = locale === 'zh';
+  const palaceOrder = [
+    '命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄',
+    '迁移', '交友', '官禄', '田宅', '福德', '父母',
+  ];
+  const englishPalaceNames: Record<string, string> = {
+    命宫: 'Life',
+    兄弟: 'Siblings',
+    夫妻: 'Partnership',
+    子女: 'Children',
+    财帛: 'Wealth',
+    疾厄: 'Health',
+    迁移: 'Travel',
+    交友: 'Friends',
+    官禄: 'Career',
+    田宅: 'Home',
+    福德: 'Inner life',
+    父母: 'Parents',
+  };
+  const elementNames = isZh
+    ? { water: '水', wood: '木', metal: '金', earth: '土', fire: '火' }
+    : { water: 'Water', wood: 'Wood', metal: 'Metal', earth: 'Earth', fire: 'Fire' };
+  const lunarDate = `${chart.lunarDate.isLeapMonth ? (isZh ? '闰' : 'Leap ') : ''}${chart.lunarDate.month}${isZh ? '月' : 'th lunar month'} · ${chart.lunarDate.day}${isZh ? '日' : 'th day'}`;
+
+  return (
+    <section>
+      <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
+        {isZh ? '独立排盘 · 规则可见' : 'Separate chart · rules shown'}
+      </p>
+      <h2 className="mt-3 font-serif text-4xl">
+        {isZh ? '紫微斗数盘面' : 'Zi Wei Dou Shu chart'}
+      </h2>
+      <p className="mt-5 max-w-2xl text-sm leading-7 text-black/55">
+        {isZh
+          ? '这里只展示按指定传统规则计算出的盘面，不是 AI 预测，也不代表预测准确性已经验证。紫微斗数不同流派的排盘约定可能不同。'
+          : 'This page shows a chart calculated under one named tradition. It is not an AI prediction, and predictive accuracy has not been established. Zi Wei schools can use different chart conventions.'}
+      </p>
+
+      {!chart.complete ? (
+        <div className="mt-8 border border-[#9d3027]/20 bg-[#9d3027]/[0.035] p-6">
+          <p className="font-serif text-2xl">
+            {isZh ? '出生时辰未知，暂不排完整盘。' : 'Birth time needed for a full chart.'}
+          </p>
+          <p className="mt-3 text-sm leading-6 text-black/55">
+            {isZh
+              ? '命宫、身宫和主星位置会受到时辰影响。我们不会用估计值替你补出这些信息。'
+              : 'The birth hour affects the Life and Body palaces and star placements. We do not guess these positions.'}
+          </p>
+          <p className="mt-5 text-xs text-black/40">
+            {isZh ? '已能确认' : 'Available'}: {chart.yearGanzhi} · {lunarDate}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: isZh ? '命宫' : 'Life palace', value: chart.mingBranch },
+              { label: isZh ? '身宫' : 'Body palace', value: chart.shenBranch },
+              {
+                label: isZh ? '五行局' : 'Five-element bureau',
+                value: `${elementNames[chart.bureau.element]}${chart.bureau.number}${isZh ? '局' : ''}`,
+              },
+              { label: isZh ? '出生年干支' : 'Birth-year cycle', value: chart.yearGanzhi },
+            ].map((item) => (
+              <div className="border border-black/10 bg-white/35 p-4" key={item.label}>
+                <p className="text-[9px] tracking-[0.12em] text-black/35 uppercase">
+                  {item.label}
+                </p>
+                <p className="mt-2 font-serif text-2xl">{item.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 grid gap-px bg-black/10 sm:grid-cols-2">
+            {palaceOrder.map((name) => {
+              const palace = chart.palaces.find((item) => item.name === name);
+              if (!palace) return null;
+              return (
+                <article className="bg-[#f7f4ed] p-5 sm:p-6" key={name}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[9px] tracking-[0.13em] text-[#9d3027] uppercase">
+                        {isZh ? name : englishPalaceNames[name]}
+                        {palace.isShen ? (isZh ? ' · 身宫' : ' · Body') : ''}
+                      </p>
+                      <p className="mt-1 font-serif text-xl">{palace.ganzhi} · {palace.branch}</p>
+                    </div>
+                    <span className="text-[9px] text-black/35">
+                      {isZh ? '地支' : 'Branch'} {palace.branch}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {palace.stars.length ? palace.stars.map((star) => (
+                      <span className="border border-black/10 px-2.5 py-1 text-xs text-black/65" key={star}>
+                        {star}
+                      </span>
+                    )) : (
+                      <span className="text-xs text-black/35">{isZh ? '本实验范围内未列主星' : 'No included principal star'}</span>
+                    )}
+                  </div>
+                  {palace.transformations.length ? (
+                    <p className="mt-3 text-[10px] tracking-[0.08em] text-[#9d3027]">
+                      {palace.transformations.join(' · ')}
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+          <div className="mt-8 space-y-3 border-l-2 border-[#9d3027] pl-5 text-xs leading-6 text-black/48">
+            <p>
+              {isZh
+                ? `采用《紫微斗数全书》卷二实验约定 ${chart.convention}。出生日期与时间按出生地当地民用钟表时间输入；时区用于核对和记录，不做 UTC 转换或真太阳时修正。`
+                : `Convention: ${chart.convention}, following a selected reading of Volume 2 of the Zi Wei Dou Shu Quan Shu. Enter the local civil birth date and clock time. The zone is recorded for context; no UTC conversion or true-solar-time correction is applied.`}
+            </p>
+            <p>
+              {isZh
+                ? '本版只计算十四主星及四化定位所需的辅星位置；未计算完整辅星、星曜亮度、大限或流年。盘面规则测试不等于人生预测准确性验证。'
+                : 'This version calculates the fourteen principal stars and only the auxiliary positions needed for four transformations. It does not include a complete auxiliary-star set, brightness, major periods, or annual charts. Chart-rule tests do not validate life predictions.'}
+            </p>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -2747,8 +2900,8 @@ function MethodView({
         </p>
         <p className="mt-2">
           {locale === 'zh'
-            ? '本次结果使用八字、节气、真太阳时、藏干、十神，以及过去与未来的流年冲合。紫微斗数已列为下一步实验方向，但在星盘事实层完成前，模型不会虚构宫位、星曜或四化。'
-            : 'This reading uses BaZi, solar terms, apparent solar time, hidden stems, Ten Gods, and past and future annual relations. Ziwei Dou Shu is the next experimental direction, but the model cannot invent palaces, stars, or transformations before its chart layer exists.'}
+            ? '本次八字解读使用节气、真太阳时、藏干、十神和流年关系。另提供独立的紫微斗数盘面实验：只展示按指定规则计算的盘面事实，不参与八字 AI 解读，也不构成准确性验证。'
+            : 'The BaZi reading uses solar terms, apparent solar time, hidden stems, Ten Gods, and annual relations. A separate Zi Wei chart experiment is also available; it shows calculated chart facts only and does not feed the BaZi AI interpretation or validate predictive accuracy.'}
         </p>
       </div>
 
@@ -2815,13 +2968,13 @@ function MethodView({
           <div className="border border-black/10 p-4 text-black/46">
             <p className="font-semibold text-black/60">
               {locale === 'zh'
-                ? '紫微斗数 · 实验准备中'
-                : 'Ziwei Dou Shu · experimental, not calculated'}
+                ? '紫微斗数 · 实验盘面已计算'
+                : 'Zi Wei Dou Shu · experimental chart calculated'}
             </p>
             <p className="mt-1">
               {locale === 'zh'
-                ? '需要独立排星盘后才能进入解读。'
-                : 'A separate star-chart calculation is required before interpretation.'}
+                ? '可在单独的紫微斗数页面查看盘面；本版尚未生成紫微 AI 解读。'
+                : 'View the chart on its separate Zi Wei page; this version does not generate an AI Zi Wei interpretation.'}
             </p>
           </div>
         </div>
