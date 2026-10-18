@@ -91,6 +91,14 @@ October 18 question-beta increment (code deployed, public feature disabled):
 - Production homepage entry and `/api/iching` are off by default. The release gate is in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
 - Commit `279bfe8` was pushed to `main` and Cloudflare Workers Builds succeeded. Production browser checks found no question link, `/question?lang=zh` displayed “实验功能尚未开放,” and `/api/iching` returned 404. A synthetic London BaZi past-phase request still returned HTTP 200, `interpretationSource=deepseek`, and three periods (request ID `42e4ab29-70c5-48e1-a234-5765ea1a24a6`).
 
+October 18 Liu Yao chart-structure increment (local validation passed; not deployed):
+
+- `lib/iching.ts` now computes the selected Ba Gong palace/sequence, Shi/Ying, Na Jia stems and branches, five elements, six kin, hidden-kin candidates, and six spirits from the first-cast local date/time zone. The API requires the cast context and sends the deterministic chart to DeepSeek; the prompt forbids inventing month/day strength or automatically assigning a useful spirit.
+- `/question` now shows an expandable original Na Jia chart and a separate changed-line chart, explains the selected convention and its limits, and labels missing kin as candidates. Older saved casts without a cast time zone are cleared rather than assigned an inaccurate day stem.
+- `npm run test:unit` passed 11/11, `npm run build` passed, and targeted lint passed for all four changed code/test files. A local API smoke check rejected a request missing cast context with HTTP 400. Full-repository lint still reports existing generated UI-component findings; see below.
+- The local `/question?lang=zh` page rendered in Simplified Chinese after hydration. The production feature gate remains closed; no public or Cloudflare configuration was changed. Historical convention references and remaining layers (month/day strength, voids, clashes, automatic 用神, school-specific judgement) are documented in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
+- Next: add a vetted deterministic reference-chart regression set and optionally an explicit question-category / 用神 workflow before novice beta. Only after those checks should Ziwei be added as a separately computed and visibly separate interpretive lens; keep the production gate closed until consented novice testing.
+
 October 18 retrospective calibration increment (deployed; real-user validation pending):
 
 - An independent synthetic review identified repeated psychological narratives, weakly checkable claims, and era-wide 2020 disruptions presented as personal clues. We tightened the past prompt, capped candidates at four while preserving life-stage spread, and excluded 2020–21 from *retrospective candidate scoring* only. Raw timing signals are unchanged.

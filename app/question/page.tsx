@@ -10,7 +10,16 @@ import {
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { TurnstileField } from '@/components/turnstile-field';
-import { castCoinLine, deriveCoinReading, type CoinLine } from '@/lib/iching';
+import {
+  castCoinLine,
+  deriveCoinReading,
+  isCastContext,
+  type CastContext,
+  type CoinLine,
+  type Hexagram,
+  type SixKin,
+  type SixSpirit,
+} from '@/lib/iching';
 
 type Locale = 'en' | 'zh';
 const sessionKey = 'ming:question-session:v1';
@@ -71,6 +80,124 @@ function HexagramLines({
   );
 }
 
+const elementLabel = (element: Hexagram['palaceElement'], isZh: boolean) =>
+  isZh
+    ? ({ wood: '木', fire: '火', earth: '土', metal: '金', water: '水' })[
+        element
+      ]
+    : element;
+
+const kinLabel = (kin: SixKin, isZh: boolean) =>
+  isZh
+    ? kin
+    : ({
+        兄弟: 'Siblings',
+        子孙: 'Descendants',
+        妻财: 'Wealth',
+        官鬼: 'Officer',
+        父母: 'Parents',
+      })[kin];
+
+type NajiaChartDisplay = Pick<Hexagram, 'yao'> &
+  Partial<
+    Pick<
+      Hexagram,
+      | 'palace'
+      | 'palaceElement'
+      | 'sequence'
+      | 'shi'
+      | 'ying'
+      | 'hiddenKinCandidates'
+    >
+  >;
+
+function NajiaTable({
+  chart,
+  isZh,
+}: {
+  chart: NajiaChartDisplay;
+  isZh: boolean;
+}) {
+  const heading = isZh
+    ? ['爻位', '纳甲', '五行', '六亲', '六神', '标记']
+    : ['Line', 'Na Jia', 'Element', 'Kin', 'Spirit', 'Mark'];
+  return (
+    <div className="mt-5 overflow-x-auto">
+      <p className="mb-3 text-xs leading-5 text-black/50">
+        {chart.palace && chart.palaceElement && chart.sequence && chart.shi && chart.ying
+          ? isZh
+            ? `本卦属${chart.palace}宫（${elementLabel(chart.palaceElement, true)}），${chart.sequence}；世爻在第${chart.shi}爻，应爻在第${chart.ying}爻。`
+            : `${chart.palace} palace (${chart.palaceElement}), ${chart.sequence}; Shi at line ${chart.shi}, Ying at line ${chart.ying}.`
+          : isZh
+            ? '之卦爻位沿用本卦宫位的六亲参照；不另立宫位。'
+            : 'Changed lines are shown against the original palace kin reference; no separate palace is assigned.'}
+      </p>
+      <table className="w-full min-w-[520px] border-collapse text-left text-xs">
+        <thead>
+          <tr className="border-y border-black/10 text-black/45">
+            {heading.map((label) => (
+              <th className="px-2 py-2 font-medium" key={label}>
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {chart.yao.slice().reverse().map((line) => {
+            const spiritNames: Record<SixSpirit, string> = {
+              青龙: isZh ? '青龙' : 'Azure Dragon',
+              朱雀: isZh ? '朱雀' : 'Vermilion Bird',
+              勾陈: isZh ? '勾陈' : 'Gou Chen',
+              螣蛇: isZh ? '螣蛇' : 'Teng She',
+              白虎: isZh ? '白虎' : 'White Tiger',
+              玄武: isZh ? '玄武' : 'Black Tortoise',
+            };
+            const marks = [
+              line.isShi ? (isZh ? '世' : 'Shi') : '',
+              line.isYing ? (isZh ? '应' : 'Ying') : '',
+              line.isMoving ? (isZh ? '动' : 'Moving') : '',
+            ].filter(Boolean);
+            return (
+              <tr className="border-b border-black/8" key={line.position}>
+                <td className="px-2 py-2 text-black/55">
+                  {isZh ? `第${line.position}爻` : `Line ${line.position}`}
+                </td>
+                <td className="px-2 py-2 font-medium">
+                  {line.stem}{line.branch}
+                </td>
+                <td className="px-2 py-2">
+                  {elementLabel(line.element, isZh)}
+                </td>
+                <td className="px-2 py-2">{kinLabel(line.kin, isZh)}</td>
+                <td className="px-2 py-2 text-black/65">
+                  {line.spirit ? spiritNames[line.spirit] : '—'}
+                </td>
+                <td className="px-2 py-2 text-[#9d3027]">
+                  {marks.join(' · ') || '—'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {chart.hiddenKinCandidates?.length ? (
+        <p className="mt-3 text-xs leading-5 text-black/55">
+          {isZh ? '伏神候选：' : 'Hidden-kin candidates: '}
+          {chart.hiddenKinCandidates
+            .map(
+              (line) =>
+                `${kinLabel(line.kin, isZh)} ${line.stem}${line.branch}（${elementLabel(line.element, isZh)}，${isZh ? `本宫卦第${line.position}爻` : `palace line ${line.position}`}）`,
+            )
+            .join('；')}
+          {isZh
+            ? '。此处只列本宫卦候选，不自动认定为本题用神。'
+            : '. Candidates only; the app does not assign one as the useful spirit for this question.'}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function QuestionPage() {
   const urlLocale = useSyncExternalStore(
     subscribeToUrl,
@@ -84,6 +211,7 @@ export default function QuestionPage() {
     'month' | 'quarter' | 'year' | 'open'
   >('quarter');
   const [throws, setThrows] = useState<CoinLine[]>([]);
+  const [castContext, setCastContext] = useState<CastContext | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileGeneration, setTurnstileGeneration] = useState(0);
   const [pending, setPending] = useState(false);
@@ -115,14 +243,30 @@ export default function QuestionPage() {
             )
           )
             setTimeframe(saved.timeframe as typeof timeframe);
-          const validThrows =
+          const savedThrows =
             Array.isArray(saved.throws) &&
             saved.throws.length <= 6 &&
-            saved.throws.every((line) => [6, 7, 8, 9].includes(line));
-          if (validThrows) setThrows(saved.throws as CoinLine[]);
+            saved.throws.every((line) => [6, 7, 8, 9].includes(line))
+              ? (saved.throws as CoinLine[])
+              : null;
+          const savedCastContext = isCastContext(saved.castContext)
+            ? saved.castContext
+            : null;
+          if (savedThrows && (savedThrows.length === 0 || savedCastContext)) {
+            setThrows(savedThrows);
+            setCastContext(savedCastContext);
+          } else if (savedThrows && savedThrows.length > 0) {
+            setThrows([]);
+            setError(
+              requestedLocale === 'zh'
+                ? '旧版起卦记录缺少起卦时区，已清除卦爻；请重新起卦以确保六神计算正确。'
+                : 'This saved cast has no casting time zone. Its lines were cleared so six spirits can be calculated correctly; please cast again.',
+            );
+          }
           if (
             Array.isArray(saved.throws) &&
             saved.throws.length === 6 &&
+            savedCastContext &&
             (!requestedLocale || requestedLocale === saved.locale) &&
             saved.answer &&
             validAnswer(saved.answer)
@@ -146,9 +290,9 @@ export default function QuestionPage() {
     if (!restored) return;
     sessionStorage.setItem(
       sessionKey,
-      JSON.stringify({ question, timeframe, throws, answer, locale }),
+      JSON.stringify({ question, timeframe, throws, castContext, answer, locale }),
     );
-  }, [restored, question, timeframe, throws, answer, locale]);
+  }, [restored, question, timeframe, throws, castContext, answer, locale]);
 
   useEffect(() => {
     if (throws.length === 6 && !answer)
@@ -164,7 +308,10 @@ export default function QuestionPage() {
   }, [answer]);
 
   const isZh = locale === 'zh';
-  const cast = throws.length === 6 ? deriveCoinReading(throws) : null;
+  const cast =
+    throws.length === 6 && castContext
+      ? deriveCoinReading(throws, castContext)
+      : null;
   const betaEnabled =
     process.env.NODE_ENV !== 'production' ||
     process.env.NEXT_PUBLIC_QUESTION_BETA_ENABLED === 'true';
@@ -184,6 +331,7 @@ export default function QuestionPage() {
           throws,
           locale,
           turnstileToken,
+          castContext,
         }),
       });
       const data = (await response.json()) as {
@@ -235,8 +383,19 @@ export default function QuestionPage() {
 
   function resetCast() {
     setThrows([]);
+    setCastContext(null);
     setAnswer(null);
     setError('');
+  }
+
+  function castNextLine() {
+    if (throws.length === 0) {
+      setCastContext({
+        castAt: new Date().toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      });
+    }
+    setThrows((current) => [...current, castCoinLine()]);
   }
 
   function clearSession() {
@@ -244,6 +403,7 @@ export default function QuestionPage() {
     setQuestion('');
     setTimeframe('quarter');
     setThrows([]);
+    setCastContext(null);
     setAnswer(null);
     setError('');
   }
@@ -328,8 +488,8 @@ export default function QuestionPage() {
             </p>
             <p className="mt-4 max-w-xl text-sm leading-6 text-black/46">
               {isZh
-                ? '目前只做三币起卦与卦象反思，不包含纳甲、六亲、用神等完整六爻断法。'
-                : 'This currently offers a three-coin cast and reflective interpretation, not a complete Na Jia six-line reading.'}
+                ? '系统会按选定的纳甲规则排出本卦结构，AI 只解释这些已计算的事实；目前不计算月建日辰旺衰，也不会替你自动选用神。'
+                : 'The app computes the core Na Jia chart using a declared convention; AI interprets those facts only. Month/day strength and automatic useful-spirit selection are not yet included.'}
             </p>
             <label
               className="mt-12 block text-xs font-semibold tracking-[0.16em] uppercase"
@@ -391,9 +551,7 @@ export default function QuestionPage() {
                 disabled={
                   question.trim().length < 8 || throws.length === 6 || pending
                 }
-                onClick={() =>
-                  setThrows((current) => [...current, castCoinLine()])
-                }
+                onClick={castNextLine}
                 type="button"
               >
                 {throws.length === 6
@@ -519,12 +677,31 @@ export default function QuestionPage() {
                     </p>
                   </div>
                 ) : null}
+                <details className="mt-3 w-full border-t border-black/10 pt-5">
+                  <summary className="cursor-pointer text-sm text-[#9d3027]">
+                    {isZh ? '查看纳甲排盘细节' : 'View Na Jia chart details'}
+                  </summary>
+                  <NajiaTable chart={cast.original} isZh={isZh} />
+                  {cast.changed ? (
+                    <details className="mt-5 border-t border-black/8 pt-4">
+                      <summary className="cursor-pointer text-xs text-black/65">
+                        {isZh ? '展开之卦爻位' : 'Show changed-hexagram lines'}
+                      </summary>
+                      <NajiaTable chart={cast.changed} isZh={isZh} />
+                    </details>
+                  ) : null}
+                </details>
+                <p className="w-full text-xs leading-5 text-black/45">
+                  {isZh
+                    ? `起卦本地日期：${cast.castingDay?.localDate ?? '—'}（${cast.castingDay?.ganzhi ?? '—'}日）。六神按日干起例排布；各家口诀存在差异。伏神仅列候选，未按问题自动取用神。`
+                    : `Local casting date: ${cast.castingDay?.localDate ?? '—'} (${cast.castingDay?.ganzhi ?? '—'} day). Six spirits use the declared day-stem starting rule; schools vary. Hidden kin are candidates, not an automatically selected useful spirit.`}
+                </p>
               </div>
             ) : null}
             <p className="mt-10 text-xs leading-6 text-black/40">
               {isZh
-                ? '约定：三枚硬币正面记 3，反面记 2；6、9 为变爻。第一掷是最下方一爻。本实验仅采用三币起卦，不是包含纳甲、六亲、用神的完整六爻断法。'
-                : 'Method: each heads counts 3, each tails 2. A total of 6 or 9 is moving. The first cast is the bottom line. This is a three-coin I Ching experiment, not a full Na Jia six-line calculation.'}
+                ? '约定：三枚硬币正面记 3，反面记 2；6、9 为变爻。第一掷是最下方一爻。排盘使用常见八宫纳甲、六亲生克和六神日干起例；流派存在差异。本版本暂不判断月建日辰旺衰、空破合冲，也不自动选用神。'
+                : 'Method: heads count 3, tails 2; totals 6 and 9 are moving. The first cast is the bottom line. The chart uses a common Ba Gong/Na Jia, six-kin, and day-stem six-spirit convention; schools vary. Month/day strength, clashes, voids, and automatic useful-spirit selection are not implemented yet.'}
             </p>
           </div>
         </div>
