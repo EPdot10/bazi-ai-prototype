@@ -97,16 +97,22 @@ October 18 Liu Yao chart-structure increment (pushed to GitHub; public feature g
 - `/question` now shows an expandable original Na Jia chart and a separate changed-line chart, explains the selected convention and its limits, and labels missing kin as candidates. Older saved casts without a cast time zone are cleared rather than assigned an inaccurate day stem.
 - `npm run test:unit` passed 11/11, `npm run build` passed, and targeted lint passed for all four changed code/test files. The commit was pushed to `main`; this does not open the Cloudflare feature gate. A local API smoke check rejected a request missing cast context with HTTP 400. Full-repository lint still reports existing generated UI-component findings; see below.
 - The local `/question?lang=zh` page rendered in Simplified Chinese after hydration. The production feature gate remains closed; no public or Cloudflare configuration was changed. Historical convention references and remaining layers (month/day strength, voids, clashes, automatic 用神, school-specific judgement) are documented in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
-- Next: add a vetted deterministic reference-chart regression set and optionally an explicit question-category / 用神 workflow before novice beta. A Ziwei calculation-only prototype has since been added as a separately computed lens; it is not wired to the product or report and remains behind the no-exposure rule until chart reference checks and practitioner review.
+- Next: continue Liu Yao rule coverage and obtain practitioner review before broadening its interpretations. The Ziwei chart-only lens is now integrated locally as a separate result page; it does not generate predictions or merge claims with BaZi.
 
-October 18 Zi Wei Dou Shu chart-only release increment (local validation passed; page connected; awaiting production deployment check):
+October 18 Zi Wei Dou Shu chart-only release increment (local validation passed; page connected; production deploy paused pending user authorization):
 
 - Added `lib/ziwei/calculate.ts`, an independent deterministic chart core using the named `ziwei-quanshu-volume-2-v1` convention. It computes lunar date, 命/身, palace stems, 五行局, 紫微/天府, fourteen principal stars, and birth-year 四化 positions. Unknown birth time returns an explicitly incomplete chart, not a guessed chart.
 - The input contract is local birth civil date and clock time as recorded at the birthplace. The IANA time-zone string is validated and retained as context only; it does not convert UTC, infer the birth city, or apply longitude/true-solar-time correction. Leap lunar month and 子时 behavior are declared convention choices, not universal rules.
 - Regression tests cover canonical 命/身 examples, the classic 甲年火六局初一安紫微 example, leap-month handling, all fourteen main-star offsets for a reference chart, all ten four-transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid inputs. Thirty non-leap date/time charts also match `iztro@2.6.2` across all ten year stems and five bureaus. An observed leap-month divergence is explained by the selected conventions and has its own expected-value test.
 - The API now returns deterministic Ziwei chart facts alongside BaZi phases. A separate bilingual result tab displays the twelve palaces and chart limits; unknown birth hour shows an explicit incomplete state. Ziwei facts are not sent to the BaZi interpretation prompt, and no AI-generated Ziwei prediction is offered.
-- This is chart-rule validation only, not validation of personal predictions. Practitioner comparison and production smoke checks remain outstanding.
+- This is chart-rule validation only, not validation of personal predictions. A practitioner chart comparison remains outstanding. GitHub commit `47c3e42` was pushed, but production still serves the older version; do not claim the new page is live until Cloudflare authorization is completed and a production smoke test confirms it.
 - References, named assumptions, and release gates are in [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md). Keep Liu Yao and Ziwei behind separate feature gates; do not combine their claims into one AI-generated certainty.
+
+October 18 local report persistence follow-up (uncommitted; local browser verified):
+
+- A full refresh initially appeared to return to the landing screen because the page was inspected before client hydration completed. After waiting for restoration, the same saved report and locale reappeared.
+- The local implementation now writes a versioned report snapshot to session and local browser storage, migrates the previous session key, and expires saved reports after 24 hours. The privacy text explains this retention. This follow-up is not committed or pushed yet; production remains unchanged.
+- The clean local development server runs at `http://localhost:3000/`. Latest checks: unit tests 21/21 passed, targeted `oxlint` passed, and `npm run build` passed.
 
 October 18 retrospective calibration increment (deployed; real-user validation pending):
 
@@ -166,8 +172,8 @@ Earlier verification retained below:
 The October 2026 initiative is tracked in [PRODUCT_REDESIGN_ROADMAP.md](./PRODUCT_REDESIGN_ROADMAP.md). Its prompt, result-layout, navigation, and initial explanation changes are implemented and deployed. The user-video analogy is framed as a metaphor, not evidence of personal prediction. Real-user validation and a full Chinese/English audit remain open. The separate three-coin question beta exists locally but must pass its release gate before public activation. The sequence below is older backlog, not the immediate release checklist.
 
 1. Manually review the page-specific leads, reordered tabs, looping hour/minute wheel, and Chinese loading overlay on desktop and phone using a live reading.
-2. Before exposing Ziwei, extend chart-only reference coverage across all five bureaus and lunar days, and compare with independently generated charts under matched leap-month, local-time, 子时, and 四化 conventions.
-3. Once chart review passes, expose Ziwei first as a chart-only, clearly separate lens; only then allow the prompt to interpret those computed facts. Never silently merge conflicting BaZi and Ziwei claims.
+2. Obtain a qualified practitioner comparison of Ziwei charts under the named leap-month, local-time, 子时, and 四化 conventions. The current reference suite already covers 30 non-leap charts across all ten year stems and five bureaus against `iztro@2.6.2`.
+3. After the user completes Cloudflare authorization, deploy the already-pushed chart-only page and verify the live result tab. Keep it separate from BaZi and do not add AI-generated Ziwei predictions until practitioner review.
 4. Add anonymous event analytics for funnel steps, reading completion, tab views, retrospective Match/Partial/Miss, and unlock intent.
 5. Replace the client-only Jade Pass with a server-verified entitlement after choosing a payment provider.
 6. Add shared rate limiting, structured error logging, and model cost/latency telemetry.

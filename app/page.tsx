@@ -247,7 +247,39 @@ const readingPhaseOrder: ReadingPhase[] = [
   'timing',
 ];
 
-const sessionReadingKey = 'ming:last-reading:v2';
+const sessionReadingKey = 'ming:last-reading:v3';
+const legacySessionReadingKey = 'ming:last-reading:v2';
+const readingRetentionMs = 24 * 60 * 60 * 1000;
+
+function availableReadingStores(): Storage[] {
+  const stores: Storage[] = [];
+  try {
+    stores.push(window.sessionStorage);
+  } catch {
+    // Some browser privacy modes can block per-tab storage.
+  }
+  try {
+    stores.push(window.localStorage);
+  } catch {
+    // Keep the reading usable in memory if persistent storage is unavailable.
+  }
+  return stores;
+}
+
+function parseStoredReading(value: string): Reading | null {
+  try {
+    const parsed = JSON.parse(value) as
+      | Reading
+      | { version: 1; expiresAt: number; reading: Reading };
+    if ('version' in parsed) {
+      if (parsed.version !== 1 || parsed.expiresAt <= Date.now()) return null;
+      return parsed.reading;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 const intakeCopy = {
   en: {
@@ -290,7 +322,7 @@ const intakeCopy = {
       'To generate your reading, your birth date, city, and any optional details you provide are sent to our AI provider.',
     reveal: 'Reveal my reading',
     privacy:
-      'Your reading is temporarily saved in this browser tab so a refresh can restore it. Birth details are sent to the AI provider to generate it. The reading is for reflection, not professional advice.',
+      'Your reading is saved temporarily in this browser and automatically expires after 24 hours so you can return after a refresh. Birth details are sent to the AI provider to generate it. The reading is for reflection, not professional advice.',
   },
   zh: {
     stepLabels: ['日期', '时间', '城市'],
@@ -331,7 +363,7 @@ const intakeCopy = {
       '为了生成解读，你提供的生日、城市和其他选填信息会发送给 AI 服务。',
     reveal: '查看我的解读',
     privacy:
-      '解读会暂存在当前浏览器标签页，以便刷新后继续查看；出生信息会发送给 AI 服务用于生成解读。内容仅供自我反思，不替代专业建议。',
+      '解读会暂存在当前浏览器中，24 小时后自动过期，刷新后可以继续查看；出生信息会发送给 AI 服务用于生成解读。内容仅供自我反思，不替代专业建议。',
   },
 } as const;
 
@@ -457,42 +489,60 @@ export default function Home() {
 
   useEffect(() => {
     let savedReading: Reading | null = null;
-    try {
-      const saved = window.sessionStorage.getItem(sessionReadingKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as Reading;
-        if (parsed?.chart && parsed?.interpretation && parsed?.resolvedPlace) {
-          savedReading = parsed;
+    for (const storage of availableReadingStores()) {
+      for (const key of [sessionReadingKey, legacySessionReadingKey]) {
+        try {
+          const saved = storage.getItem(key);
+          if (!saved) continue;
+          const parsed = parseStoredReading(saved);
+          if (parsed?.chart && parsed?.interpretation && parsed?.resolvedPlace) {
+            savedReading = parsed;
+            break;
+          }
+          storage.removeItem(key);
+        } catch {
+          // Continue to the other store if one is unavailable or malformed.
         }
       }
-    } catch {
-      // A blocked or malformed session entry should never prevent a new reading.
-    } finally {
-      queueMicrotask(() => {
-        if (savedReading) {
-          setReading(savedReading);
-          if (savedReading.locale === 'zh' || savedReading.locale === 'en') {
-            setLocale(savedReading.locale);
-          }
-        }
-        setSessionRestored(true);
-      });
+      if (savedReading) break;
     }
+    queueMicrotask(() => {
+      if (savedReading) {
+        setReading(savedReading);
+        if (savedReading.locale === 'zh' || savedReading.locale === 'en') {
+          setLocale(savedReading.locale);
+        }
+      }
+      setSessionRestored(true);
+    });
   }, []);
 
   useEffect(() => {
     if (!sessionRestored) return;
-    try {
-      if (reading) {
-        window.sessionStorage.setItem(
-          sessionReadingKey,
-          JSON.stringify(reading),
-        );
-      } else {
-        window.sessionStorage.removeItem(sessionReadingKey);
+    const stores = availableReadingStores();
+    if (reading) {
+      const saved = JSON.stringify({
+        version: 1,
+        expiresAt: Date.now() + readingRetentionMs,
+        reading,
+      });
+      for (const storage of stores) {
+        try {
+          storage.setItem(sessionReadingKey, saved);
+          storage.removeItem(legacySessionReadingKey);
+        } catch {
+          // Storage is an enhancement; the reading remains available in memory.
+        }
       }
-    } catch {
-      // Storage is an enhancement; the reading remains available in memory.
+    } else {
+      for (const storage of stores) {
+        try {
+          storage.removeItem(sessionReadingKey);
+          storage.removeItem(legacySessionReadingKey);
+        } catch {
+          // Ignore unavailable stores while resetting the reading.
+        }
+      }
     }
   }, [reading, sessionRestored]);
 
