@@ -2,7 +2,7 @@
 
 Status: in progress, 2026-10-18. This document records the agreed direction and acceptance gates; it does not imply that the features below are implemented.
 
-October 18 progress: the prompt and age-band candidate selection were revised; Overview is now separate from topic pages; bottom navigation and collapsible rationale are in place; the Method page begins with a plain-language, non-scientific seasonal-map analogy. A local Chinese synthetic reading and 390px mobile flow passed. The evaluation protocol and Liu Yao scope are documented separately. Human accuracy validation, full bilingual regression, deterministic Liu Yao calculation, and production release checks remain open.
+October 18 progress: the prompt and age-band candidate selection were revised; Overview is now separate from topic pages; bottom navigation and collapsible rationale are in place; the Method page begins with a plain-language, non-scientific seasonal-map analogy. A local Chinese synthetic reading and 390px mobile flow passed. Retrospective claims now have a specific feedback target and cannot-judge option, but repeated runs still sometimes reuse responsibility/relationship scenes. The deterministic three-coin question prototype and its tests are implemented behind a closed public gate. Cloudflare production smoke tests passed for the BaZi path. Human validation, physical-phone review, full bilingual regression, and the question-beta release gate remain open. See [READING_EVALUATION.md](./READING_EVALUATION.md), [BETA_TESTER_SCRIPT.md](./BETA_TESTER_SCRIPT.md), and [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
 
 ## Product objective
 

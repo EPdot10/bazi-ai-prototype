@@ -284,7 +284,7 @@ const intakeCopy = {
       'To generate your reading, your birth date, city, and any optional details you provide are sent to our AI provider.',
     reveal: 'Reveal my reading',
     privacy:
-      'Birth details are processed to create this reading and are not stored by this prototype. Interpretation is for reflection, not professional advice.',
+      'Your reading is temporarily saved in this browser tab so a refresh can restore it. Birth details are sent to the AI provider to generate it. The reading is for reflection, not professional advice.',
   },
   zh: {
     stepLabels: ['日期', '时间', '城市'],
@@ -325,7 +325,7 @@ const intakeCopy = {
       '为了生成解读，你提供的生日、城市和其他选填信息会发送给 AI 服务。',
     reveal: '查看我的解读',
     privacy:
-      '出生信息只用于生成本次解读，不会由本原型保存。解读仅供自我反思，不替代专业建议。',
+      '解读会暂存在当前浏览器标签页，以便刷新后继续查看；出生信息会发送给 AI 服务用于生成解读。内容仅供自我反思，不替代专业建议。',
   },
 } as const;
 
@@ -1317,7 +1317,7 @@ function SiteHeader({
         </p>
         {showLanguageToggle ? (
           <div
-            aria-label="Language"
+            aria-label={locale === 'zh' ? '语言' : 'Language'}
             className="flex items-center border border-black/12 text-[10px] font-semibold tracking-[0.12em] uppercase"
           >
             {(['en', 'zh'] as const).map((value) => (
