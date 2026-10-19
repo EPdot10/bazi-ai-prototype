@@ -1911,7 +1911,7 @@ function SectionFeedback({
           sent: '反馈已提交。',
           failed: '发送失败；反馈仍保存在此设备。',
           privacy:
-            '若你已同意分享，答案与意见会发送用于改进；请勿填写身份或敏感信息。请求不附带生日、姓名或城市。',
+            '若你已同意分享，答案与意见会发送用于改进；请勿填写身份或敏感信息。请求不附带生日、姓名或城市，但 Cloudflare 仍会处理 IP 等请求元数据。',
         }
       : {
           title: 'Help us improve this section',
@@ -1926,7 +1926,7 @@ function SectionFeedback({
           sent: 'Feedback submitted.',
           failed: 'Could not send; your feedback remains on this device.',
           privacy:
-            'If you opted in, answers and comments are sent to improve the product. Avoid identifying or sensitive details. Birth date, name, and city are not attached.',
+            'If you opted in, answers and comments are sent to improve the product. Avoid identifying or sensitive details. Birth date, name, and city are not attached; Cloudflare still processes IP and request metadata.',
         };
 
   useEffect(() => {
