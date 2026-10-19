@@ -483,6 +483,7 @@ function requireInterpretation(
       "关系",
       "感情",
       "亲密关系",
+      "恋爱与亲密关系",
     ],
     timing: ["timing", "时机", "时间", "时运"],
   };
@@ -810,13 +811,13 @@ function normalizePhaseInterpretation(
     asRecord(
       pick(rawAreas, [
         phase,
-        phase === "character"
-          ? "性格"
+        ...(phase === "character"
+          ? ["性格"]
           : phase === "career"
-            ? "事业"
+            ? ["事业"]
             : phase === "relationships"
-              ? "关系"
-              : "时机",
+              ? ["关系", "恋爱与亲密关系"]
+              : ["时机"]),
       ]),
     ) ?? {};
   const headline = toText(pick(rawArea, ["headline", "标题", "主题"]));

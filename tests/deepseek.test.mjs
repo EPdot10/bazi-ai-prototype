@@ -46,6 +46,10 @@ test('interpretation prompt receives Zi Wei clues as an integrated lens', async 
       systemMessage.content,
       /integrate the systems into one practical reading/i,
     );
+    assert.match(
+      systemMessage.content,
+      /primarily about romantic and intimate connection/i,
+    );
     assert.match(userMessage.content, /"mingBranch":"辰"/);
     assert.match(userMessage.content, /Simplified Chinese/);
   } finally {

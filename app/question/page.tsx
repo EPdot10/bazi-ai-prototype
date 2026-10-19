@@ -211,6 +211,7 @@ export default function QuestionPage() {
     'month' | 'quarter' | 'year' | 'open'
   >('quarter');
   const [throws, setThrows] = useState<CoinLine[]>([]);
+  const [shaking, setShaking] = useState(false);
   const [castContext, setCastContext] = useState<CastContext | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileGeneration, setTurnstileGeneration] = useState(0);
@@ -220,6 +221,7 @@ export default function QuestionPage() {
   const [restored, setRestored] = useState(false);
   const answerRef = useRef<HTMLElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
+  const shakeLockRef = useRef(false);
   const onToken = useCallback((token: string) => setTurnstileToken(token), []);
 
   useEffect(() => {
@@ -312,10 +314,6 @@ export default function QuestionPage() {
     throws.length === 6 && castContext
       ? deriveCoinReading(throws, castContext)
       : null;
-  const betaEnabled =
-    process.env.NODE_ENV !== 'production' ||
-    process.env.NEXT_PUBLIC_QUESTION_BETA_ENABLED === 'true';
-
   async function requestReading() {
     if (!cast || question.trim().length < 8 || pending) return;
     setPending(true);
@@ -347,7 +345,6 @@ export default function QuestionPage() {
               {
                 400: '请检查问题和六爻是否完整。',
                 403: '请完成人机验证。',
-                404: '实验功能尚未开放。',
                 429: '请求过于频繁，请稍后再试。',
                 502: 'AI 暂时未能完成解读，请重试。',
                 503: '解读服务暂不可用。',
@@ -382,23 +379,41 @@ export default function QuestionPage() {
   }
 
   function resetCast() {
+    if (shaking) return;
     setThrows([]);
     setCastContext(null);
     setAnswer(null);
     setError('');
   }
 
-  function castNextLine() {
+  async function castNextLine() {
+    if (
+      shakeLockRef.current ||
+      shaking ||
+      pending ||
+      throws.length >= 6 ||
+      question.trim().length < 8
+    )
+      return;
+    shakeLockRef.current = true;
+    setError('');
     if (throws.length === 0) {
       setCastContext({
         castAt: new Date().toISOString(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
       });
     }
-    setThrows((current) => [...current, castCoinLine()]);
+    setShaking(true);
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    setThrows((current) =>
+      current.length < 6 ? [...current, castCoinLine()] : current,
+    );
+    setShaking(false);
+    shakeLockRef.current = false;
   }
 
   function clearSession() {
+    if (shaking) return;
     sessionStorage.removeItem(sessionKey);
     setQuestion('');
     setTimeframe('quarter');
@@ -406,30 +421,6 @@ export default function QuestionPage() {
     setCastContext(null);
     setAnswer(null);
     setError('');
-  }
-
-  if (!betaEnabled) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#f2efe8] px-6 text-center text-[#1b1a17]">
-        <div>
-          <p className="font-serif text-5xl text-[#9d3027]">卦</p>
-          <h1 className="mt-6 font-serif text-3xl">
-            {isZh ? '实验功能尚未开放' : 'The experiment is not open yet'}
-          </h1>
-          <p className="mt-4 text-sm text-black/50">
-            {isZh
-              ? '六爻起卦仍在内部验证中。'
-              : 'The six-line cast is still in internal testing.'}
-          </p>
-          <Link
-            className="mt-8 inline-block text-sm text-[#9d3027] underline"
-            href="/"
-          >
-            {isZh ? '返回首页' : 'Back to home'}
-          </Link>
-        </div>
-      </main>
-    );
   }
 
   return (
@@ -463,6 +454,51 @@ export default function QuestionPage() {
         </div>
       </header>
 
+      {pending ? (
+        <section
+          aria-live="polite"
+          aria-busy="true"
+          className="mx-auto grid min-h-[calc(100dvh-5rem)] max-w-[760px] content-center px-6 py-16 text-center sm:px-10"
+        >
+          <div
+            aria-hidden="true"
+            className="coin-shake mx-auto flex items-center justify-center gap-3"
+          >
+            {[0, 1, 2].map((coin) => (
+              <span className="coin-token" key={coin}>
+                易
+              </span>
+            ))}
+          </div>
+          <p className="mt-10 text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
+            {isZh ? '六爻解读 · 正在分析' : 'Six-line reading · in progress'}
+          </p>
+          <h1 className="mt-4 break-words font-serif text-3xl leading-tight sm:text-5xl">
+            {isZh ? '正在回应你的问题' : 'Reading your question'}
+          </h1>
+          <p className="mx-auto mt-5 max-w-lg break-words text-sm leading-7 text-black/55">
+            {isZh
+              ? '正在结合你的问题、时间范围与卦象整理解读。请稍候，完成后结果会自动显示。'
+              : 'Your question, timeframe, and cast are being considered together. Please wait; the answer will appear here when ready.'}
+          </p>
+          <div
+            className="mx-auto mt-10 flex w-full max-w-sm items-center gap-2"
+            aria-hidden="true"
+          >
+            {throws.map((line, index) => (
+              <span
+                className={`h-1.5 flex-1 ${line === 6 || line === 9 ? 'bg-[#9d3027]' : 'bg-[#1b1a17]/45'}`}
+                key={`${line}-${index}`}
+              />
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-black/40">
+            {isZh
+              ? '六爻已完成 · AI 正在整理结果'
+              : 'Cast complete · preparing the interpretation'}
+          </p>
+        </section>
+      ) : (
       <div className="mx-auto max-w-[1160px] px-6 pb-24 pt-14 sm:px-10 sm:pt-20">
         <Link
           className="inline-flex items-center gap-2 text-xs text-black/45 hover:text-[#9d3027]"
@@ -483,8 +519,8 @@ export default function QuestionPage() {
             </h1>
             <p className="mt-7 max-w-xl text-base leading-8 text-black/57">
               {isZh
-                ? '专注一个当下可行动的问题，掷三枚虚拟硬币六次，从下往上形成卦象。结果提供一种思考角度，不替你做决定。'
-                : 'Focus on one question you can act on. Cast three virtual coins six times, building the hexagram from the bottom up. The result is a perspective, not a decision made for you.'}
+                ? '专注一个当下可行动的问题。每次点击，摇动三枚铜钱并记录一爻；六次后从下往上形成卦象。结果提供思考角度，不替你做决定。'
+                : 'Focus on one actionable question. Each tap shakes three coins and records one line; after six casts, the hexagram is built from the bottom up. It offers perspective, not a decision.'}
             </p>
             <p className="mt-4 max-w-xl text-sm leading-6 text-black/46">
               {isZh
@@ -501,7 +537,7 @@ export default function QuestionPage() {
               className="mt-4 min-h-36 w-full resize-y border border-black/15 bg-white/45 p-5 text-base leading-7 outline-none transition-colors focus:border-[#9d3027]"
               id="iching-question"
               maxLength={280}
-              disabled={throws.length > 0 || pending}
+              disabled={throws.length > 0 || pending || shaking}
               onChange={(event) => {
                 setQuestion(event.target.value);
                 setAnswer(null);
@@ -528,7 +564,7 @@ export default function QuestionPage() {
             <select
               className="mt-3 min-h-12 w-full border border-black/15 bg-white/45 px-4 text-sm outline-none focus:border-[#9d3027]"
               id="iching-timeframe"
-              disabled={throws.length > 0 || pending}
+              disabled={throws.length > 0 || pending || shaking}
               onChange={(event) => {
                 setTimeframe(event.target.value as typeof timeframe);
                 setAnswer(null);
@@ -549,22 +585,27 @@ export default function QuestionPage() {
               <button
                 className="inline-flex min-h-12 items-center gap-3 bg-[#1b1a17] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#9d3027] disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={
-                  question.trim().length < 8 || throws.length === 6 || pending
+                  question.trim().length < 8 || throws.length === 6 || pending || shaking
                 }
                 onClick={castNextLine}
                 type="button"
               >
-                {throws.length === 6
+                {shaking
+                  ? isZh
+                    ? '铜钱摇动中…'
+                    : 'Shaking the coins…'
+                  : throws.length === 6
                   ? isZh
                     ? '六爻已完成'
                     : 'Six lines complete'
                   : isZh
-                    ? `掷第 ${throws.length + 1} 爻`
-                    : `Cast line ${throws.length + 1}`}
+                    ? `摇第 ${throws.length + 1} 爻`
+                    : `Shake for line ${throws.length + 1}`}
                 <ArrowRight className="size-4" />
               </button>
               {throws.length > 0 ? (
                 <button
+                  disabled={shaking}
                   className="inline-flex min-h-12 items-center gap-2 px-3 text-xs text-black/50 hover:text-[#9d3027]"
                   onClick={resetCast}
                   type="button"
@@ -574,6 +615,7 @@ export default function QuestionPage() {
                 </button>
               ) : null}
               <button
+                disabled={shaking}
                 className="min-h-12 px-3 text-xs text-black/40 underline-offset-4 hover:text-[#9d3027] hover:underline"
                 onClick={clearSession}
                 type="button"
@@ -583,9 +625,28 @@ export default function QuestionPage() {
             </div>
             <p aria-live="polite" className="mt-4 text-sm text-black/50">
               {isZh
-                ? `已完成 ${throws.length} / 6 爻`
-                : `${throws.length} / 6 lines cast`}
+                ? `已完成 ${throws.length} / 6 爻 · 从下往上记录`
+                : `${throws.length} / 6 lines · building bottom up`}
             </p>
+            <ol
+              aria-label={isZh ? '起卦进度' : 'Casting progress'}
+              className="mt-4 flex max-w-sm items-center gap-2"
+            >
+              {Array.from({ length: 6 }, (_, index) => (
+                <li
+                  aria-label={
+                    isZh
+                      ? `第 ${index + 1} 爻${throws.length > index ? '已完成' : ''}`
+                      : `Line ${index + 1}${throws.length > index ? ', complete' : ''}`
+                  }
+                  aria-current={throws.length === index ? 'step' : undefined}
+                  className={`grid size-8 shrink-0 place-items-center rounded-full border text-[10px] tabular-nums transition-colors ${throws.length > index ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/15 text-black/40'}`}
+                  key={index}
+                >
+                  {index + 1}
+                </li>
+              ))}
+            </ol>
             {cast ? (
               <div className="mt-9">
                 <TurnstileField
@@ -597,7 +658,7 @@ export default function QuestionPage() {
                 <button
                   ref={submitRef}
                   className="mt-6 min-h-12 bg-[#9d3027] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase disabled:opacity-50"
-                  disabled={pending}
+                  disabled={pending || shaking}
                   onClick={requestReading}
                   type="button"
                 >
@@ -606,8 +667,8 @@ export default function QuestionPage() {
                       ? '正在解读卦象…'
                       : 'Interpreting the cast…'
                     : isZh
-                      ? '查看针对问题的解读'
-                      : 'Read the answer'}
+                      ? '开始 AI 解读'
+                      : 'Begin AI interpretation'}
                 </button>
               </div>
             ) : null}
@@ -625,16 +686,40 @@ export default function QuestionPage() {
               </p>
               <span className="font-serif text-3xl text-[#9d3027]">卦</span>
             </div>
+            <div
+              aria-hidden="true"
+              className={`mx-auto mt-8 flex items-center justify-center gap-3 ${shaking ? 'coin-shake' : ''}`}
+            >
+              {[0, 1, 2].map((coin) => (
+                <span className="coin-token" key={coin}>
+                  易
+                </span>
+              ))}
+            </div>
+            <p aria-live="polite" className="mt-4 text-center text-xs text-black/45">
+              {shaking
+                ? isZh
+                  ? '三枚铜钱摇动中…'
+                  : 'The coins are moving…'
+                : throws.length === 6
+                  ? isZh
+                    ? '卦象已成，确认后开始 AI 解读'
+                    : 'Cast complete — begin the interpretation when ready'
+                  : isZh
+                    ? '点击一次摇卦，记录一爻'
+                    : 'Tap once to cast and record one line'}
+            </p>
             <div className="mt-8 space-y-4">
               {Array.from({ length: 6 }, (_, index) => {
-                const line = throws[index];
+                const throwIndex = 5 - index;
+                const line = throws[throwIndex];
                 return (
                   <div
                     className="flex items-center justify-between border-b border-black/8 pb-3"
                     key={index}
                   >
                     <span className="text-xs text-black/40">
-                      {isZh ? `第 ${index + 1} 爻` : `Line ${index + 1}`}
+                      {isZh ? `第 ${throwIndex + 1} 爻` : `Line ${throwIndex + 1}`}
                     </span>
                     <span className="font-serif text-lg">
                       {line
@@ -643,7 +728,7 @@ export default function QuestionPage() {
                           : '——'
                         : '· · ·'}
                     </span>
-                    <span className="w-20 text-right text-xs text-[#9d3027]">
+                    <span className="w-24 shrink-0 text-right text-xs text-[#9d3027]">
                       {line
                         ? `${line}${line === 6 || line === 9 ? (isZh ? ' · 变' : ' · moving') : ''}`
                         : ''}
@@ -744,6 +829,7 @@ export default function QuestionPage() {
           </section>
         ) : null}
       </div>
+      )}
     </main>
   );
 }

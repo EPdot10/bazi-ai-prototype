@@ -210,7 +210,7 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'future', label: 'Looking ahead' },
   { value: 'character', label: 'Character' },
   { value: 'career', label: 'Career' },
-  { value: 'relationships', label: 'Relationships' },
+  { value: 'relationships', label: 'Love & Relationships' },
   { value: 'timing', label: 'Timing' },
   { value: 'method', label: 'Method' },
 ];
@@ -221,7 +221,7 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'future', label: '展望未来' },
   { value: 'character', label: '性格' },
   { value: 'career', label: '事业' },
-  { value: 'relationships', label: '关系' },
+  { value: 'relationships', label: '恋爱与亲密关系' },
   { value: 'timing', label: '时机' },
   { value: 'method', label: '方法' },
 ];
@@ -448,7 +448,7 @@ function phaseLabel(phase: ReadingPhase, locale: ReadingLocale) {
       future: '展望未来',
       character: '性格',
       career: '事业',
-      relationships: '关系',
+      relationships: '恋爱与亲密关系',
       timing: '时机',
     }[phase];
   }
@@ -457,7 +457,7 @@ function phaseLabel(phase: ReadingPhase, locale: ReadingLocale) {
     future: 'Looking ahead',
     character: 'Character',
     career: 'Career',
-    relationships: 'Relationships',
+    relationships: 'Love & Relationships',
     timing: 'Timing',
   }[phase];
 }
@@ -1274,17 +1274,15 @@ function LandingPage({
               : 'Free first reading · no account required'}
           </span>
         </div>
-        {process.env.NEXT_PUBLIC_QUESTION_BETA_ENABLED === 'true' ? (
-          <Link
-            className="mt-5 inline-flex items-center gap-2 text-sm text-[#9d3027] underline-offset-4 hover:underline"
-            href={`/question?lang=${locale}`}
-          >
-            {isZh
-              ? '想问一件具体的事？试试三币易经起卦'
-              : 'Have one specific question? Try a three-coin I Ching cast'}
-            <ArrowUpRight className="size-4" />
-          </Link>
-        ) : null}
+        <Link
+          className="mt-5 inline-flex items-center gap-2 text-sm text-[#9d3027] underline-offset-4 hover:underline"
+          href={`/question?lang=${locale}`}
+        >
+          {isZh
+            ? '想问一件具体的事？试试手动摇六爻'
+            : 'Have one specific question? Try a manual six-line I Ching cast'}
+          <ArrowUpRight className="size-4" />
+        </Link>
         <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
           <span className="h-px w-10 bg-[#9d3027]/55" />
           {isZh
@@ -2542,21 +2540,22 @@ function PendingSection({
   locale: ReadingLocale;
 }) {
   return (
-    <section className="border border-black/10 p-8 sm:p-12">
-      <p className="text-[10px] font-semibold tracking-[0.16em] text-[#9d3027] uppercase">
-        {locale === 'zh' ? '正在分析' : 'Analysis in progress'}
+    <section className="min-w-0 overflow-hidden border border-black/10 p-5 sm:p-8 md:p-12">
+      <p className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#9d3027]/20 bg-[#9d3027]/5 px-3 py-1.5 text-[10px] font-semibold leading-4 tracking-[0.12em] text-[#9d3027] uppercase">
+        <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-[#9d3027]" aria-hidden="true" />
+        {locale === 'zh' ? '解读生成中' : 'Preparing reading'}
       </p>
-      <h2 className="mt-3 font-serif text-4xl">
+      <h2 className="mt-5 max-w-full break-words font-serif text-[clamp(1.75rem,5vw,2.5rem)] leading-tight">
         {locale === 'zh'
-          ? `${phaseLabel(phase, locale)}正在生成`
+          ? `正在生成：${phaseLabel(phase, locale)}`
           : `${phaseLabel(phase, locale)} is being prepared`}
       </h2>
-      <p className="mt-5 max-w-xl text-sm leading-7 text-black/52">
+      <p className="mt-4 max-w-xl break-words text-sm leading-7 text-black/52">
         {locale === 'zh'
           ? '模型正在按顺序完成这一章节。你可以先阅读已经开放的部分，完成后本页会自动更新。'
           : 'The model is completing this chapter in sequence. You can read the available sections first; this page will update when it is ready.'}
       </p>
-      <div className="mt-8 h-px overflow-hidden bg-black/10">
+      <div className="mt-8 h-1 overflow-hidden rounded-full bg-black/10">
         <div className="h-full w-1/3 animate-pulse bg-[#9d3027]" />
       </div>
     </section>

@@ -127,6 +127,56 @@ main {
   }
 }
 
+@keyframes coin-rattle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  18% {
+    transform: translateY(-0.65rem) rotate(-14deg);
+  }
+  38% {
+    transform: translateY(0.3rem) rotate(12deg);
+  }
+  62% {
+    transform: translateY(-0.4rem) rotate(-8deg);
+  }
+  82% {
+    transform: translateY(0.15rem) rotate(5deg);
+  }
+}
+
+.coin-token {
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(157 48 39 / 34%);
+  border-radius: 999px;
+  color: #9d3027;
+  background:
+    radial-gradient(circle at 35% 30%, rgb(255 255 255 / 95%), transparent 45%),
+    linear-gradient(145deg, #ead9b5, #c8a66a 58%, #f0e4ca);
+  box-shadow:
+    inset 0 0 0 4px rgb(255 255 255 / 34%),
+    0 5px 12px rgb(55 35 22 / 12%);
+  font-family: var(--font-serif), serif;
+  font-size: 1rem;
+}
+
+.coin-shake .coin-token:nth-child(1) {
+  animation: coin-rattle 780ms ease-in-out infinite;
+}
+
+.coin-shake .coin-token:nth-child(2) {
+  animation: coin-rattle 780ms 90ms ease-in-out infinite;
+}
+
+.coin-shake .coin-token:nth-child(3) {
+  animation: coin-rattle 780ms 180ms ease-in-out infinite;
+}
+
 .animate-rise {
   animation: ming-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
