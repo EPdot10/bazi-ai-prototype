@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
@@ -23,12 +22,6 @@ import {
 
 type Locale = 'en' | 'zh';
 const sessionKey = 'ming:question-session:v1';
-const subscribeToUrl = () => () => {};
-const browserLocale = (): Locale =>
-  new URLSearchParams(window.location.search).get('lang') === 'zh'
-    ? 'zh'
-    : 'en';
-const serverLocale = (): Locale => 'en';
 interface Answer {
   answer: string;
   conditions: string;
@@ -199,13 +192,8 @@ function NajiaTable({
 }
 
 export default function QuestionPage() {
-  const urlLocale = useSyncExternalStore(
-    subscribeToUrl,
-    browserLocale,
-    serverLocale,
-  );
   const [chosenLocale, setChosenLocale] = useState<Locale | null>(null);
-  const locale = chosenLocale ?? urlLocale;
+  const locale = chosenLocale ?? 'en';
   const [question, setQuestion] = useState('');
   const [timeframe, setTimeframe] = useState<
     'month' | 'quarter' | 'year' | 'open'
@@ -227,13 +215,15 @@ export default function QuestionPage() {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
+        const requestedLocale = new URLSearchParams(
+          window.location.search,
+        ).get('lang');
+        if (requestedLocale === 'en' || requestedLocale === 'zh')
+          setChosenLocale(requestedLocale);
         const saved = JSON.parse(
           sessionStorage.getItem(sessionKey) ?? 'null',
         ) as Record<string, unknown> | null;
         if (saved) {
-          const requestedLocale = new URLSearchParams(
-            window.location.search,
-          ).get('lang');
           if (
             typeof saved.question === 'string' &&
             saved.question.length <= 280
