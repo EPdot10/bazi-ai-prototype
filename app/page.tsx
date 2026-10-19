@@ -1262,7 +1262,7 @@ function LandingPage({
         </p>
         <div className="mt-10 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
           <Button
-            className="glow-control flex min-h-24 w-full items-center justify-between gap-3 rounded-none border border-black/12 bg-white/25 px-4 py-4 text-left text-black transition-colors hover:border-[#9d3027]/45 hover:bg-[#9d3027]/[0.035] sm:px-5"
+            className="glow-control group flex min-h-24 w-full items-center justify-between gap-3 rounded-none border border-[#9d3027] bg-[#9d3027] px-4 py-4 text-left text-white shadow-[0_12px_28px_rgb(157_48_39_/_16%)] transition-all duration-200 hover:border-[#7f251f] hover:bg-[#7f251f] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#9d3027] sm:px-5"
             onClick={onBegin}
             type="button"
           >
@@ -1270,30 +1270,30 @@ function LandingPage({
               <span className="text-sm font-semibold tracking-[0.06em]">
                 {isZh ? '人生详解' : 'Full Life Reading'}
               </span>
-              <span className="text-xs leading-5 text-black/50">
+              <span className="text-xs leading-5 text-white/78">
                 {isZh
                   ? '回看过去，了解性格、事业与未来'
                   : 'Past patterns, character, work, and what lies ahead'}
               </span>
             </span>
-            <ArrowUpRight className="size-4 shrink-0 text-[#9d3027]" />
+            <ArrowUpRight className="size-4 shrink-0 text-white transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </Button>
-          <Link
-            className="glow-control flex min-h-24 w-full items-center justify-between gap-3 border border-black/12 bg-white/25 px-4 py-4 text-black transition-colors hover:border-[#9d3027]/45 hover:bg-[#9d3027]/[0.035] sm:px-5"
+          <a
+            className="glow-control group flex min-h-24 w-full items-center justify-between gap-3 border border-[#354a42] bg-[#354a42] px-4 py-4 text-white shadow-[0_12px_28px_rgb(53_74_66_/_16%)] transition-all duration-200 hover:border-[#293c35] hover:bg-[#293c35] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#354a42] sm:px-5"
             href={`/question?lang=${locale}`}
           >
             <span className="grid gap-1.5">
               <span className="text-sm font-semibold tracking-[0.06em]">
                 {isZh ? '具体解答' : 'Ask One Question'}
               </span>
-              <span className="text-xs leading-5 text-black/50">
+              <span className="text-xs leading-5 text-white/78">
                 {isZh
                   ? '聚焦你此刻最关心的一件事'
                   : 'Focus on the one thing on your mind now'}
               </span>
             </span>
-            <ArrowUpRight className="size-4 shrink-0 text-[#9d3027]" />
-          </Link>
+            <ArrowUpRight className="size-4 shrink-0 text-white transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </a>
         </div>
         <p className="mt-3 text-xs text-black/38">
           {isZh
