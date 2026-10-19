@@ -395,11 +395,11 @@ function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
     return !repeatedPrimaryDomain && !tooClose && !sameSignature;
   };
 
-  // Fewer distinct hypotheses are preferable to a longer timeline that
-  // repeats the same psychological story under different years. Cover adult
-  // and later-life stages first, then add a childhood clue only if room remains.
+  // Offer a useful range of testable hypotheses while keeping the timeline
+  // diverse. One candidate per age band gives adults and later-life users
+  // something more relevant than a timeline made only of school/work milestones.
   for (const band of ageBands) {
-    if (selected.length === 4) break;
+    if (selected.length === 5) break;
     const candidate = ranked.find(
       (signal) =>
         signal.age >= band.min && signal.age <= band.max && canSelect(signal),
@@ -407,12 +407,12 @@ function deriveEventCandidates(signals: BaziChartFacts['timingSignals']) {
     if (candidate) selected.push(candidate);
   }
 
-  if (selected.length < 3) {
+  if (selected.length < 5) {
     for (const signal of ranked) {
       if (!selected.includes(signal) && canSelect(signal)) {
         selected.push(signal);
       }
-      if (selected.length === 3) break;
+      if (selected.length === 5) break;
     }
   }
 

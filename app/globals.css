@@ -80,7 +80,12 @@ body::before {
   background-image:
     radial-gradient(circle at 12% 4%, rgb(157 48 39 / 10%), transparent 27rem),
     radial-gradient(circle at 88% 58%, rgb(191 148 86 / 8%), transparent 25rem),
-    linear-gradient(115deg, transparent 0 49.8%, rgb(0 0 0 / 2%) 50%, transparent 50.2%);
+    linear-gradient(
+      115deg,
+      transparent 0 49.8%,
+      rgb(0 0 0 / 2%) 50%,
+      transparent 50.2%
+    );
 }
 
 main {
@@ -153,7 +158,12 @@ main {
 .birth-wheel > div.relative {
   overflow: hidden;
   border-color: rgb(0 0 0 / 15%);
-  background: linear-gradient(90deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 38%), rgb(255 255 255 / 6%));
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 6%),
+    rgb(255 255 255 / 38%),
+    rgb(255 255 255 / 6%)
+  );
 }
 
 .birth-wheel button,
@@ -213,7 +223,9 @@ main {
   border: 1px solid rgb(157 48 39 / 14%);
   border-radius: 999px;
   content: '';
-  box-shadow: 0 0 0 2rem rgb(157 48 39 / 3%), 0 0 0 4rem rgb(157 48 39 / 2%);
+  box-shadow:
+    0 0 0 2rem rgb(157 48 39 / 3%),
+    0 0 0 4rem rgb(157 48 39 / 2%);
 }
 
 .result-tabs {
@@ -229,7 +241,10 @@ main {
   isolation: isolate;
   overflow: hidden;
   transform: translateZ(0);
-  transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease;
 }
 
 .glow-control::before {
@@ -239,9 +254,16 @@ main {
   border-radius: 999px;
   content: '';
   opacity: 0;
-  background: radial-gradient(circle, rgb(255 255 255 / 30%) 0, rgb(255 255 255 / 8%) 28%, transparent 64%);
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / 30%) 0,
+    rgb(255 255 255 / 8%) 28%,
+    transparent 64%
+  );
   transform: scale(0.45);
-  transition: opacity 260ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 260ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .glow-control:hover,
@@ -345,4 +367,95 @@ select {
 
 ::selection {
   background: rgb(157 48 39 / 18%);
+}
+
+.reading-printable {
+  display: none;
+}
+
+@page {
+  margin: 16mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #171613 !important;
+    font-size: 10.5pt;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .reading-printable,
+  .reading-printable * {
+    visibility: visible !important;
+  }
+
+  .reading-printable {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #171613 !important;
+    font-family: Arial, 'Microsoft YaHei', sans-serif !important;
+    line-height: 1.55;
+  }
+
+  .reading-printable h1,
+  .reading-printable h2,
+  .reading-printable h3 {
+    color: #171613 !important;
+    break-after: avoid;
+  }
+
+  .reading-printable h1 {
+    margin: 8pt 0 10pt;
+    font-size: 26pt;
+  }
+
+  .reading-printable h2 {
+    margin: 0 0 10pt;
+    border-bottom: 1px solid #bbb;
+    padding-bottom: 5pt;
+    font-size: 18pt;
+  }
+
+  .reading-printable h3 {
+    margin: 10pt 0 5pt;
+    font-size: 13pt;
+  }
+
+  .reading-printable p {
+    margin: 5pt 0;
+  }
+
+  .print-kicker,
+  .print-muted,
+  .print-footer {
+    color: #666 !important;
+    font-size: 9pt;
+  }
+
+  .print-section {
+    margin-top: 22pt;
+    break-before: auto;
+  }
+
+  .print-item {
+    margin: 10pt 0;
+    padding-bottom: 8pt;
+    border-bottom: 1px solid #ddd;
+    break-inside: avoid;
+  }
+
+  .print-footer {
+    margin-top: 24pt;
+    border-top: 1px solid #bbb;
+    padding-top: 10pt;
+  }
 }

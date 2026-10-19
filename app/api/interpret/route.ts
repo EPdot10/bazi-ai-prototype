@@ -1105,6 +1105,7 @@ export async function POST(request: Request) {
     try {
       const interpretationRequest = {
         chart,
+        ziweiChart,
         topic,
         locale: body.locale ?? "en",
         birthContext: {

@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
-    "test:unit": "node --experimental-strip-types --test tests/iching.test.mjs tests/turnstile.test.mjs tests/ziwei.test.mjs",
+    "test:unit": "node --experimental-strip-types --test tests/deepseek.test.mjs tests/iching.test.mjs tests/turnstile.test.mjs tests/ziwei.test.mjs",
     "format": "oxfmt"
   },
   "dependencies": {

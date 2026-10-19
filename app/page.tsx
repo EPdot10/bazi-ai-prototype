@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Check,
+  FileDown,
   LoaderCircle,
   LockKeyhole,
   MapPin,
@@ -29,7 +30,6 @@ type ResultView =
   | 'relationships'
   | 'timing'
   | 'future'
-  | 'ziwei'
   | 'method';
 type LifeAreaKey = 'character' | 'career' | 'relationships' | 'timing';
 type ReadingPhase = 'past' | 'future' | LifeAreaKey;
@@ -212,7 +212,6 @@ const resultTabs: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: 'Career' },
   { value: 'relationships', label: 'Relationships' },
   { value: 'timing', label: 'Timing' },
-  { value: 'ziwei', label: 'Zi Wei Dou Shu' },
   { value: 'method', label: 'Method' },
 ];
 
@@ -224,7 +223,6 @@ const resultTabsZh: Array<{ value: ResultView; label: string }> = [
   { value: 'career', label: '事业' },
   { value: 'relationships', label: '关系' },
   { value: 'timing', label: '时机' },
-  { value: 'ziwei', label: '紫微斗数' },
   { value: 'method', label: '方法' },
 ];
 
@@ -234,8 +232,10 @@ function confidenceLabel(value: string, locale: ReadingLocale) {
     medium: { en: 'Chart signal: moderate', zh: '命盘线索：中' },
     low: { en: 'Chart signal: limited', zh: '命盘线索：弱' },
   };
-  return labels[value.toLowerCase()]?.[locale] ??
-    (locale === 'zh' ? '未经验证' : 'Not validated');
+  return (
+    labels[value.toLowerCase()]?.[locale] ??
+    (locale === 'zh' ? '未经验证' : 'Not validated')
+  );
 }
 
 const readingPhaseOrder: ReadingPhase[] = [
@@ -495,7 +495,11 @@ export default function Home() {
           const saved = storage.getItem(key);
           if (!saved) continue;
           const parsed = parseStoredReading(saved);
-          if (parsed?.chart && parsed?.interpretation && parsed?.resolvedPlace) {
+          if (
+            parsed?.chart &&
+            parsed?.interpretation &&
+            parsed?.resolvedPlace
+          ) {
             savedReading = parsed;
             break;
           }
@@ -1486,16 +1490,12 @@ function ReadingResult({
   const [view, setView] = useState<ResultView>('overview');
   const [premiumUnlocked, setPremiumUnlocked] = useState(false);
   const [notice, setNotice] = useState('');
-  const tabs = (locale === 'zh' ? resultTabsZh : resultTabs).filter(
-    (tab) => tab.value !== 'ziwei' || Boolean(reading.ziweiChart),
-  );
+  const tabs = locale === 'zh' ? resultTabsZh : resultTabs;
+  const readingKey = Object.values(reading.chart.pillars).join('');
   const completedPhases = new Set(reading.progress?.completed ?? ['past']);
 
   function selectTab(next: ResultView, scrollToPanel = false) {
-    const phase =
-      next === 'method' || next === 'overview' || next === 'ziwei'
-        ? null
-        : next;
+    const phase = next === 'method' || next === 'overview' ? null : next;
     if (phase && !completedPhases.has(phase)) {
       setNotice(
         locale === 'zh'
@@ -1522,11 +1522,7 @@ function ReadingResult({
     const next = tabs[nextIndex];
     selectTab(next.value);
     const nextPhase =
-      next.value === 'method' ||
-      next.value === 'overview' ||
-      next.value === 'ziwei'
-        ? null
-        : next.value;
+      next.value === 'method' || next.value === 'overview' ? null : next.value;
     if (!nextPhase || completedPhases.has(nextPhase)) {
       requestAnimationFrame(() =>
         document.getElementById(`reading-tab-${next.value}`)?.focus(),
@@ -1545,11 +1541,21 @@ function ReadingResult({
           <ArrowLeft className="size-3.5" />{' '}
           {locale === 'zh' ? '重新开始' : 'New reading'}
         </button>
-        {reading.testFixture ? (
-          <span className="rounded-full border border-[#9d3027]/30 bg-[#9d3027]/[0.07] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
-            {locale === 'zh' ? '测试虚构数据' : 'Test fixture data'}
-          </span>
-        ) : null}
+        <div className="flex items-center gap-3">
+          <button
+            className="glow-control inline-flex items-center gap-2 border border-black/12 px-3 py-2 text-[10px] font-semibold tracking-[0.08em] text-black/55 uppercase transition hover:border-[#9d3027]/40 hover:text-[#9d3027]"
+            onClick={() => window.print()}
+            type="button"
+          >
+            <FileDown className="size-3.5" />
+            {locale === 'zh' ? '保存为 PDF' : 'Save as PDF'}
+          </button>
+          {reading.testFixture ? (
+            <span className="rounded-full border border-[#9d3027]/30 bg-[#9d3027]/[0.07] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase">
+              {locale === 'zh' ? '测试虚构数据' : 'Test fixture data'}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <nav
@@ -1713,6 +1719,8 @@ function ReadingResult({
             <LockedLifeArea
               area={reading.interpretation.lifeAreas.relationships!}
               locale={locale}
+              readingKey={readingKey}
+              shareConsent={reading.feedbackConsent === true}
               onUnlock={() => setPremiumUnlocked(true)}
             />
           ) : reading.interpretation.lifeAreas[view as LifeAreaKey] ? (
@@ -1720,6 +1728,8 @@ function ReadingResult({
               area={reading.interpretation.lifeAreas[view as LifeAreaKey]!}
               areaKey={view as LifeAreaKey}
               locale={locale}
+              readingKey={readingKey}
+              shareConsent={reading.feedbackConsent === true}
               showIntro={view !== 'timing'}
             />
           ) : (
@@ -1730,11 +1740,18 @@ function ReadingResult({
           !completedPhases.has('future') ? (
             <PendingSection phase="future" locale={locale} />
           ) : premiumUnlocked ? (
-            <FutureView reading={reading} locale={locale} />
+            <FutureView
+              reading={reading}
+              locale={locale}
+              readingKey={readingKey}
+              shareConsent={reading.feedbackConsent === true}
+            />
           ) : (
             <LockedFutureView
               reading={reading}
               locale={locale}
+              readingKey={readingKey}
+              shareConsent={reading.feedbackConsent === true}
               onUnlock={() => setPremiumUnlocked(true)}
             />
           )
@@ -1742,8 +1759,19 @@ function ReadingResult({
         {view === 'method' ? (
           <MethodView reading={reading} locale={locale} />
         ) : null}
-        {view === 'ziwei' && reading.ziweiChart ? (
-          <ZiweiView chart={reading.ziweiChart} locale={locale} />
+        {view === 'overview' ||
+        view === 'past' ||
+        view === 'method' ||
+        (completedPhases.has(view as ReadingPhase) &&
+          (!(view === 'future' || view === 'relationships') ||
+            premiumUnlocked)) ? (
+          <SectionFeedback
+            key={`${readingKey}:${view}`}
+            locale={locale}
+            readingKey={readingKey}
+            section={view}
+            shareConsent={reading.feedbackConsent === true}
+          />
         ) : null}
       </div>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-black/10 py-6 text-xs">
@@ -1781,10 +1809,563 @@ function ReadingResult({
           {notice}
         </output>
       ) : null}
+      <PrintableReading
+        reading={reading}
+        locale={locale}
+        premiumUnlocked={premiumUnlocked}
+      />
     </div>
   );
 }
 
+type SurveySection = ResultView;
+type SurveyKey = 'clarity' | 'specificity' | 'next_step';
+type SurveyStatus = 'idle' | 'sending' | 'sent' | 'local' | 'failed';
+
+const surveyQuestions: Record<
+  ReadingLocale,
+  Record<SurveyKey, { prompt: string; options: Array<[string, string]> }>
+> = {
+  en: {
+    clarity: {
+      prompt: 'Was this section easy to understand?',
+      options: [
+        ['clear', 'Yes'],
+        ['somewhat_clear', 'Somewhat'],
+        ['unclear', 'Not yet'],
+      ],
+    },
+    specificity: {
+      prompt: 'How personal did it feel?',
+      options: [
+        ['specific', 'Specific'],
+        ['mixed', 'A mix'],
+        ['generic', 'Too generic'],
+      ],
+    },
+    next_step: {
+      prompt: 'What would make it more useful?',
+      options: [
+        ['more_examples', 'More examples'],
+        ['more_reasoning', 'Clearer reasoning'],
+        ['more_timing', 'More timing detail'],
+      ],
+    },
+  },
+  zh: {
+    clarity: {
+      prompt: '这一部分是否容易读懂？',
+      options: [
+        ['clear', '容易理解'],
+        ['somewhat_clear', '部分理解'],
+        ['unclear', '不太明白'],
+      ],
+    },
+    specificity: {
+      prompt: '内容对你来说有多贴近？',
+      options: [
+        ['specific', '比较贴近'],
+        ['mixed', '有些贴近'],
+        ['generic', '太笼统'],
+      ],
+    },
+    next_step: {
+      prompt: '怎样改进会更有帮助？',
+      options: [
+        ['more_examples', '更多具体例子'],
+        ['more_reasoning', '更清楚的推理'],
+        ['more_timing', '更具体的时间线'],
+      ],
+    },
+  },
+};
+
+function SectionFeedback({
+  locale,
+  readingKey,
+  section,
+  shareConsent,
+}: {
+  locale: ReadingLocale;
+  readingKey: string;
+  section: SurveySection;
+  shareConsent: boolean;
+}) {
+  const storageKey = `ming:survey:v1:${readingKey}:${section}`;
+  const [answers, setAnswers] = useState<Partial<Record<SurveyKey, string>>>(
+    {},
+  );
+  const [comment, setComment] = useState('');
+  const [status, setStatus] = useState<SurveyStatus>('idle');
+  const questions = surveyQuestions[locale];
+  const labels =
+    locale === 'zh'
+      ? {
+          title: '帮我们把这一页做得更好',
+          hint: '可选，最多 3 个选择；不需要为了配合解读而勉强选择。',
+          comment: '还希望我们改进什么？（选填）',
+          placeholder: '例如：希望对中年阶段的变化给出更具体的例子。',
+          submit: '提交反馈',
+          localOnly: '已保存在此设备；你未同意分享，因此没有发送。',
+          sending: '正在发送反馈…',
+          sent: '反馈已提交。',
+          failed: '发送失败；反馈仍保存在此设备。',
+          privacy:
+            '若你已同意分享，答案与意见会发送用于改进；请勿填写身份或敏感信息。请求不附带生日、姓名或城市。',
+        }
+      : {
+          title: 'Help us improve this section',
+          hint: 'Optional, up to 3 choices. A miss is useful feedback too.',
+          comment: 'What else should we improve? (optional)',
+          placeholder:
+            'For example: Add more concrete examples for midlife changes.',
+          submit: 'Send feedback',
+          localOnly:
+            'Saved on this device; sharing is off, so nothing was sent.',
+          sending: 'Sending feedback…',
+          sent: 'Feedback submitted.',
+          failed: 'Could not send; your feedback remains on this device.',
+          privacy:
+            'If you opted in, answers and comments are sent to improve the product. Avoid identifying or sensitive details. Birth date, name, and city are not attached.',
+        };
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as {
+        answers?: Partial<Record<SurveyKey, string>>;
+        comment?: string;
+      };
+      queueMicrotask(() => {
+        setAnswers(parsed.answers ?? {});
+        setComment(parsed.comment ?? '');
+      });
+    } catch {
+      // Invalid or unavailable local feedback is non-fatal.
+    }
+  }, [storageKey]);
+
+  function choose(key: SurveyKey, value: string) {
+    setAnswers((current) => ({ ...current, [key]: value }));
+    setStatus('idle');
+  }
+
+  async function submit() {
+    if (!Object.keys(answers).length && !comment.trim()) return;
+    const payload = { answers, comment: comment.trim() };
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch {
+      // Still attempt the explicitly consented send below.
+    }
+    if (!shareConsent) {
+      setStatus('local');
+      return;
+    }
+    setStatus('sending');
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent: true,
+          feedbackType: 'survey',
+          section,
+          answers,
+          comment: payload.comment,
+          locale,
+        }),
+      });
+      if (!response.ok) throw new Error('FEEDBACK_SEND_FAILED');
+      setStatus('sent');
+    } catch {
+      setStatus('failed');
+    }
+  }
+
+  return (
+    <section
+      className="mt-12 border-t border-black/10 pt-7"
+      aria-label={labels.title}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h3 className="font-serif text-2xl">{labels.title}</h3>
+        <p className="text-[10px] text-black/38">{labels.hint}</p>
+      </div>
+      <div className="mt-6 grid gap-5 sm:grid-cols-3">
+        {(
+          Object.entries(questions) as Array<
+            [SurveyKey, (typeof questions)[SurveyKey]]
+          >
+        ).map(([key, question]) => (
+          <fieldset key={key}>
+            <legend className="mb-2 text-xs font-medium text-black/65">
+              {question.prompt}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {question.options.map(([value, label]) => (
+                <button
+                  aria-pressed={answers[key] === value}
+                  className={`glow-control border px-2.5 py-2 text-[10px] transition ${answers[key] === value ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/48 hover:border-black/30'}`}
+                  key={value}
+                  onClick={() => choose(key, value)}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <label className="mt-6 block text-xs font-medium text-black/62">
+        {labels.comment}
+        <textarea
+          className="mt-2 min-h-24 w-full resize-y border border-black/12 bg-white/35 p-3 text-sm leading-6 outline-none transition focus:border-[#9d3027]/50"
+          maxLength={500}
+          onChange={(event) => {
+            setComment(event.target.value);
+            setStatus('idle');
+          }}
+          placeholder={labels.placeholder}
+          value={comment}
+        />
+      </label>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <button
+          className="glow-control border border-[#9d3027]/35 px-4 py-2.5 text-[10px] font-semibold tracking-[0.08em] text-[#9d3027] uppercase transition hover:bg-[#9d3027] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={
+            status === 'sending' ||
+            (!Object.keys(answers).length && !comment.trim())
+          }
+          onClick={submit}
+          type="button"
+        >
+          {labels.submit}
+        </button>
+        <p className="max-w-2xl text-[10px] leading-5 text-black/38">
+          {labels.privacy}
+        </p>
+      </div>
+      {status !== 'idle' ? (
+        <output
+          aria-live="polite"
+          className="mt-3 block text-[11px] text-black/48"
+        >
+          {status === 'sending'
+            ? labels.sending
+            : status === 'sent'
+              ? labels.sent
+              : status === 'failed'
+                ? labels.failed
+                : labels.localOnly}
+        </output>
+      ) : null}
+    </section>
+  );
+}
+
+function PredictionRating({
+  claim,
+  locale,
+  readingKey,
+  section,
+  shareConsent,
+}: {
+  claim: string;
+  locale: ReadingLocale;
+  readingKey: string;
+  section: string;
+  shareConsent: boolean;
+}) {
+  const [choice, setChoice] = useState<FeedbackChoice | null>(null);
+  const [status, setStatus] = useState<SurveyStatus>('idle');
+  const claimId = claimFingerprint(section, claim);
+  const storageKey = `ming:prediction:v1:${readingKey}:${claimId}`;
+  const options: Array<[FeedbackChoice, string]> =
+    locale === 'zh'
+      ? [
+          ['Match', '符合'],
+          ['Partial', '部分符合'],
+          ['Miss', '不符合'],
+          ['CannotJudge', '暂无法判断'],
+        ]
+      : [
+          ['Match', 'Match'],
+          ['Partial', 'Partial'],
+          ['Miss', 'Miss'],
+          ['CannotJudge', 'Cannot judge'],
+        ];
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(
+        storageKey,
+      ) as FeedbackChoice | null;
+      if (
+        saved &&
+        ['Match', 'Partial', 'Miss', 'CannotJudge'].includes(saved)
+      ) {
+        queueMicrotask(() => setChoice(saved));
+      }
+    } catch {
+      // Ignore unavailable local storage.
+    }
+  }, [storageKey]);
+
+  async function rate(next: FeedbackChoice) {
+    setChoice(next);
+    setStatus('idle');
+    try {
+      window.localStorage.setItem(storageKey, next);
+    } catch {
+      // Rating remains available in component state.
+    }
+    if (!shareConsent) {
+      setStatus('local');
+      return;
+    }
+    setStatus('sending');
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent: true,
+          feedbackType: 'prediction',
+          period: section,
+          section,
+          claimId: await sha256Fingerprint(`${section}|${claim}`),
+          calibrationVersion: 2,
+          choice: next,
+          locale,
+        }),
+      });
+      if (!response.ok) throw new Error('FEEDBACK_SEND_FAILED');
+      setStatus('sent');
+    } catch {
+      setStatus('failed');
+    }
+  }
+
+  return (
+    <div
+      className="mt-4 flex flex-wrap items-center gap-2"
+      aria-label={
+        locale === 'zh'
+          ? '这条推测与你的体验有多贴近？'
+          : 'How closely does this fit your experience?'
+      }
+    >
+      <span className="mr-1 w-full text-[10px] text-black/40">
+        {locale === 'zh'
+          ? '可选：这条推测和你的体验有多贴近？'
+          : 'Optional: how closely does this fit your experience?'}
+      </span>
+      {options.map(([value, label]) => (
+        <button
+          aria-pressed={choice === value}
+          className={`glow-control border px-2.5 py-2 text-[10px] transition ${choice === value ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/45 hover:border-black/30'}`}
+          key={value}
+          onClick={() => rate(value)}
+          type="button"
+        >
+          {label}
+        </button>
+      ))}
+      {status !== 'idle' ? (
+        <span className="text-[10px] text-black/38" aria-live="polite">
+          {status === 'sending'
+            ? locale === 'zh'
+              ? '提交中…'
+              : 'Sending…'
+            : status === 'sent'
+              ? locale === 'zh'
+                ? '已提交'
+                : 'Submitted'
+              : status === 'failed'
+                ? locale === 'zh'
+                  ? '提交失败'
+                  : 'Could not send'
+                : locale === 'zh'
+                  ? '仅保存在本设备'
+                  : 'Saved on this device only'}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function claimFingerprint(section: string, claim: string) {
+  // A synchronous stable fingerprint for local keys; the server receives only
+  // a SHA-256 fingerprint in the existing retrospective-feedback contract.
+  const input = `${section}\u0000${claim}`;
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+async function sha256Fingerprint(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+}
+
+function PrintableReading({
+  reading,
+  locale,
+  premiumUnlocked,
+}: {
+  reading: Reading;
+  locale: ReadingLocale;
+  premiumUnlocked: boolean;
+}) {
+  const isZh = locale === 'zh';
+  const areas: LifeAreaKey[] = [
+    'character',
+    'career',
+    'relationships',
+    'timing',
+  ];
+  const areaTitles: Record<LifeAreaKey, string> = isZh
+    ? {
+        character: '性格',
+        career: '事业',
+        relationships: '关系',
+        timing: '时机',
+      }
+    : {
+        character: 'Character',
+        career: 'Career',
+        relationships: 'Relationships',
+        timing: 'Timing',
+      };
+  return (
+    <article className="reading-printable" aria-hidden="true">
+      <header>
+        <p className="print-kicker">
+          MING · {isZh ? '个人解读' : 'PERSONAL READING'}
+        </p>
+        <h1>{isZh ? '你的命理解读' : 'Your reading'}</h1>
+        <p>
+          {reading.resolvedPlace.label} · {reading.resolvedPlace.ianaTimeZone}
+        </p>
+        <p>
+          {isZh ? '年 · 月 · 日 · 时' : 'Year · Month · Day · Hour'}:{' '}
+          {reading.chart.pillars.year} · {reading.chart.pillars.month} ·{' '}
+          {reading.chart.pillars.day} · {reading.chart.pillars.hour ?? '—'}
+        </p>
+      </header>
+      <section className="print-section">
+        <h2>{isZh ? '总览' : 'Overview'}</h2>
+        <p>{reading.interpretation.summary}</p>
+        <p>{reading.interpretation.pastOverview.characterSentence}</p>
+        <p>{reading.interpretation.pastOverview.trajectorySentence}</p>
+        {reading.interpretation.insights.map((item) => (
+          <div className="print-item" key={item.title}>
+            <h3>{item.title}</h3>
+            <p>{item.interpretation}</p>
+            {item.basis ? <p className="print-muted">{item.basis}</p> : null}
+          </div>
+        ))}
+      </section>
+      <section className="print-section">
+        <h2>{isZh ? '回望过去' : 'Looking back'}</h2>
+        {reading.interpretation.pastPatterns.map((item) => (
+          <div className="print-item" key={`${item.period}:${item.headline}`}>
+            <h3>
+              {item.period} · {item.headline}
+            </h3>
+            {item.checkableEvent ? (
+              <p>
+                <strong>{item.checkableEvent}</strong>
+              </p>
+            ) : null}
+            <p>{item.narrative}</p>
+            {item.principle ? (
+              <p className="print-muted">{item.principle}</p>
+            ) : null}
+          </div>
+        ))}
+      </section>
+      {premiumUnlocked && reading.interpretation.futureForecasts?.length ? (
+        <section className="print-section">
+          <h2>{isZh ? '展望未来' : 'Looking ahead'}</h2>
+          <p>{reading.interpretation.futureOverview}</p>
+          {reading.interpretation.futureForecasts.map((item) => (
+            <div className="print-item" key={item.year}>
+              <h3>
+                {item.year} · {item.theme}
+              </h3>
+              <p>
+                {isZh ? '机会' : 'Opportunity'}: {item.opportunity}
+              </p>
+              <p>
+                {isZh ? '压力' : 'Pressure'}: {item.pressure}
+              </p>
+              <p>{item.riskScenario}</p>
+              <p>
+                {isZh ? '建议' : 'Actions'}: {item.actions.join(' · ')}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : null}
+      {areas.map((key) => {
+        const area = reading.interpretation.lifeAreas[key];
+        if (!area || (key === 'relationships' && !premiumUnlocked)) return null;
+        return (
+          <section className="print-section" key={key}>
+            <h2>{areaTitles[key]}</h2>
+            <h3>{area.headline}</h3>
+            <p>{area.narrative}</p>
+            <p>
+              {isZh ? '优势' : 'Strengths'}:{' '}
+              {(area.strengths ?? area.signals ?? []).join(' · ')}
+            </p>
+            <p>
+              {isZh ? '摩擦点' : 'Friction'}:{' '}
+              {(area.frictions ?? []).join(' · ')}
+            </p>
+            <p>
+              {isZh ? '可以尝试' : 'Actions'}:{' '}
+              {(area.actions ?? []).join(' · ')}
+            </p>
+            {area.basis ? <p className="print-muted">{area.basis}</p> : null}
+          </section>
+        );
+      })}
+      <footer className="print-footer">
+        {reading.interpretation.reflectionQuestions.length ? (
+          <div>
+            <strong>
+              {isZh ? '带着这些问题继续想一想' : 'Questions to reflect on'}:
+            </strong>
+            <ul>
+              {reading.interpretation.reflectionQuestions.map((question) => (
+                <li key={question}>{question}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {reading.interpretation.limitations}
+        {isZh
+          ? ' 传统命理是一种文化性反思工具，不构成事实保证或专业建议。'
+          : ' Traditional systems are reflective cultural lenses, not guarantees or professional advice.'}
+      </footer>
+    </article>
+  );
+}
+
+// Kept as a calculation-review reference; the customer-facing tab was removed
+// so Zi Wei is delivered only as a synthesized, plain-language reading.
+// oxlint-disable-next-line no-unused-vars
 function ZiweiView({
   chart,
   locale,
@@ -1794,8 +2375,18 @@ function ZiweiView({
 }) {
   const isZh = locale === 'zh';
   const palaceOrder = [
-    '命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄',
-    '迁移', '交友', '官禄', '田宅', '福德', '父母',
+    '命宫',
+    '兄弟',
+    '夫妻',
+    '子女',
+    '财帛',
+    '疾厄',
+    '迁移',
+    '交友',
+    '官禄',
+    '田宅',
+    '福德',
+    '父母',
   ];
   const englishPalaceNames: Record<string, string> = {
     命宫: 'Life',
@@ -1813,7 +2404,13 @@ function ZiweiView({
   };
   const elementNames = isZh
     ? { water: '水', wood: '木', metal: '金', earth: '土', fire: '火' }
-    : { water: 'Water', wood: 'Wood', metal: 'Metal', earth: 'Earth', fire: 'Fire' };
+    : {
+        water: 'Water',
+        wood: 'Wood',
+        metal: 'Metal',
+        earth: 'Earth',
+        fire: 'Fire',
+      };
   const lunarDate = `${chart.lunarDate.isLeapMonth ? (isZh ? '闰' : 'Leap ') : ''}${chart.lunarDate.month}${isZh ? '月' : 'th lunar month'} · ${chart.lunarDate.day}${isZh ? '日' : 'th day'}`;
 
   return (
@@ -1833,7 +2430,9 @@ function ZiweiView({
       {!chart.complete ? (
         <div className="mt-8 border border-[#9d3027]/20 bg-[#9d3027]/[0.035] p-6">
           <p className="font-serif text-2xl">
-            {isZh ? '出生时辰未知，暂不排完整盘。' : 'Birth time needed for a full chart.'}
+            {isZh
+              ? '出生时辰未知，暂不排完整盘。'
+              : 'Birth time needed for a full chart.'}
           </p>
           <p className="mt-3 text-sm leading-6 text-black/55">
             {isZh
@@ -1854,9 +2453,15 @@ function ZiweiView({
                 label: isZh ? '五行局' : 'Five-element bureau',
                 value: `${elementNames[chart.bureau.element]}${chart.bureau.number}${isZh ? '局' : ''}`,
               },
-              { label: isZh ? '出生年干支' : 'Birth-year cycle', value: chart.yearGanzhi },
+              {
+                label: isZh ? '出生年干支' : 'Birth-year cycle',
+                value: chart.yearGanzhi,
+              },
             ].map((item) => (
-              <div className="border border-black/10 bg-white/35 p-4" key={item.label}>
+              <div
+                className="border border-black/10 bg-white/35 p-4"
+                key={item.label}
+              >
                 <p className="text-[9px] tracking-[0.12em] text-black/35 uppercase">
                   {item.label}
                 </p>
@@ -1876,19 +2481,30 @@ function ZiweiView({
                         {isZh ? name : englishPalaceNames[name]}
                         {palace.isShen ? (isZh ? ' · 身宫' : ' · Body') : ''}
                       </p>
-                      <p className="mt-1 font-serif text-xl">{palace.ganzhi} · {palace.branch}</p>
+                      <p className="mt-1 font-serif text-xl">
+                        {palace.ganzhi} · {palace.branch}
+                      </p>
                     </div>
                     <span className="text-[9px] text-black/35">
                       {isZh ? '地支' : 'Branch'} {palace.branch}
                     </span>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {palace.stars.length ? palace.stars.map((star) => (
-                      <span className="border border-black/10 px-2.5 py-1 text-xs text-black/65" key={star}>
-                        {star}
+                    {palace.stars.length ? (
+                      palace.stars.map((star) => (
+                        <span
+                          className="border border-black/10 px-2.5 py-1 text-xs text-black/65"
+                          key={star}
+                        >
+                          {star}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-black/35">
+                        {isZh
+                          ? '本实验范围内未列主星'
+                          : 'No included principal star'}
                       </span>
-                    )) : (
-                      <span className="text-xs text-black/35">{isZh ? '本实验范围内未列主星' : 'No included principal star'}</span>
                     )}
                   </div>
                   {palace.transformations.length ? (
@@ -1950,10 +2566,14 @@ function PendingSection({
 function LockedLifeArea({
   area,
   locale,
+  readingKey,
+  shareConsent,
   onUnlock,
 }: {
   area: LifeArea;
   locale: ReadingLocale;
+  readingKey: string;
+  shareConsent: boolean;
   onUnlock: () => void;
 }) {
   const [code, setCode] = useState('');
@@ -1974,7 +2594,13 @@ function LockedLifeArea({
         className="pointer-events-none select-none p-8 blur-[7px]"
         aria-hidden="true"
       >
-        <LifeAreaView area={area} areaKey="relationships" locale={locale} />
+        <LifeAreaView
+          area={area}
+          areaKey="relationships"
+          locale={locale}
+          readingKey={readingKey}
+          shareConsent={shareConsent}
+        />
       </div>
       <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/72 p-6 backdrop-blur-[2px]">
         <div className="w-full max-w-sm border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
@@ -2123,7 +2749,9 @@ function PastView({
 }) {
   const [matches, setMatches] = useState<Record<number, FeedbackChoice>>({});
   const [savedFeedback, setSavedFeedback] = useState(false);
-  const [legacyFeedback, setLegacyFeedback] = useState<Record<string, FeedbackChoice>>({});
+  const [legacyFeedback, setLegacyFeedback] = useState<
+    Record<string, FeedbackChoice>
+  >({});
   const [submissionStatus, setSubmissionStatus] = useState<
     'idle' | 'sending' | 'sent' | 'failed'
   >('idle');
@@ -2132,7 +2760,6 @@ function PastView({
   const legacyFeedbackKey = `ming:feedback:v1:${Object.values(reading.chart.pillars).join('')}`;
 
   useEffect(() => {
-    if (!reading.feedbackConsent) return;
     try {
       const saved = window.localStorage.getItem(feedbackKey);
       const parsed = saved
@@ -2170,7 +2797,6 @@ function PastView({
     choice: FeedbackChoice,
   ) {
     setMatches((current) => ({ ...current, [index]: choice }));
-    if (!reading.feedbackConsent) return;
     try {
       const saved = window.localStorage.getItem(feedbackKey);
       const current = saved
@@ -2182,6 +2808,7 @@ function PastView({
     } catch {
       // A blocked local store should not prevent an explicitly consented send.
     }
+    if (!reading.feedbackConsent) return;
     const sequence = ++submissionSequence.current;
     setSubmissionStatus('sending');
     void (async () => {
@@ -2196,6 +2823,8 @@ function PastView({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             consent: true,
+            feedbackType: 'prediction',
+            section: 'past',
             period,
             claimId,
             calibrationVersion: 2,
@@ -2204,9 +2833,11 @@ function PastView({
           }),
         });
         if (!response.ok) throw new Error('FEEDBACK_SEND_FAILED');
-        if (sequence === submissionSequence.current) setSubmissionStatus('sent');
+        if (sequence === submissionSequence.current)
+          setSubmissionStatus('sent');
       } catch {
-        if (sequence === submissionSequence.current) setSubmissionStatus('failed');
+        if (sequence === submissionSequence.current)
+          setSubmissionStatus('failed');
       }
     })();
   }
@@ -2216,11 +2847,13 @@ function PastView({
     const records = reading.interpretation.pastPatterns.flatMap(
       (pattern, index) =>
         matches[index]
-          ? [{
-              period: pattern.period,
-              claim: pattern.checkableEvent || pattern.headline,
-              choice: matches[index],
-            }]
+          ? [
+              {
+                period: pattern.period,
+                claim: pattern.checkableEvent || pattern.headline,
+                choice: matches[index],
+              },
+            ]
           : [],
     );
     const blob = new Blob([JSON.stringify({ version: 2, records }, null, 2)], {
@@ -2313,42 +2946,46 @@ function PastView({
                   }
                 >
                   <span className="mr-1 text-[10px] text-black/42">
-                    {locale === 'zh' ? '只评价上方这一条' : 'Rate only this claim'}
+                    {locale === 'zh'
+                      ? '只评价上方这一条'
+                      : 'Rate only this claim'}
                   </span>
-                  {(['Match', 'Partial', 'Miss', 'CannotJudge'] as const).map((choice) => (
-                    <button
-                      aria-pressed={matches[patternIndex] === choice}
-                      className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
-                      key={choice}
-                      onClick={() =>
-                        recordFeedback(
-                          pattern.period,
-                          pattern.checkableEvent!,
-                          patternIndex,
-                          choice,
-                        )
-                      }
-                      type="button"
-                    >
-                      {locale === 'zh'
-                        ? choice === 'Match'
-                          ? '符合'
-                          : choice === 'Partial'
-                            ? '部分符合'
-                            : choice === 'Miss'
-                              ? '不符合'
-                              : '无法判断'
-                        : choice}
-                    </button>
-                  ))}
+                  {(['Match', 'Partial', 'Miss', 'CannotJudge'] as const).map(
+                    (choice) => (
+                      <button
+                        aria-pressed={matches[patternIndex] === choice}
+                        className={`glow-control border px-3 py-2 text-[10px] font-semibold tracking-[0.08em] uppercase transition ${matches[patternIndex] === choice ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/12 text-black/38 hover:border-black/30'}`}
+                        key={choice}
+                        onClick={() =>
+                          recordFeedback(
+                            pattern.period,
+                            pattern.checkableEvent!,
+                            patternIndex,
+                            choice,
+                          )
+                        }
+                        type="button"
+                      >
+                        {locale === 'zh'
+                          ? choice === 'Match'
+                            ? '符合'
+                            : choice === 'Partial'
+                              ? '部分符合'
+                              : choice === 'Miss'
+                                ? '不符合'
+                                : '无法判断'
+                          : choice}
+                      </button>
+                    ),
+                  )}
                   <span className="w-full text-[10px] leading-4 text-black/35">
                     {reading.feedbackConsent
                       ? locale === 'zh'
                         ? '点击后会立即提交；反馈内容仅含年份、假设指纹和评分。'
                         : 'Clicking sends the year, claim fingerprint, and rating immediately.'
                       : locale === 'zh'
-                        ? '未同意分享：评分只在当前页面显示。'
-                        : 'Sharing is off: your rating stays on this page.'}
+                        ? '未同意分享：评分仅保存在本设备，不会发送。'
+                        : 'Sharing is off: ratings stay on this device and are not sent.'}
                   </span>
                 </div>
               ) : (
@@ -2408,8 +3045,8 @@ function PastView({
             ? '你已同意分享：点击评分后，会立即发送年份、该条假设的指纹及评分。反馈请求不含生日、姓名或城市；云服务仍会处理 IP 等请求元数据。'
             : 'You opted to share feedback. Rating sends the year, a fingerprint of this claim, and your choice immediately. The feedback request excludes birth date, name, and city; the service still processes IP and other request metadata.'
           : locale === 'zh'
-            ? '你未同意分享反馈，因此这些标记只在当前页面显示，不会保存或发送。'
-            : 'Feedback sharing is off. Marks stay on this page only; they are not saved or sent.'}
+            ? '你未同意分享反馈，因此这些评分只保存在本设备，不会发送。'
+            : 'Feedback sharing is off. Ratings stay on this device and are not sent.'}
       </p>
       {reading.feedbackConsent && savedFeedback ? (
         <output className="mt-2 block text-[11px] leading-5 text-black/45">
@@ -2464,10 +3101,14 @@ function PastView({
 function LockedFutureView({
   reading,
   locale,
+  readingKey,
+  shareConsent,
   onUnlock,
 }: {
   reading: Reading;
   locale: ReadingLocale;
+  readingKey: string;
+  shareConsent: boolean;
   onUnlock: () => void;
 }) {
   const [code, setCode] = useState('');
@@ -2492,7 +3133,12 @@ function LockedFutureView({
         className="pointer-events-none max-h-[620px] select-none overflow-hidden p-8 blur-[7px]"
         aria-hidden="true"
       >
-        <FutureView reading={reading} locale={locale} />
+        <FutureView
+          reading={reading}
+          locale={locale}
+          readingKey={readingKey}
+          shareConsent={shareConsent}
+        />
       </div>
       <div className="absolute inset-0 grid place-items-center bg-[#f2efe8]/76 p-6 backdrop-blur-[2px]">
         <div className="w-full max-w-md border border-black/12 bg-[#f2efe8] p-7 text-center shadow-[0_24px_70px_rgba(43,34,24,0.12)]">
@@ -2551,9 +3197,13 @@ function LockedFutureView({
 function FutureView({
   reading,
   locale,
+  readingKey,
+  shareConsent,
 }: {
   reading: Reading;
   locale: ReadingLocale;
+  readingKey: string;
+  shareConsent: boolean;
 }) {
   const forecasts = reading.interpretation.futureForecasts ?? [];
   return (
@@ -2671,6 +3321,13 @@ function FutureView({
                   items={forecast.avoid}
                 />
               </div>
+              <PredictionRating
+                claim={`${forecast.year}: ${forecast.theme}. ${forecast.opportunity} ${forecast.pressure}`}
+                locale={locale}
+                readingKey={readingKey}
+                section="future"
+                shareConsent={shareConsent}
+              />
               {forecast.basis ? (
                 <details className="mt-6 border-t border-black/8 pt-4 text-xs leading-5 text-black/42">
                   <summary className="cursor-pointer">
@@ -2815,11 +3472,15 @@ function LifeAreaView({
   area,
   areaKey,
   locale,
+  readingKey,
+  shareConsent,
   showIntro = true,
 }: {
   area: LifeArea;
   areaKey: LifeAreaKey;
   locale: ReadingLocale;
+  readingKey: string;
+  shareConsent: boolean;
   showIntro?: boolean;
 }) {
   const strengths = area.strengths ?? area.signals?.slice(0, 2) ?? [];
@@ -2842,6 +3503,13 @@ function LifeAreaView({
       <p className="mt-8 font-serif text-2xl leading-9 text-black/78">
         {area.narrative}
       </p>
+      <PredictionRating
+        claim={area.narrative}
+        locale={locale}
+        readingKey={readingKey}
+        section={areaKey}
+        shareConsent={shareConsent}
+      />
       <div className="mt-10 grid gap-px bg-black/10 sm:grid-cols-2">
         <div className="bg-[#f2efe8] p-6">
           <p className="text-[9px] font-semibold tracking-[0.14em] text-emerald-800 uppercase">
@@ -2950,8 +3618,8 @@ function MethodView({
         </p>
         <p className="mt-2">
           {locale === 'zh'
-            ? '本次八字解读使用节气、真太阳时、藏干、十神和流年关系。另提供独立的紫微斗数盘面实验：只展示按指定规则计算的盘面事实，不参与八字 AI 解读，也不构成准确性验证。'
-            : 'The BaZi reading uses solar terms, apparent solar time, hidden stems, Ten Gods, and annual relations. A separate Zi Wei chart experiment is also available; it shows calculated chart facts only and does not feed the BaZi AI interpretation or validate predictive accuracy.'}
+            ? '本次解读先由程序分别计算八字与紫微斗数盘面，再把可用的线索交由 AI 综合解释。出生时辰不明时，不猜测紫微命宫等依赖时辰的内容；盘面之间若有不同倾向，也不会强行说成一致。'
+            : 'The app calculates BaZi and Zi Wei charts separately, then asks AI to synthesize supported clues into one practical reading. If birth time is unknown, hour-dependent Zi Wei placements are omitted; differing chart signals are not forced into agreement.'}
         </p>
       </div>
 
@@ -3018,13 +3686,17 @@ function MethodView({
           <div className="border border-black/10 p-4 text-black/46">
             <p className="font-semibold text-black/60">
               {locale === 'zh'
-                ? '紫微斗数 · 实验盘面已计算'
-                : 'Zi Wei Dou Shu · experimental chart calculated'}
+                ? '紫微斗数 · 作为综合解读的辅助线索'
+                : 'Zi Wei Dou Shu · an integrated supporting lens'}
             </p>
             <p className="mt-1">
               {locale === 'zh'
-                ? '可在单独的紫微斗数页面查看盘面；本版尚未生成紫微 AI 解读。'
-                : 'View the chart on its separate Zi Wei page; this version does not generate an AI Zi Wei interpretation.'}
+                ? reading.ziweiChart?.complete
+                  ? '紫微线索已参与整体解读，不另设术语密集的分析页。'
+                  : '因出生时辰不足，时辰相关的紫微线索不会用于推断。'
+                : reading.ziweiChart?.complete
+                  ? 'Supported Zi Wei clues are part of the overall interpretation; no separate technical report is shown.'
+                  : 'Without a known birth hour, hour-dependent Zi Wei clues are excluded.'}
             </p>
           </div>
         </div>
