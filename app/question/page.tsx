@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
-import { TurnstileField } from '@/components/turnstile-field';
 import {
   castCoinLine,
   deriveCoinReading,
@@ -201,8 +195,6 @@ export default function QuestionPage() {
   const [throws, setThrows] = useState<CoinLine[]>([]);
   const [shaking, setShaking] = useState(false);
   const [castContext, setCastContext] = useState<CastContext | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileGeneration, setTurnstileGeneration] = useState(0);
   const [pending, setPending] = useState(false);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [error, setError] = useState('');
@@ -210,7 +202,6 @@ export default function QuestionPage() {
   const answerRef = useRef<HTMLElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const shakeLockRef = useRef(false);
-  const onToken = useCallback((token: string) => setTurnstileToken(token), []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -318,7 +309,6 @@ export default function QuestionPage() {
           timeframe,
           throws,
           locale,
-          turnstileToken,
           castContext,
         }),
       });
@@ -334,7 +324,7 @@ export default function QuestionPage() {
           ? ((
               {
                 400: '请检查问题和六爻是否完整。',
-                403: '请完成人机验证。',
+                403: '请求未获授权，请刷新页面后重试。',
                 429: '请求过于频繁，请稍后再试。',
                 502: 'AI 暂时未能完成解读，请重试。',
                 503: '解读服务暂不可用。',
@@ -354,8 +344,6 @@ export default function QuestionPage() {
       );
     } finally {
       setPending(false);
-      setTurnstileToken('');
-      setTurnstileGeneration((current) => current + 1);
     }
   }
 
@@ -639,12 +627,6 @@ export default function QuestionPage() {
             </ol>
             {cast ? (
               <div className="mt-9">
-                <TurnstileField
-                  action="iching"
-                  locale={locale}
-                  onToken={onToken}
-                  resetKey={turnstileGeneration}
-                />
                 <button
                   ref={submitRef}
                   className="mt-6 min-h-12 bg-[#9d3027] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase disabled:opacity-50"

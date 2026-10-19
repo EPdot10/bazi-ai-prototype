@@ -6,13 +6,11 @@ import {
   rateLimitsEnabled,
   withinRateLimit,
 } from '@/lib/request-guard';
-import { verifyTurnstile } from '@/lib/turnstile';
 
 interface FollowupBody {
   question?: unknown;
   context?: unknown;
   locale?: unknown;
-  turnstileToken?: unknown;
 }
 
 const maxQuestionLength = 240;
@@ -69,35 +67,6 @@ export async function POST(request: Request) {
       },
       id,
       400,
-    );
-  }
-
-  const hostnames = new Set(
-    (process.env.TURNSTILE_HOSTNAMES ?? '')
-      .split(',')
-      .map((hostname) => hostname.trim())
-      .filter(Boolean),
-  );
-  if (
-    process.env.NODE_ENV === 'production' &&
-    (!process.env.TURNSTILE_SECRET_KEY || hostnames.size === 0)
-  ) {
-    return jsonWithRequestId(
-      { error: 'Bot protection is not configured.', requestId: id },
-      id,
-      503,
-    );
-  }
-  const verification = await verifyTurnstile(
-    typeof body.turnstileToken === 'string' ? body.turnstileToken : undefined,
-    request,
-    { expectedAction: 'reading-followup', expectedHostnames: hostnames },
-  );
-  if (!verification.ok) {
-    return jsonWithRequestId(
-      { error: 'Bot verification failed. Please complete it and try again.', requestId: id },
-      id,
-      403,
     );
   }
 

@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 
 import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
-import { TurnstileField } from '@/components/turnstile-field';
 import { ReadingFollowUp } from '@/components/reading-follow-up';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -174,7 +173,6 @@ interface ReadingRequestPayload {
   name?: string;
   gender: Gender;
   locale: ReadingLocale;
-  turnstileToken?: string;
   shareForImprovement: boolean;
 }
 
@@ -483,7 +481,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resolvingPlace, setResolvingPlace] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
   const [shareForImprovement, setShareForImprovement] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
   const generationRef = useRef(0);
@@ -565,7 +562,6 @@ export default function Home() {
     setDirectInput(false);
     setDateInteracted(false);
     setTimeInteracted(false);
-    setTurnstileToken('');
     setShareForImprovement(false);
     setError('');
   }
@@ -608,10 +604,6 @@ export default function Home() {
       body: JSON.stringify({
         ...requestPayload,
         phase,
-        // Turnstile is verified only for the first request because tokens are
-        // single-use. Continuation phases are still rate-limited server-side.
-        turnstileToken:
-          phase === 'past' ? requestPayload.turnstileToken : undefined,
       }),
     });
     const payload = (await response.json()) as PhaseResponse & {
@@ -696,7 +688,6 @@ export default function Home() {
       name: name.trim() || undefined,
       gender,
       locale,
-      turnstileToken,
       shareForImprovement,
     };
     setLoading(true);
@@ -1171,10 +1162,6 @@ export default function Home() {
                     <p className="text-[11px] leading-5 text-black/38">
                       {copy.provider}
                     </p>
-                    <TurnstileField
-                      locale={locale}
-                      onToken={setTurnstileToken}
-                    />
                   </div>
 
                   <div className="sticky bottom-0 -mx-6 mt-8 grid grid-cols-[0.7fr_1.3fr] gap-3 border-t border-black/10 bg-[#f2efe8]/95 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">

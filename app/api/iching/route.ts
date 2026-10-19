@@ -6,7 +6,6 @@ import {
   requestId,
   withinRateLimit,
 } from '@/lib/request-guard';
-import { verifyTurnstile } from '@/lib/turnstile';
 
 interface IChingRequest {
   question?: string;
@@ -14,7 +13,6 @@ interface IChingRequest {
   timeframe?: 'month' | 'quarter' | 'year' | 'open';
   throws?: unknown;
   castContext?: unknown;
-  turnstileToken?: string;
 }
 
 function textField(value: unknown) {
@@ -27,16 +25,6 @@ function textField(value: unknown) {
 
 export async function POST(request: Request) {
   const id = requestId();
-  if (
-    process.env.NODE_ENV === 'production' &&
-    (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_HOSTNAMES)
-  ) {
-    return jsonWithRequestId(
-      { error: 'Bot protection is not configured.' },
-      id,
-      503,
-    );
-  }
   try {
     const input = await readJsonBody<IChingRequest>(request, 4_096);
     const question = input.question?.trim();
@@ -49,9 +37,7 @@ export async function POST(request: Request) {
       !['en', 'zh'].includes(input.locale ?? 'en') ||
       !['month', 'quarter', 'year', 'open'].includes(
         input.timeframe ?? 'quarter',
-      ) ||
-      (input.turnstileToken !== undefined &&
-        typeof input.turnstileToken !== 'string')
+      )
     ) {
       return jsonWithRequestId(
         { error: 'Please enter a specific question and cast six lines.' },
@@ -69,24 +55,6 @@ export async function POST(request: Request) {
         429,
       );
     }
-    const expectedHostnames = new Set(
-      (process.env.TURNSTILE_HOSTNAMES ?? '')
-        .split(',')
-        .map((hostname) => hostname.trim())
-        .filter(Boolean),
-    );
-    const turnstile = await verifyTurnstile(input.turnstileToken, request, {
-      expectedAction: 'iching',
-      expectedHostnames,
-    });
-    if (!turnstile.ok) {
-      return jsonWithRequestId(
-        { error: 'Please complete the bot-protection check.' },
-        id,
-        403,
-      );
-    }
-
     const cast = deriveCoinReading(input.throws, input.castContext);
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {

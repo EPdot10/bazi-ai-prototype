@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
-import { TurnstileField } from '@/components/turnstile-field';
 
 type Locale = 'en' | 'zh';
 
@@ -12,7 +11,6 @@ interface FollowUpAnswer {
 }
 
 const maxQuestionLength = 240;
-const hasTurnstile = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function ReadingFollowUp({
   locale,
@@ -24,8 +22,6 @@ export function ReadingFollowUp({
   const isZh = locale === 'zh';
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<FollowUpAnswer | null>(null);
-  const [token, setToken] = useState('');
-  const [resetKey, setResetKey] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,8 +30,7 @@ export function ReadingFollowUp({
     if (
       pending ||
       trimmedQuestion.length < 4 ||
-      trimmedQuestion.length > maxQuestionLength ||
-      (hasTurnstile && !token)
+      trimmedQuestion.length > maxQuestionLength
     )
       return;
 
@@ -50,7 +45,6 @@ export function ReadingFollowUp({
           question: trimmedQuestion,
           context,
           locale,
-          turnstileToken: token,
         }),
       });
       const payload = (await response.json()) as {
@@ -79,8 +73,6 @@ export function ReadingFollowUp({
       );
     } finally {
       setPending(false);
-      setToken('');
-      setResetKey((value) => value + 1);
     }
   }
 
@@ -130,20 +122,11 @@ export function ReadingFollowUp({
         </span>
       </div>
 
-      <div className="mt-4">
-        <TurnstileField
-          action="reading-followup"
-          locale={locale}
-          onToken={setToken}
-          resetKey={resetKey}
-        />
-      </div>
       <button
         className="glow-control mt-5 inline-flex min-h-12 items-center justify-center gap-3 bg-[#1b1a17] px-5 text-xs font-semibold tracking-[0.1em] text-white uppercase transition-colors hover:bg-[#9d3027] disabled:cursor-not-allowed disabled:opacity-45"
         disabled={
           pending ||
-          question.trim().length < 4 ||
-          (hasTurnstile && !token)
+          question.trim().length < 4
         }
         onClick={submit}
         type="button"

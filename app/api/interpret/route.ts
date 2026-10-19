@@ -14,7 +14,6 @@ import {
   rateLimitsEnabled,
   withinRateLimit,
 } from "@/lib/request-guard";
-import { verifyTurnstile } from "@/lib/turnstile";
 
 const validConfidence = new Set<BirthTimeConfidence>([
   "exact",
@@ -1006,7 +1005,6 @@ export async function POST(request: Request) {
       locale?: "en" | "zh";
       topic?: "overview" | "career" | "relationships" | "year-ahead";
       phase?: InterpretationPhase;
-      turnstileToken?: string;
       shareForImprovement?: boolean;
     }>(request);
 
@@ -1062,21 +1060,6 @@ export async function POST(request: Request) {
         { error: "Please keep the city name under 100 characters." },
         id,
         400,
-      );
-    }
-
-    // Turnstile tokens are single-use. Verify the initial request and let the
-    // short-lived continuation phases rely on the same IP rate limit instead
-    // of rejecting every background section after the first page.
-    const turnstile =
-      phase && phase !== "past"
-        ? { ok: true }
-        : await verifyTurnstile(body.turnstileToken, request);
-    if (!turnstile.ok) {
-      return jsonWithRequestId(
-        { error: "Please complete the bot-protection check and try again." },
-        id,
-        403,
       );
     }
 
