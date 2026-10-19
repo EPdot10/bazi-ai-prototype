@@ -5,6 +5,46 @@ import {
   rateLimitsEnabled,
   withinRateLimit,
 } from '@/lib/request-guard';
+import { env } from 'cloudflare:workers';
+
+type FeedbackRecord = {
+  feedbackType: 'prediction' | 'survey';
+  section: string;
+  locale: 'en' | 'zh';
+  period?: string;
+  claimId?: string | null;
+  calibrationVersion?: number;
+  choice?: string;
+  answers?: Record<string, unknown>;
+  comment?: string | null;
+};
+
+async function saveFeedback(id: string, record: FeedbackRecord) {
+  const database = (env as unknown as { FEEDBACK_DB?: D1Database }).FEEDBACK_DB;
+  if (!database) throw new Error('FEEDBACK_DB_NOT_CONFIGURED');
+
+  await database
+    .prepare(
+      `INSERT INTO feedback_submissions (
+        id, request_id, feedback_type, section, period, claim_id,
+        calibration_version, choice, answers_json, comment, locale
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      id,
+      record.feedbackType,
+      record.section,
+      record.period ?? null,
+      record.claimId ?? null,
+      record.calibrationVersion ?? null,
+      record.choice ?? null,
+      record.answers ? JSON.stringify(record.answers) : null,
+      record.comment?.trim() || null,
+      record.locale,
+    )
+    .run();
+}
 
 const choices = new Set(['Match', 'Partial', 'Miss', 'CannotJudge']);
 const sections = new Set([
@@ -86,8 +126,8 @@ export async function POST(request: Request) {
 
       // This endpoint intentionally does not accept chart, birth, name, or
       // location data. Free text is opt-in and explicitly capped at 500 chars.
-      console.log('[ming-feedback-survey]', {
-        requestId: id,
+      await saveFeedback(id, {
+        feedbackType: 'survey',
         section: body.section,
         answers,
         comment: comment.trim() || null,
@@ -112,9 +152,8 @@ export async function POST(request: Request) {
     }
 
     // Deliberately do not accept birth date, name, city, or chart data here.
-    // Cloudflare logs can be used for aggregate calibration only after consent.
-    console.log('[ming-feedback]', {
-      requestId: id,
+    await saveFeedback(id, {
+      feedbackType: 'prediction',
       period: body.period,
       section: body.section ?? 'past',
       claimId: body.claimId ?? null,
@@ -124,9 +163,17 @@ export async function POST(request: Request) {
     });
     return jsonWithRequestId({ ok: true }, id);
   } catch (error) {
+    if (error instanceof Error && error.message === 'FEEDBACK_DB_NOT_CONFIGURED') {
+      return jsonWithRequestId(
+        { error: 'Feedback storage is not configured.' },
+        id,
+        503,
+      );
+    }
+    console.error('[ming-feedback-write-failed]', { requestId: id });
     if (error instanceof Error && error.message === 'REQUEST_TOO_LARGE') {
       return jsonWithRequestId({ error: 'Feedback is too large.' }, id, 413);
     }
-    return jsonWithRequestId({ error: 'Invalid feedback.' }, id, 400);
+    return jsonWithRequestId({ error: 'Feedback could not be saved.' }, id, 500);
   }
 }

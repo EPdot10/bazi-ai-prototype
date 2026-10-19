@@ -1,6 +1,6 @@
-# Zi Wei Dou Shu experiment: calculation scope
+# Zi Wei Dou Shu: calculation scope and integration policy
 
-Status: deterministic chart-only page is connected to the reading flow. It remains an experimental, separate lens: no Zi Wei AI interpretation is generated, and chart-rule validation does not validate predictions.
+Status (2026-10-19): deterministic Zi Wei chart facts are supplied as a supporting lens to the overall BaZi-led AI reading when available. The product direction is **integration, not a separate technical customer report**. The AI may synthesize only the supplied, supported clues; chart-rule tests do not validate personal predictions. Practitioner review remains outstanding.
 
 ## Selected convention
 
@@ -19,7 +19,7 @@ Unknown birth time returns an incomplete result with no guessed 命宫、身宫 
 
 No complete auxiliary-star system (only the positions needed for four-transformation stars are derived), star brightness/庙旺, 三方四正 interpretation, 大限/流年/月运, direction/sex-dependent periods, true-solar-time option, or alternate leap-month/子时/four-transformation conventions. Keep these out of prompts and marketing until implemented and independently checked. The product should explain that chart rules vary and this is one named convention.
 
-The output should eventually be presented as a separate lens from BaZi and Liu Yao. Do not merge contradictory claims into one voice; show which system supplied each interpretation.
+For the customer, translate supported Zi Wei facts into plain-language context within the overall reading; do not require the reader to understand technical chart rules or add a separate jargon-heavy Zi Wei page. Internally retain the source of each clue. Do not force BaZi and Zi Wei to agree: explain a meaningful tension cautiously as uncertainty, rather than merging it into a claim of certainty. Liu Yao remains a separate user-question flow because it answers a different input and intent.
 
 ## Regression and evidence gate
 

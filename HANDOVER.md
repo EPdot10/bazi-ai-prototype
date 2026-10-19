@@ -1,184 +1,150 @@
 # MING Project Handover
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
-## Product intent
+## Product direction
 
-MING is a low-cost validation product for introducing Chinese metaphysical reading traditions to an English-speaking market. The current strategy is to earn trust with a recognisable retrospective reading, then expose richer character, career, relationship, and timing material. Claims are framed as reflective hypotheses rather than guaranteed predictions.
+MING is a low-cost bilingual product experiment for introducing Chinese metaphysical traditions to an English-speaking audience. The near-term goal is to learn whether a readable, culturally distinctive reflection can attract and retain users—not to claim scientific validation or guaranteed prediction. Keep deterministic chart calculation, model interpretation, and user-reported feedback distinct.
 
-The immediate goal is product/marketing validation, not a defensible long-term calculation platform. Even so, the implementation deliberately separates deterministic chart facts from model interpretation so that the experience can become more credible over time.
+The product should lead with a plain-language takeaway and keep technical reasoning optional. BaZi remains the primary framework; supported Zi Wei Dou Shu clues are a complementary lens in the overall interpretation. Six Yao answers a user-chosen question in a separate flow. Never invent chart facts or present either tradition as certainty.
 
-## Current user journey
+## Current state at a glance
 
-1. Open the landing page, choose a language, then select a birth date using the wheel or direct input.
-2. Choose Exact, Approximate, or Unknown birth time; Exact is the default.
-3. Enter and confirm a birth city. City plus country is recommended when names are ambiguous.
-4. Wait through the staged reading animation while the server calls DeepSeek V4.1 Flash.
-5. Review the one-time Overview, then Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method. The bottom navigation moves through the report without returning to the top.
-6. Unlock Relationships and Looking Ahead with the shared prototype Jade Pass `666`.
-7. Start another reading using New reading.
+- Production site: [bazi-ai-prototype.wangxcep.workers.dev](https://bazi-ai-prototype.wangxcep.workers.dev/).
+- Hosting/runtime: Cloudflare Workers, built with vinext, Vite, and the Cloudflare Vite plugin.
+- AI: server-side DeepSeek Flash. API secrets remain in Cloudflare/local secret configuration, never in browser code or Git.
+- Main birth reading and the separately gated `/question` Six Yao experience are implemented.
+- Zi Wei calculation is **not disabled**: it is calculated deterministically and supplied as a supporting lens for the overall reading. It is not meant to appear as a standalone technical report. Unknown birth time excludes hour-dependent Zi Wei claims.
+- Consent-based survey and prediction feedback now persist in Cloudflare D1.
+- D1 source and docs are deployed from the local working tree but are not yet committed/pushed to GitHub; see Git status below.
 
-The fixed MING mark in the top-left header is also a Home action: it clears the current reading/form and returns to the introductory landing page.
+## User journey and result structure
 
-## Key implementation locations
+1. The landing page introduces the reading and lets the visitor select English or Chinese.
+2. The visitor enters date, chooses Exact / Approximate / Unknown time, then enters and confirms a birth city. City plus country helps disambiguate names.
+3. The server resolves a canonical place, coordinates, and IANA time zone, calculates chart facts, and requests the selected locale from DeepSeek Flash.
+4. Results are phased and navigable in-page: Overview, Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method. The overview carries the global two-line summary; later sections should lead with their own page-specific takeaway rather than repeat it.
+5. Each result should put the practical conclusion first and make traditional reasoning secondary/expandable. The Method section explains the tradition in beginner-friendly terms.
 
-- `app/page.tsx` — intake flow, loading experience, result navigation, feedback controls, and Jade Pass UI.
-- `components/birth-wheel.tsx` — touch/mouse date and time wheel. Normal year range is 1920 through the current year.
-- `app/api/place/route.ts` — browser-facing city confirmation endpoint.
-- `lib/geocode.ts` — place resolution, coordinates, and IANA time-zone lookup.
-- `lib/bazi/calculate.ts` — deterministic BaZi calculation and timing signals.
-- `app/api/interpret/route.ts` — validation, disabled-fixture switch, chart calculation, DeepSeek call, strict response validation, and error handling.
-- `lib/deepseek.ts` — server-only DeepSeek V4.1 Flash client, timeout, interpretation prompt, JSON contract, and one schema-repair retry for malformed model output.
-- `lib/fixtures/test-readings.ts` — two fully saved, zero-cost UI test readings.
-- `vite.config.ts` — Vinext/Sites/Cloudflare configuration and LAN host binding.
-- `.env.local` — local secrets; ignored by Git and must never be shared or committed.
+The date/time wheel supports touch and mouse input. Hour/minute values loop; minute defaults to 30; wheel interaction should not scroll the page. The fixed MING/home mark returns to the introduction. Saved reading recovery is browser-local and temporary, not an account or server history.
 
-## Fixed test fixtures
+## Traditional calculation and interpretation
 
-Two intentionally impossible historical dates are reserved for fast interface testing:
+### BaZi
 
-- `1000-01-01`: exact-time-style fixture, 乙 Day Master.
-- `1000-01-02`: unknown-time fixture, 丙 Day Master.
+- Chart pillars and timing signals are calculated in `lib/bazi/`; the model must treat these server facts as authoritative.
+- Birthplace is used for location/time-zone handling; it is not evidence of where a person grew up, lives, studied, or worked.
+- Exact / approximate / unknown birth-time confidence affects which claims are allowed. Unknown time must not be filled with a guessed hour.
+- Event retrospection should use varied, checkable life-stage hypotheses rather than repeating generic school/work/social-circle language. This remains an open quality problem; synthetic tests cannot prove personal accuracy.
 
-The records remain available for future QA, but the fixture switch is currently disabled. Both dates now go through normal place resolution, chart calculation, and DeepSeek.
+### Zi Wei Dou Shu
 
-Keep these dates undocumented in customer-facing product copy. If the API is opened publicly, consider protecting fixtures behind a development-only environment switch so outsiders cannot enumerate test behaviour.
+- `lib/ziwei/calculate.ts` contains deterministic chart calculation under a named convention and has regression tests, including comparison against `iztro@2.6.2` for non-leap charts.
+- The current product choice is to merge only supported Zi Wei signals into the overall reading. Do not restore an old separate customer-facing Zi Wei report or claim that the method is practitioner-certified.
+- Unknown birth hour produces an incomplete chart; do not invent 命宫 or other hour-dependent placements.
+- Practitioner review of convention choices remains useful before making strong accuracy claims.
 
-## Model and secret handling
+### Six Yao / I Ching
 
-DeepSeek is called on the server. The browser cannot choose arbitrary models or read the API key.
+- `/question` collects one question, a timeframe, and six three-coin lines. `lib/iching.ts` deterministically derives the hexagrams and Na Jia structure; AI interprets supplied facts and cannot choose or alter the cast.
+- Its production API is gated by `QUESTION_BETA_ENABLED` and requires Turnstile configuration; the public entry is separately controlled by `NEXT_PUBLIC_QUESTION_BETA_ENABLED` at build time. Confirm deployed variables and hostname/token flow before describing it as open to the public.
+- The current implementation does not calculate every school-specific layer (for example, a practitioner-validated useful spirit or all month/day-strength rules). See `LIUYAO_EXPERIMENT_SPEC.md`; do not imply otherwise.
 
-- All readings use `DEEPSEEK_MODEL=deepseek-flash` (DeepSeek V4.1 Flash).
-- The model selector was removed from the page.
-- There is no local interpretation fallback during evaluation. If the first model response violates the JSON contract, the server makes one explicit schema-repair request to DeepSeek, then reports a 502 if the repaired response is still invalid.
-- If DeepSeek times out, returns empty content, or returns invalid JSON, the API returns an explicit 502 error.
+## Fixtures, model behavior, and safety
 
-Never place a real key in source, README, browser code, screenshots, logs, or Git history.
+- The fixed results for `1000-01-01` and `1000-01-02` are retained as QA fixtures, but `ENABLE_TEST_FIXTURES` is currently `false`. The dates go through the normal place/chart/model path; they are not instant saved results now.
+- All model calls run server-side. No local generated reading should be substituted when the provider fails; during evaluation, surface provider/schema errors clearly.
+- Model output is checked against the expected response contract, with a schema-repair attempt for malformed output. Timeouts, empty results, and invalid output should remain diagnosable.
+- Request guards cap JSON payloads and attach request IDs. Rate limiting is controlled by `RATE_LIMIT_ENABLED` and is held in Worker-isolate memory; it is best-effort, not a shared/global abuse-control system. Keep Cloudflare-side protections in mind before broad public promotion.
+- The prototype Jade Pass (`666`) is a client-side demo gate, not payment or entitlement security.
+- The product is entertainment/self-reflection, not factual, scientific, medical, legal, financial, or safety advice. Do not say the model has discovered someone's history from their birth data.
 
-## City and time handling
+## Cloudflare D1 feedback storage
 
-The customer enters text rather than asking the language model to guess a location. The server resolves the city to a canonical label, coordinates, and IANA time zone. This is necessary because “UTC+8” alone does not describe historical daylight-saving or civil-time rules. The chart layer can then apply the longitude/equation-of-time adjustment when a birth time is provided.
+- Production database: `ming-feedback`.
+- Worker binding: `FEEDBACK_DB`.
+- Region: `OC` (Oceania). Database ID: `8f5be188-1330-490a-8055-efe07658f9c5`.
+- Schema: `migrations/0001_create_feedback_submissions.sql`, applied remotely.
+- `POST /api/feedback` stores survey and prediction feedback only when the user has opted in. It stores the request ID, feedback type/section, permitted answer fields, optional comment, locale, and timestamp.
+- The feedback endpoint intentionally does not accept birth date, name, city, or chart data. Avoid asking users to put sensitive personal details in free text.
+- A production smoke test wrote a synthetic consented survey, read it back from D1, then deleted that exact test row. No smoke-test row remains.
+- There is no public feedback-reading/admin endpoint, scheduled retention job, or email delivery yet. Decide retention/export access controls before accumulating substantial free-text feedback.
 
-Google Maps geocoding is optional through `GOOGLE_MAPS_API_KEY`; the fallback resolver keeps local development usable. For launch, add an autocomplete UI backed by a production-approved provider and require the user to confirm the displayed city/country.
+Useful D1 checks from the repository root:
 
-## Local and phone testing
+```sh
+npx wrangler d1 migrations list FEEDBACK_DB --remote --config dist/server/wrangler.json
+npx wrangler d1 info FEEDBACK_DB --config dist/server/wrangler.json --json
+```
 
-Run `npm run dev`. Vite prints both Local and Network URLs because `server.host` is `0.0.0.0`.
+Do not create a second database or run destructive SQL against production to troubleshoot routine issues.
 
-Current verified LAN URL: `http://192.168.1.100:3000/`
+## Current files
 
-The LAN address is assigned by the router and may change. Phone and computer must use the same network. Windows Firewall must allow Node.js on Private networks. Guest Wi-Fi or access-point isolation can prevent devices from reaching one another.
+- `app/page.tsx` — landing/intake flow, phased report, navigation, feedback and language UI.
+- `components/birth-wheel.tsx` — birth date/time wheel.
+- `app/api/interpret/route.ts` — chart calculation, validation, and phased AI interpretation.
+- `app/api/feedback/route.ts` — feedback validation and D1 persistence.
+- `app/api/iching/route.ts`, `app/question/page.tsx` — gated Six Yao experience.
+- `lib/bazi/`, `lib/ziwei/`, `lib/iching.ts` — deterministic chart/hexagram rules.
+- `lib/deepseek.ts` — DeepSeek Flash request, prompt, timeout, output validation/repair.
+- `lib/geocode.ts` and `app/api/place/route.ts` — place lookup and confirmation.
+- `migrations/` — D1 schema migrations.
+- `vite.config.ts`, `.openai/hosting.json` — Worker/build and D1 binding source configuration.
+- `README.md` — concise project overview, local commands, and deployment/D1 setup.
 
-## Verification completed in this handover
+## Local setup and checks
 
-October 18 redesign increment:
+Use Node.js 22.13 or newer. Install from the existing lockfile and create an ignored `.env.local` / `.dev.vars` from `.env.example` for local secrets. Never commit or share real API keys.
 
-- The prompt now separates birthplace from lived context and turns chart clues into conditional, modern-life hypotheses without claiming scientific proof.
-- Event candidates are selected across life stages, with normalised signature comparison and a two-per-primary-domain ceiling to limit repetitive retrospective scenes.
-- A live, synthetic, Simplified Chinese 1985 unknown-time local reading returned `interpretationSource=deepseek`; desktop navigation, Overview, Looking Back, Method, and bottom Next were exercised in the browser.
-- At 390px mobile width, the Overview and bottom of Looking Back showed no horizontal overflow; Next opened Looking Ahead and scrolled the new panel below the sticky header after a scroll-margin adjustment.
-- A synthetic 1955 unknown-time Chinese past phase covered ages about 6, 24, 44, 57, and 63. This confirms later-life *coverage*, not predictive accuracy.
-- `npm run build` and targeted lint of changed code passed. Full repository lint still includes unrelated generated-component findings.
-- [READING_EVALUATION.md](./READING_EVALUATION.md) defines consent-based human validation. [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md) now describes the locally implemented, public-disabled question beta.
-- The preceding redesign commit `aa39881` passed Cloudflare Workers Builds and a production API smoke test: a synthetic London reading returned HTTP 200, `interpretationSource=deepseek`, and a populated past section. This confirms release wiring, not predictive accuracy.
+```sh
+npm install
+npm run dev
+npm run build
+npm run test:unit
+npx tsc --noEmit
+npm run lint
+```
 
-October 18 question-beta increment (code deployed, public feature disabled):
+Vite is configured to bind `0.0.0.0` for LAN testing. Use the current Network URL printed by `npm run dev`; a saved `192.168.x.x` address can change. The phone and computer must share Wi-Fi, and Windows Firewall must permit Node.js on Private networks.
 
-- Separate `/question` page with one question, timeframe, six browser-generated three-coin throws, original/changed hexagram, moving lines, and bilingual AI answer with an expandable rationale. After the first throw, the question/timeframe are frozen until the user resets the cast; tab-scoped session storage survives refresh and has a clear control.
-- `lib/iching.ts` deterministically maps bottom-to-top 6/7/8/9 lines into King Wen hexagram numbers; the API re-derives the facts and never lets AI choose or change them.
-- `npm run test:unit` checks the orientation traps Tai/Fou and Gou/Xiao Chu, moving lines, malformed input, all 64 identities, and Turnstile action/hostname matching with mocked siteverify responses. These mocks do not replace a real-token success/replay test.
-- A synthetic Chinese career-change question completed through the local browser and returned a conditional Chinese answer; 390px mobile had no horizontal overflow.
-- Production homepage entry and `/api/iching` are off by default. The release gate is in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
-- Commit `279bfe8` was pushed to `main` and Cloudflare Workers Builds succeeded. Production browser checks found no question link, `/question?lang=zh` displayed “实验功能尚未开放,” and `/api/iching` returned 404. A synthetic London BaZi past-phase request still returned HTTP 200, `interpretationSource=deepseek`, and three periods (request ID `42e4ab29-70c5-48e1-a234-5765ea1a24a6`).
+## Verification and interpretation of evidence
 
-October 18 Liu Yao chart-structure increment (pushed to GitHub; public feature gate remains closed):
+Latest D1 change (2026-10-19):
 
-- `lib/iching.ts` now computes the selected Ba Gong palace/sequence, Shi/Ying, Na Jia stems and branches, five elements, six kin, hidden-kin candidates, and six spirits from the first-cast local date/time zone. The API requires the cast context and sends the deterministic chart to DeepSeek; the prompt forbids inventing month/day strength or automatically assigning a useful spirit.
-- `/question` now shows an expandable original Na Jia chart and a separate changed-line chart, explains the selected convention and its limits, and labels missing kin as candidates. Older saved casts without a cast time zone are cleared rather than assigned an inaccurate day stem.
-- `npm run test:unit` passed 11/11, `npm run build` passed, and targeted lint passed for all four changed code/test files. The commit was pushed to `main`; this does not open the Cloudflare feature gate. A local API smoke check rejected a request missing cast context with HTTP 400. Full-repository lint still reports existing generated UI-component findings; see below.
-- The local `/question?lang=zh` page rendered in Simplified Chinese after hydration. The production feature gate remains closed; no public or Cloudflare configuration was changed. Historical convention references and remaining layers (month/day strength, voids, clashes, automatic 用神, school-specific judgement) are documented in [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md).
-- Next: continue Liu Yao rule coverage and obtain practitioner review before broadening its interpretations. The Ziwei chart-only lens is now integrated locally as a separate result page; it does not generate predictions or merge claims with BaZi.
+- `npm run build` passed.
+- All 22 unit tests passed.
+- `npx tsc --noEmit` passed.
+- Targeted lint for `app/api/feedback/route.ts` and `vite.config.ts` passed.
+- `git diff --check` passed.
+- Wrangler dry-run showed `env.FEEDBACK_DB (ming-feedback)` on the Worker.
+- Remote schema migration and production feedback write/read/delete smoke test passed.
+- Full `npm run lint` still reports pre-existing findings in UI primitives and chart code; keep this separate from the D1 change.
 
-October 18 Zi Wei Dou Shu chart-only release increment (local validation passed; page connected; production deploy paused pending user authorization):
+Prior live/synthetic browser runs and public-biography exercises are recorded in `READING_EVALUATION.md`, `PUBLIC_BIO_BENCHMARK.md`, and the experiment specs. They test mechanics and wording, not validated predictive accuracy. Physical-phone coverage and a diverse consented user cohort remain outstanding.
 
-- Added `lib/ziwei/calculate.ts`, an independent deterministic chart core using the named `ziwei-quanshu-volume-2-v1` convention. It computes lunar date, 命/身, palace stems, 五行局, 紫微/天府, fourteen principal stars, and birth-year 四化 positions. Unknown birth time returns an explicitly incomplete chart, not a guessed chart.
-- The input contract is local birth civil date and clock time as recorded at the birthplace. The IANA time-zone string is validated and retained as context only; it does not convert UTC, infer the birth city, or apply longitude/true-solar-time correction. Leap lunar month and 子时 behavior are declared convention choices, not universal rules.
-- Regression tests cover canonical 命/身 examples, the classic 甲年火六局初一安紫微 example, leap-month handling, all fourteen main-star offsets for a reference chart, all ten four-transformation mappings, 子时 boundaries, unknown-hour behavior, and invalid inputs. Thirty non-leap date/time charts also match `iztro@2.6.2` across all ten year stems and five bureaus. An observed leap-month divergence is explained by the selected conventions and has its own expected-value test.
-- The API now returns deterministic Ziwei chart facts alongside BaZi phases. A separate bilingual result tab displays the twelve palaces and chart limits; unknown birth hour shows an explicit incomplete state. Ziwei facts are not sent to the BaZi interpretation prompt, and no AI-generated Ziwei prediction is offered.
-- This is chart-rule validation only, not validation of personal predictions. A practitioner chart comparison remains outstanding. GitHub commit `47c3e42` was pushed, but production still serves the older version; do not claim the new page is live until Cloudflare authorization is completed and a production smoke test confirms it.
-- References, named assumptions, and release gates are in [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md). Keep Liu Yao and Ziwei behind separate feature gates; do not combine their claims into one AI-generated certainty.
+## Git and deployment
 
-October 18 local report persistence follow-up (uncommitted; local browser verified):
+The latest Cloudflare Worker deployment created by this task is version `d0403fdf-e8d9-483d-9a66-fd594e20c873` at `https://bazi-ai-prototype.wangxcep.workers.dev/`. Deployment used `--keep-vars` to preserve Cloudflare-managed runtime variables and secrets.
 
-- A full refresh initially appeared to return to the landing screen because the page was inspected before client hydration completed. After waiting for restoration, the same saved report and locale reappeared.
-- The local implementation now writes a versioned report snapshot to session and local browser storage, migrates the previous session key, and expires saved reports after 24 hours. The privacy text explains this retention. This follow-up is not committed or pushed yet; production remains unchanged.
-- The clean local development server runs at `http://localhost:3000/`. Latest checks: unit tests 21/21 passed, targeted `oxlint` passed, and `npm run build` passed.
+The current working tree has D1/documentation changes that have **not yet been committed or pushed**. These include `.openai/hosting.json`, `vite.config.ts`, `app/api/feedback/route.ts`, the initial migration, `README.md`, and this handover. GitHub / a Git-connected Cloudflare build may therefore still contain the previous source. Sync the repository before relying on a future automatic Git deployment.
 
-October 18 retrospective calibration increment (deployed; real-user validation pending):
+Build and deploy from the project root with:
 
-- An independent synthetic review identified repeated psychological narratives, weakly checkable claims, and era-wide 2020 disruptions presented as personal clues. We tightened the past prompt, capped candidates at four while preserving life-stage spread, and excluded 2020–21 from *retrospective candidate scoring* only. Raw timing signals are unchanged.
-- Each new retrospective item now has one `checkableEvent` shown in a dedicated card. Match/Partial/Miss/Cannot judge explicitly evaluates that claim; alternative readings are collapsed and excluded from feedback. Legacy saved reports without `checkableEvent` remain readable but cannot submit a misleading score.
-- “Confidence” in the UI is relabelled as chart-signal strength, with a visible note that it is not a validated hit rate. Feedback storage is versioned and keyed by period + claim; local export includes that exact wording. The server feedback endpoint receives a SHA-256 claim fingerprint, calibration version, period, and choice, but not claim wording or birth details. It still processes normal IP/request metadata. The UI now distinguishes local save from successful or failed submission, and offers separate export of old period-only ratings.
-- Local live samples: 2005 London (English, unknown hour) returned 2014/2017/2023; 1955 Melbourne (Chinese, unknown hour) returned 1979/1994/2014/2024. The result page at 390px had no horizontal overflow. Claims remain sometimes broad or compound; see [READING_EVALUATION.md](./READING_EVALUATION.md). These synthetic checks cannot establish personal accuracy.
-- [PUBLIC_BIO_BENCHMARK.md](./PUBLIC_BIO_BENCHMARK.md) records a pre-registered two-person public-biography process run. It found one posthumous claim and mostly uncheckable wording; do not market this as an accuracy test. The site has no historic/deceased-person input mode, so old public lives can produce years after death. Do not silently infer lifespan from a chart.
-- Commit `1a19f58` was pushed to `main` and the Cloudflare Worker updated. A production smoke test returned `interpretationSource=deepseek` with `checkableEvent` and candidate years 2014/2017/2023 for a synthetic 2005 London reading (previous deployment had no `checkableEvent` and included 2020). A synthetic 1955 Melbourne reading returned Chinese `checkableEvent` text across four later-life periods. The homepage returned HTTP 200, while the separate `/api/iching` endpoint remained gated with HTTP 404.
-- Two additional production runs of the same synthetic 1955-04-12 Melbourne profile kept candidate years 1979/1999/2012/2018 but still repeated family/relationship and work-duty scenes. This is documented as a distinctiveness failure in [READING_EVALUATION.md](./READING_EVALUATION.md); it is not real-user accuracy evidence. [BETA_TESTER_SCRIPT.md](./BETA_TESTER_SCRIPT.md) gives a short consent-based session guide for obtaining that missing evidence.
-- The date-step privacy copy has been corrected in both languages: the report is temporarily saved in the current browser tab for refresh recovery, while submitted birth details are sent to the AI provider for generation. The Chinese language-toggle accessibility label is localised. Targeted lint, six unit tests, and a production build passed locally; deployment status for this small follow-up is recorded by the next commit.
+```sh
+npm run build
+npx wrangler deploy --config dist/server/wrangler.json --keep-vars
+```
 
-Earlier verification retained below:
+Never omit `--keep-vars` in the established deployment flow unless you intentionally plan and verify all Cloudflare variables/secrets first.
 
-- Targeted lint passes for the edited product files.
-- Production build completes successfully.
-- `1000-01-01` was verified after the change to return a live DeepSeek response with no fixture header.
-- Three random dates were verified against production: all returned HTTP 200 and `interpretationSource=deepseek` in 25.9–28.6 seconds.
-- A request to `http://192.168.1.100:3000/` returns HTTP 200 from the local machine.
-- Normal DeepSeek-backed dates were verified in the prior iteration.
-- A live Simplified Chinese reading was re-tested after the schema repair change: HTTP 200, `interpretationSource=deepseek`, all four life-area sections present, and four future forecasts returned.
+## Recommended next steps
 
-## Result information architecture
+1. Review and commit/push the local D1 source and documentation so GitHub matches the deployed Worker.
+2. Confirm whether `/question` should be public beta or remain gated; verify its Cloudflare flags, Turnstile hostname, and real-token/replay behavior before enabling it.
+3. Run a real consented questionnaire with a few testers and inspect responses privately via Wrangler; do not create a public unauthenticated feedback-read endpoint.
+4. Decide retention and export controls for D1 free-text responses before collecting meaningful volume.
+5. Continue prediction-quality work with a diverse, consented age cohort. Separate chart-signal strength from measured user agreement and avoid unsupported precision.
+6. Track full-repository lint cleanup and practitioner review as separate workstreams.
 
-- The global two-line summary, distinctive-signature strip, and chart appear once in Overview. Looking Back begins directly with the checkable time periods.
-- Character, Career, and Relationships each have a page-specific lead showing that area's headline, confidence, usable strength, and likely friction before the detailed narrative.
-- Looking Ahead has its own future overview plus separate opening/pressure cards before the year-by-year forecasts.
-- Timing deliberately skips the extra summary/feature lead and goes directly to its detailed timing reading and basis, as requested.
-- The result tabs are ordered Overview → Looking Back → Looking Ahead → Character → Career → Relationships → Timing → Method. The bottom Previous/Next controls show progress and navigate page by page.
-- Retrospective and life-area calculation rationale is collapsed behind a “Why this interpretation?” control. Method begins with a plain-language seasonal-map analogy and its evidence boundary.
-
-## Wheel and loading UX
-
-- Exact-time defaults to minute `30` instead of `00` so the minute wheel is easier to reach from either direction.
-- Hour and minute columns now use three-cycle looping lists, so values wrap smoothly from `00` to `23`/`59` and back.
-- Desktop wheel scrolling is handled inside the entire wheel region, with upward scrolling moving to the previous value and downward scrolling to the next; wheel events and touch movement no longer scroll the page behind it.
-- The home/header control is available in both the intake and result states and returns to the introductory landing page.
-- The loading overlay now receives the selected locale and renders every stage, label, accessibility announcement, and explanatory sentence in Simplified Chinese when Chinese is selected.
-
-## Known limitations and debt
-
-- Request protection is best-effort in-memory per Worker isolate. For public launch, add Cloudflare Rate Limiting/KV or Durable Objects so limits are shared across isolates and regions.
-- Turnstile is optional until both site and secret keys are configured; Cloudflare Access should protect the private beta URL first.
-- `shareForImprovement` is currently an explicit consent signal for the prototype UI; there is no durable feedback store yet.
-- Full `npm run lint` reports pre-existing accessibility/type rules in unused generated `components/ui` primitives. Active files pass targeted lint.
-- The fixed Jade Pass `666` is visible in browser code and is not an entitlement system.
-- Retrospective feedback is saved in browser storage and the explicit-consent submission sends a fingerprint to Worker logs. This is not a durable, queryable analytics store; clearing browser data removes local ratings, and older period-only ratings are exported separately.
-- There is no account, payment, or durable report history; rate limiting is per isolate and Turnstile depends on production key configuration, so these are not sufficient public abuse controls.
-- The input year wheel starts at 1920; earlier dates require direct input.
-- The October 18 local browser run covered desktop and 390px mobile screenshots. A physical phone check remains outstanding. The deployed BaZi production Worker passed smoke tests after `aa39881`, `279bfe8`, and `1a19f58`; the separate question beta remains publicly disabled.
-- Historical chart correctness needs review by a qualified BaZi practitioner before marketing accuracy claims.
-- Looking Ahead currently uses selective BaZi annual branch/stem signals for the current year and next five years; quiet years are intentionally not padded with unsupported predictions.
-- Ziwei Dou Shu is a separate experimental chart-only lens. The report integration shows calculated chart facts but not AI predictions. See [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md); a practitioner chart comparison and a production smoke check remain necessary before describing the method as fully validated.
-
-## Recommended next implementation sequence
-
-The October 2026 initiative is tracked in [PRODUCT_REDESIGN_ROADMAP.md](./PRODUCT_REDESIGN_ROADMAP.md). Its prompt, result-layout, navigation, and initial explanation changes are implemented and deployed. The user-video analogy is framed as a metaphor, not evidence of personal prediction. Real-user validation and a full Chinese/English audit remain open. The separate three-coin question beta exists locally but must pass its release gate before public activation. The sequence below is older backlog, not the immediate release checklist.
-
-1. Manually review the page-specific leads, reordered tabs, looping hour/minute wheel, and Chinese loading overlay on desktop and phone using a live reading.
-2. Obtain a qualified practitioner comparison of Ziwei charts under the named leap-month, local-time, 子时, and 四化 conventions. The current reference suite already covers 30 non-leap charts across all ten year stems and five bureaus against `iztro@2.6.2`.
-3. After the user completes Cloudflare authorization, deploy the already-pushed chart-only page and verify the live result tab. Keep it separate from BaZi and do not add AI-generated Ziwei predictions until practitioner review.
-4. Add anonymous event analytics for funnel steps, reading completion, tab views, retrospective Match/Partial/Miss, and unlock intent.
-5. Replace the client-only Jade Pass with a server-verified entitlement after choosing a payment provider.
-6. Add shared rate limiting, structured error logging, and model cost/latency telemetry.
-7. Add place autocomplete, privacy terms, and explicit disclaimers before public promotion.
-
-## Git workflow
-
-The repository is private and uses `origin` at `https://github.com/EPdot10/bazi-ai-prototype.git`. Preserve user work, keep `.env.local` ignored, run targeted lint plus `npm run build`, then commit and push to the current branch.
+Reference documents: `PRODUCT_REDESIGN_ROADMAP.md`, `READING_EVALUATION.md`, `BETA_TESTER_SCRIPT.md`, `LIUYAO_EXPERIMENT_SPEC.md`, `ZIWEI_EXPERIMENT_SPEC.md`, and `PUBLIC_BIO_BENCHMARK.md`.

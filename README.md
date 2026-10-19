@@ -1,116 +1,88 @@
-# MING — BaZi AI Prototype
+# MING · Chinese Metaphysics Reading Prototype
 
-A bilingual, mobile-first prototype for Chinese BaZi and Five Element readings. The application calculates chart facts on the server, resolves the birth city and historical time zone, then asks DeepSeek to interpret those facts instead of asking the model to invent the calculation.
+MING is a bilingual (English/Chinese) prototype that turns selected Chinese metaphysical traditions into an approachable, reflective reading. It is an entertainment and self-reflection product, not a factual, scientific, medical, legal, or financial prediction service.
 
-## What currently works
+## Current product
 
-- Three-step birth intake: date, time confidence, and birth city.
-- Touch-friendly wheel selection plus direct date/time entry.
-- Exact, approximate, and unknown birth-time paths.
-- Birthplace lookup with city label, coordinates, IANA time zone, civil-time handling, and local solar-time adjustment.
-- Deterministic BaZi pillars, Day Master, visible element balance, calculation notes, and annual timing signals.
-- DeepSeek V4.1 Flash interpretation with server-side calls and explicit error reporting when the provider is unavailable.
-- Result views ordered Overview, Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method, with bottom-page Previous/Next navigation.
-- A separate Looking Ahead view built from server-calculated future annual signals, with conditional opportunity, pressure, risk, warning, and action fields.
-- Relationship and Looking Ahead content share the prototype Jade Pass `666`.
-- The two-line summary and chart appear only in Overview. Each later section has its own lead, where useful; chart rationale is folded away by default and Timing goes directly to its detailed reading.
-- Balanced life-area sections explicitly cover strengths, friction, stress behaviour, possible costs, and actions instead of defaulting to flattering prose.
-- Hour and minute wheels loop through three cycles for faster wraparound selection; exact-time minutes default to `30`.
-- The staged loading overlay follows the selected English or Simplified Chinese locale.
-- Saved test fixtures remain in the repository but are currently disabled while model quality is being evaluated.
-- Responsive local preview available to phones on the same LAN.
-- A separate `/question` three-coin I Ching experiment runs locally. It computes hexagram facts deterministically and uses DeepSeek only for a conditional interpretation; the public entry and production API are disabled by default pending novice testing and shared abuse protection. It is not a full Na Jia Liu Yao calculation.
+- A guided birth profile flow collects date, time confidence, city, optional name, and optional gender.
+- The server calculates BaZi chart facts and location/time-zone adjustments; the model is instructed to interpret those facts rather than invent or recalculate them.
+- Readings are generated in phases and organized into an overview, looking back, looking ahead, character, career, relationships, and timing. Explanatory reasoning is kept secondary to plain-language conclusions.
+- Zi Wei Dou Shu is calculated as a supporting lens and integrated into the overall interpretation when the necessary chart facts are available. It is not intended to be a separate, jargon-heavy customer report. Unknown birth time excludes time-dependent claims.
+- A separate Six Yao / I Ching question flow is implemented at `/question`. Production access is still gated by the beta flag and bot-protection configuration; do not assume that the page is open to every visitor.
+- Feedback is opt-in. Survey and prediction feedback are written to Cloudflare D1; the feedback API does not accept birth date, name, city, or chart data.
+- The two fixed-result dates (`1000-01-01` and `1000-01-02`) remain reserved for testing but their fixture switch is disabled. They use the normal live interpretation path while `ENABLE_TEST_FIXTURES` is false.
 
-## Technology
+## Stack and key paths
 
-- React 19 and TypeScript
-- Vinext/Vite with the OpenAI Sites plugin and Cloudflare-compatible output
-- Tailwind CSS
-- `lunar-javascript` for calendar/chart calculation
-- `tz-lookup` plus the place resolver for time-zone handling
-- `react-mobile-picker` for the date/time wheel
-- DeepSeek-compatible chat-completions API, called only from the server
+- Next-style App Router application built with `vinext`, Vite, and the Cloudflare Vite plugin.
+- Cloudflare Workers for the deployed app and API routes.
+- DeepSeek Flash for AI interpretation (API key remains a Cloudflare secret / local environment secret; never commit it).
+- Cloudflare D1 for consented feedback.
 
-## Local setup
+Useful files:
 
-1. Install Node.js 22.13 or later.
-2. Run `npm install`.
-3. Copy `.env.example` to `.env.local`.
-4. Add the API key to `DEEPSEEK_API_KEY` in `.env.local`.
-5. Run `npm run dev`.
-6. Open `http://localhost:3000/`.
+- `app/page.tsx` — main birth-flow and reading experience.
+- `app/question/page.tsx` — Six Yao question flow.
+- `app/api/interpret/route.ts` — interpretation API.
+- `app/api/feedback/route.ts` — consented feedback validation and D1 writes.
+- `lib/bazi/` — deterministic BaZi chart calculation.
+- `lib/ziwei/` — deterministic Zi Wei chart calculation.
+- `lib/iching.ts` — Six Yao / hexagram calculation.
+- `lib/deepseek.ts` — model request and interpretation prompt/schema handling.
+- `migrations/` — D1 schema migrations.
+- `vite.config.ts` and `.openai/hosting.json` — Cloudflare Worker and binding configuration.
 
-Never commit `.env.local`, place the key in a `NEXT_PUBLIC_` variable, or call DeepSeek directly from browser code. The same key uses the DeepSeek V4.1 Flash API model:
+## Run and verify locally
 
-```env
-DEEPSEEK_API_KEY=
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-flash
-GOOGLE_MAPS_API_KEY=
-DEEPSEEK_TIMEOUT_MS=60000
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=
-TURNSTILE_SECRET_KEY=
-TURNSTILE_HOSTNAMES=
-```
+Requirements: Node.js 22.13 or newer.
 
-`GOOGLE_MAPS_API_KEY` is optional. When it is absent, the place resolver uses its configured fallback.
-Turnstile is optional for local development; configure the public site key at build time and the secret key at runtime to enforce bot protection in production. Before opening the question experiment, set `TURNSTILE_HOSTNAMES` to the exact public hostname(s), comma-separated, without `localhost`.
-
-## Saved test fixtures (currently disabled)
-
-Use direct date entry rather than the wheel, because the normal wheel intentionally starts at 1920:
-
-| Date         | Fixed state                       | Purpose                                           |
-| ------------ | --------------------------------- | ------------------------------------------------- |
-| `1000-01-01` | Exact-time chart, 乙 Day Master   | Standard result, tabs, timeline, and lock testing |
-| `1000-01-02` | Unknown-time chart, 丙 Day Master | Missing-hour and alternate-copy testing           |
-
-The fixture records remain in `lib/fixtures/test-readings.ts` for later QA, but the API currently bypasses this branch so both dates use normal geocoding and the live DeepSeek request.
-
-## Test on a phone over the local network
-
-The development server listens on `0.0.0.0`. Connect the computer and phone to the same Wi-Fi network, keep `npm run dev` running, then open the Network URL printed by Vite. On the current machine it is:
-
-`http://192.168.1.100:3000/`
-
-The address can change when the router reconnects. Use the `192.168.x.x` or `10.x.x.x` Network URL printed at startup. If the page does not open, allow Node.js through Windows Firewall for Private networks and confirm that the Wi-Fi does not isolate client devices.
-
-## Commands
-
-```bash
+```sh
+npm install
 npm run dev
-npm run build
-npm run lint
-npm run test:unit
-npm run format
 ```
 
-The production build currently succeeds. Full-project lint still reports issues in unused generated UI primitives under `components/ui`; the active product files are checked separately during feature work.
+Useful checks:
 
-## Request flow
+```sh
+npm run build
+npm run test:unit
+npx tsc --noEmit
+npm run lint
+```
 
-`birth details → place/time-zone resolution → deterministic past/future chart signals → bounded DeepSeek V4.1 Flash interpretation → result UI`
+Local model secrets belong in an ignored `.env.local` / `.dev.vars` file according to the existing project setup. Start from `.env.example`; do not paste keys into source, docs, issues, or chat. The deployed Worker reads its secrets and variables from Cloudflare.
 
-The saved test-date branch is currently disabled.
+The server validates request payloads, caps request sizes, includes a request ID in API responses, and supports per-isolate rate limits controlled by `RATE_LIMIT_ENABLED`. Those in-memory limits are not a global abuse-control system; review Cloudflare-side protections before opening the prototype broadly. The I Ching beta endpoint additionally requires production Turnstile configuration.
 
-## API protection
+## Cloudflare D1
 
-- `/api/interpret` has a best-effort per-isolate limit of 4 initial requests per IP per 10 minutes; background reading phases have a separate limit.
-- `/api/place` is limited to 20 requests per IP per minute.
-- JSON bodies are capped at 16 KB and city input at 100 characters.
-- Responses include an `X-Request-Id` for support and abuse investigation.
-- DeepSeek V4.1 Flash requests use a 60-second ceiling, configurable with `DEEPSEEK_TIMEOUT_MS`; failures are returned directly instead of being replaced by a local fallback.
-- Set `RATE_LIMIT_ENABLED=false` only for local or private testing to temporarily disable API rate limits; keep it `true` for public use.
-- Configure Cloudflare Turnstile with `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at build time and `TURNSTILE_SECRET_KEY` at runtime. Local development skips verification when the secret is absent.
-- Protect the deployed Worker with Cloudflare Access for private testing; application-level limits remain necessary if the URL is public.
-- `/api/iching` is off in production unless `QUESTION_BETA_ENABLED=true`; the public link/page also requires `NEXT_PUBLIC_QUESTION_BETA_ENABLED=true` at build time. The endpoint requires a production Turnstile secret and `TURNSTILE_HOSTNAMES`, and checks the `iching` widget action and approved hostname. Do not enable this beta until a real-token success/replay test, novice usability check, and shared Cloudflare-side rate protection are in place.
+The production database is `ming-feedback`, binding `FEEDBACK_DB`, in the Oceania (`OC`) region. Its database ID is `8f5be188-1330-490a-8055-efe07658f9c5`. The initial schema is `migrations/0001_create_feedback_submissions.sql` and has been applied remotely.
 
-## Important limitations
+The feedback route only stores a submission after explicit consent. It stores the reading section, selected answers or prediction match choice, optional short comment, locale, request ID, and timestamp. It deliberately does not collect identifying birth/profile data. Avoid inviting users to put sensitive personal details in the free-text field.
 
-- This is a private prototype, not a scientific or professional-advice product.
-- Historical time-zone and traditional chart conventions need expert review before commercial launch.
-- Ziwei Dou Shu is an explicit experimental direction, but it is not yet calculated. The model is forbidden from inventing palaces, stars, transformations, or major periods until that separate chart layer is implemented and checked against reference charts.
-- The current Jade Pass is a client-side prototype gate, not payment security.
-- Public release still needs authentication, rate limiting, abuse controls, analytics, consent/privacy copy, payment entitlement verification, and production monitoring.
+Check migration state with:
 
-See [HANDOVER.md](./HANDOVER.md) for architecture, current decisions, verification status, and the next recommended implementation steps.
+```sh
+npx wrangler d1 migrations list FEEDBACK_DB --remote --config dist/server/wrangler.json
+```
+
+For SQL inspection, use the local Wrangler version and the same generated config. Do not delete the production database or its data when troubleshooting.
+
+## Deployment notes
+
+Build first, then deploy the generated Worker config:
+
+```sh
+npm run build
+npx wrangler deploy --config dist/server/wrangler.json --keep-vars
+```
+
+`--keep-vars` is important: production model variables are managed in Cloudflare and should not be cleared by a build. The Worker is served at `https://bazi-ai-prototype.wangxcep.workers.dev/`.
+
+If Cloudflare Git integration is enabled, keep GitHub in sync before its next automatic deployment. At the time of this update, the D1 integration has been deployed directly from the local working tree but its source changes have not yet been committed/pushed.
+
+## Current verification snapshot
+
+Updated 2026-10-19. The D1 integration built successfully; TypeScript checking passed; all 22 unit tests passed; the changed API/config files passed targeted lint. An end-to-end survey POST returned HTTP 200 and was confirmed in D1, then the synthetic test row was deleted. The repository-wide lint command still reports unrelated existing findings in UI components and chart code.
+
+For the current work state, deployed details, and next steps, see [HANDOVER.md](HANDOVER.md).
