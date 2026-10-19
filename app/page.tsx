@@ -1275,13 +1275,25 @@ function LandingPage({
           </span>
         </div>
         <Link
-          className="mt-5 inline-flex items-center gap-2 text-sm text-[#9d3027] underline-offset-4 hover:underline"
+          className="mt-5 inline-flex min-h-14 w-full max-w-md items-center justify-between gap-4 border border-[#9d3027]/35 bg-white/25 px-5 py-3 text-[#9d3027] transition-colors hover:border-[#9d3027]/70 hover:bg-[#9d3027]/[0.04] sm:w-auto"
           href={`/question?lang=${locale}`}
         >
-          {isZh
-            ? '想问一件具体的事？试试手动摇六爻'
-            : 'Have one specific question? Try a manual six-line I Ching cast'}
-          <ArrowUpRight className="size-4" />
+          <span className="flex min-w-0 items-center gap-4 text-left">
+            <span className="grid size-9 shrink-0 place-items-center border border-[#9d3027]/20 font-serif text-lg">
+              爻
+            </span>
+            <span className="grid gap-1">
+              <span className="text-xs font-semibold tracking-[0.1em] uppercase">
+                {isZh ? '手动摇六爻' : 'Ask with Six Yao'}
+              </span>
+              <span className="text-xs leading-5 text-black/55">
+                {isZh
+                  ? '针对一个具体问题起卦'
+                  : 'A manual I Ching cast for one specific question'}
+              </span>
+            </span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0" />
         </Link>
         <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
           <span className="h-px w-10 bg-[#9d3027]/55" />
