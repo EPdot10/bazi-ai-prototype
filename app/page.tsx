@@ -14,6 +14,7 @@ import {
 
 import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
 import { TurnstileField } from '@/components/turnstile-field';
+import { ReadingFollowUp } from '@/components/reading-follow-up';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ZiweiCalculation } from '@/lib/ziwei/calculate';
@@ -1259,42 +1260,46 @@ function LandingPage({
             ? 'MING 将八字转化为清晰、个人化的反思，帮助你回看性格、事业、关系与已经走过的阶段。'
             : 'MING turns BaZi into a clear, personal reflection on your character, work, relationships, and the chapters you have already lived.'}
         </p>
-        <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+        <div className="mt-10 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
           <Button
-            className="glow-control h-14 rounded-none bg-[#1b1a17] px-7 text-xs tracking-[0.16em] uppercase hover:bg-[#9d3027]"
+            className="glow-control flex min-h-24 w-full items-center justify-between gap-3 rounded-none border border-black/12 bg-white/25 px-4 py-4 text-left text-black transition-colors hover:border-[#9d3027]/45 hover:bg-[#9d3027]/[0.035] sm:px-5"
             onClick={onBegin}
             type="button"
           >
-            {isZh ? '开始解读' : 'Begin your reading'}
-            <ArrowUpRight className="size-4" />
-          </Button>
-          <span className="text-xs text-black/38">
-            {isZh
-              ? '首次基础解读免费 · 无需注册'
-              : 'Free first reading · no account required'}
-          </span>
-        </div>
-        <Link
-          className="mt-5 inline-flex min-h-14 w-full max-w-md items-center justify-between gap-4 border border-[#9d3027]/35 bg-white/25 px-5 py-3 text-[#9d3027] transition-colors hover:border-[#9d3027]/70 hover:bg-[#9d3027]/[0.04] sm:w-auto"
-          href={`/question?lang=${locale}`}
-        >
-          <span className="flex min-w-0 items-center gap-4 text-left">
-            <span className="grid size-9 shrink-0 place-items-center border border-[#9d3027]/20 font-serif text-lg">
-              爻
-            </span>
-            <span className="grid gap-1">
-              <span className="text-xs font-semibold tracking-[0.1em] uppercase">
-                {isZh ? '手动摇六爻' : 'Ask with Six Yao'}
+            <span className="grid gap-1.5">
+              <span className="text-sm font-semibold tracking-[0.06em]">
+                {isZh ? '人生详解' : 'Full Life Reading'}
               </span>
-              <span className="text-xs leading-5 text-black/55">
+              <span className="text-xs leading-5 text-black/50">
                 {isZh
-                  ? '针对一个具体问题起卦'
-                  : 'A manual I Ching cast for one specific question'}
+                  ? '回看过去，了解性格、事业与未来'
+                  : 'Past patterns, character, work, and what lies ahead'}
               </span>
             </span>
-          </span>
-          <ArrowUpRight className="size-4 shrink-0" />
-        </Link>
+            <ArrowUpRight className="size-4 shrink-0 text-[#9d3027]" />
+          </Button>
+          <Link
+            className="glow-control flex min-h-24 w-full items-center justify-between gap-3 border border-black/12 bg-white/25 px-4 py-4 text-black transition-colors hover:border-[#9d3027]/45 hover:bg-[#9d3027]/[0.035] sm:px-5"
+            href={`/question?lang=${locale}`}
+          >
+            <span className="grid gap-1.5">
+              <span className="text-sm font-semibold tracking-[0.06em]">
+                {isZh ? '具体解答' : 'Ask One Question'}
+              </span>
+              <span className="text-xs leading-5 text-black/50">
+                {isZh
+                  ? '聚焦你此刻最关心的一件事'
+                  : 'Focus on the one thing on your mind now'}
+              </span>
+            </span>
+            <ArrowUpRight className="size-4 shrink-0 text-[#9d3027]" />
+          </Link>
+        </div>
+        <p className="mt-3 text-xs text-black/38">
+          {isZh
+            ? '首次人生详解免费 · 无需注册'
+            : 'Your first full reading is free · no account required'}
+        </p>
         <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
           <span className="h-px w-10 bg-[#9d3027]/55" />
           {isZh
@@ -1383,13 +1388,6 @@ function SiteHeader({
         </span>
       </button>
       <div className="flex items-center gap-4">
-        <Link
-          aria-label={locale === 'zh' ? '进入六爻起卦' : 'Open Six Yao reading'}
-          className="border border-[#9d3027]/35 px-2.5 py-2 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase transition-colors hover:bg-[#9d3027]/[0.06]"
-          href={`/question?lang=${locale}`}
-        >
-          {locale === 'zh' ? '六爻' : 'Six Yao'}
-        </Link>
         <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
         <p className="hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase min-[560px]:block">
           {locale === 'zh' ? '内测版 · 四柱' : 'Private beta · Four Pillars'}
@@ -1774,7 +1772,53 @@ function ReadingResult({
           )
         ) : null}
         {view === 'method' ? (
-          <MethodView reading={reading} locale={locale} />
+          <>
+            <MethodView reading={reading} locale={locale} />
+            <div className="mt-16 border-t border-black/10 pt-12">
+              <ReadingFollowUp
+                locale={locale}
+                context={JSON.stringify({
+                  summary: reading.interpretation.summary,
+                  pastOverview: reading.interpretation.pastOverview,
+                  pastPatterns: reading.interpretation.pastPatterns.slice(0, 6).map(({ period, headline, narrative, checkableEvent }) => ({ period, headline, narrative, checkableEvent })),
+                  lifeAreas: Object.fromEntries(
+                    (['character', 'career', 'relationships', 'timing'] as const)
+                      .filter((key) => premiumUnlocked || key !== 'relationships')
+                      .map((key) => {
+                        const area = reading.interpretation.lifeAreas[key];
+                        return [key, area ? { headline: area.headline, narrative: area.narrative, strengths: area.strengths, frictions: area.frictions, actions: area.actions } : null];
+                      }),
+                  ),
+                  future: premiumUnlocked
+                    ? { overview: reading.interpretation.futureOverview, forecasts: reading.interpretation.futureForecasts?.slice(0, 6) }
+                    : undefined,
+                  limitations: reading.interpretation.limitations,
+                })}
+              />
+              <div className="mt-8 flex flex-col gap-4 border border-black/10 bg-white/25 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-[#9d3027] uppercase">
+                    {locale === 'zh' ? '独立起问' : 'A separate question'}
+                  </p>
+                  <h3 className="mt-2 font-serif text-2xl">
+                    {locale === 'zh' ? '想问另一件具体的事？' : 'Have a different question?'}
+                  </h3>
+                  <p className="mt-2 max-w-xl text-xs leading-5 text-black/50">
+                    {locale === 'zh'
+                      ? '这会单独起卦，不会引用这份人生解读。'
+                      : 'This starts a separate cast and does not use this life reading.'}
+                  </p>
+                </div>
+                <Link
+                  className="glow-control inline-flex min-h-12 shrink-0 items-center justify-center gap-3 border border-[#9d3027]/35 px-5 text-xs font-semibold tracking-[0.1em] text-[#9d3027] uppercase transition-colors hover:bg-[#9d3027]/[0.05]"
+                  href={`/question?lang=${locale}`}
+                >
+                  {locale === 'zh' ? '具体解答' : 'Ask a question'}
+                  <ArrowUpRight className="size-4" />
+                </Link>
+              </div>
+            </div>
+          </>
         ) : null}
         {view === 'overview' ||
         view === 'past' ||
