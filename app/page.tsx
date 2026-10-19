@@ -1383,6 +1383,13 @@ function SiteHeader({
         </span>
       </button>
       <div className="flex items-center gap-4">
+        <Link
+          aria-label={locale === 'zh' ? '进入六爻起卦' : 'Open Six Yao reading'}
+          className="border border-[#9d3027]/35 px-2.5 py-2 text-[10px] font-semibold tracking-[0.12em] text-[#9d3027] uppercase transition-colors hover:bg-[#9d3027]/[0.06]"
+          href={`/question?lang=${locale}`}
+        >
+          {locale === 'zh' ? '六爻' : 'Six Yao'}
+        </Link>
         <span className="hidden h-1.5 w-1.5 animate-pulse rounded-full bg-[#9d3027] sm:block" />
         <p className="hidden text-[10px] font-medium tracking-[0.2em] text-black/45 uppercase min-[560px]:block">
           {locale === 'zh' ? '内测版 · 四柱' : 'Private beta · Four Pillars'}
