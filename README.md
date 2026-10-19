@@ -8,7 +8,7 @@ MING is a bilingual (English/Chinese) prototype that turns selected Chinese meta
 - The server calculates BaZi chart facts and location/time-zone adjustments; the model is instructed to interpret those facts rather than invent or recalculate them.
 - Readings are generated in phases and organized into an overview, looking back, looking ahead, character, career, relationships, and timing. Explanatory reasoning is kept secondary to plain-language conclusions.
 - Zi Wei Dou Shu is calculated as a supporting lens and integrated into the overall interpretation when the necessary chart facts are available. It is not intended to be a separate, jargon-heavy customer report. Unknown birth time excludes time-dependent claims.
-- A separate Six Yao / I Ching question flow is implemented at `/question`. Production access is still gated by the beta flag and bot-protection configuration; do not assume that the page is open to every visitor.
+- A separate Six Yao / I Ching question flow is available at `/question`. It asks for one question and six coin casts, then uses the same server-side DeepSeek API key as the birth reading.
 - Feedback is opt-in. Survey and prediction feedback are written to Cloudflare D1; the feedback API does not accept birth date, name, city, or chart data.
 - The two fixed-result dates (`1000-01-01` and `1000-01-02`) remain reserved for testing but their fixture switch is disabled. They use the normal live interpretation path while `ENABLE_TEST_FIXTURES` is false.
 
@@ -24,6 +24,7 @@ Useful files:
 - `app/page.tsx` — main birth-flow and reading experience.
 - `app/question/page.tsx` — Six Yao question flow.
 - `app/api/interpret/route.ts` — interpretation API.
+- `app/api/iching/route.ts` and `app/api/followup/route.ts` — question and report follow-up APIs.
 - `app/api/feedback/route.ts` — consented feedback validation and D1 writes.
 - `lib/bazi/` — deterministic BaZi chart calculation.
 - `lib/ziwei/` — deterministic Zi Wei chart calculation.
@@ -52,7 +53,7 @@ npm run lint
 
 Local model secrets belong in an ignored `.env.local` / `.dev.vars` file according to the existing project setup. Start from `.env.example`; do not paste keys into source, docs, issues, or chat. The deployed Worker reads its secrets and variables from Cloudflare.
 
-The server validates request payloads, caps request sizes, includes a request ID in API responses, and supports per-isolate rate limits controlled by `RATE_LIMIT_ENABLED`. Those in-memory limits are not a global abuse-control system; review Cloudflare-side protections before opening the prototype broadly. The I Ching beta endpoint additionally requires production Turnstile configuration.
+The server validates request payloads, caps request sizes, includes a request ID in API responses, and supports per-isolate rate limits controlled by `RATE_LIMIT_ENABLED`. The production value was last confirmed as `false` during the October 19 test; verify it again before wider promotion. These in-memory limits are not global abuse control. The live reading flows no longer require Turnstile, although its unused component, helper, test, and Cloudflare configuration remain for possible future use. Do not mistake those dormant files/settings for an active verification requirement.
 
 ## Cloudflare D1
 
@@ -79,10 +80,10 @@ npx wrangler deploy --config dist/server/wrangler.json --keep-vars
 
 `--keep-vars` is important: production model variables are managed in Cloudflare and should not be cleared by a build. The Worker is served at `https://bazi-ai-prototype.wangxcep.workers.dev/`.
 
-If Cloudflare Git integration is enabled, keep GitHub in sync before its next automatic deployment. At the time of this update, the D1 integration has been deployed directly from the local working tree but its source changes have not yet been committed/pushed.
+Keep GitHub in sync with direct Wrangler deployments so a later Git-connected build cannot restore older code. Use `--keep-vars` to preserve Cloudflare-managed runtime variables; secrets are not committed to Git.
 
 ## Current verification snapshot
 
-Updated 2026-10-19. The D1 integration built successfully; TypeScript checking passed; all 22 unit tests passed; the changed API/config files passed targeted lint. An end-to-end survey POST returned HTTP 200 and was confirmed in D1, then the synthetic test row was deleted. The repository-wide lint command still reports unrelated existing findings in UI components and chart code.
+Updated 2026-10-20. The current application-code baseline is `7c84514`; the corresponding Worker version `4c5d1260-49af-4d85-9bb4-cc87d1aac197` was deployed with `--keep-vars`. Build, TypeScript check, and all 23 unit tests passed. After removing the human-verification gate, production POSTs without any Turnstile token returned HTTP 200 for Six Yao, birth-reading first phase, and report follow-up. The repository-wide lint command still reports pre-existing findings in unrelated UI primitives and chart code.
 
-For the current work state, deployed details, and next steps, see [HANDOVER.md](HANDOVER.md).
+For the current work state and the safe boundaries for local UI/UX experiments, see [HANDOVER.md](HANDOVER.md).

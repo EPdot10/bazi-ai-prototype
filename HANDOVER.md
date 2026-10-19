@@ -1,150 +1,74 @@
 # MING Project Handover
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20. Start the next session here.
 
-## Product direction
+## Next objective: local UI/UX exploration
 
-MING is a low-cost bilingual product experiment for introducing Chinese metaphysical traditions to an English-speaking audience. The near-term goal is to learn whether a readable, culturally distinctive reflection can attract and retain users—not to claim scientific validation or guaranteed prediction. Keep deterministic chart calculation, model interpretation, and user-reported feedback distinct.
+Preserve the current reading content, product structure, and functional behaviour. Try several visual directions locally, compare them using the same content, and ask the owner to choose before merging or deploying a redesign. This is a presentation/usability task, not a new prediction engine or a rewritten report.
 
-The product should lead with a plain-language takeaway and keep technical reasoning optional. BaZi remains the primary framework; supported Zi Wei Dou Shu clues are a complementary lens in the overall interpretation. Six Yao answers a user-chosen question in a separate flow. Never invent chart facts or present either tradition as certainty.
+The application-code baseline is commit `7c84514`; this documentation-only handover follows it. Start UI experiments from the latest clean `main`. Prefer a separate branch or managed worktree per direction, e.g. `codex/uiux-editorial` and `codex/uiux-modern`. Keep experiments local until reviewed. Capture screenshots and concise usability notes for each at mobile and desktop sizes.
 
-## Current state at a glance
+## Product and current state
 
-- Production site: [bazi-ai-prototype.wangxcep.workers.dev](https://bazi-ai-prototype.wangxcep.workers.dev/).
-- Hosting/runtime: Cloudflare Workers, built with vinext, Vite, and the Cloudflare Vite plugin.
-- AI: server-side DeepSeek Flash. API secrets remain in Cloudflare/local secret configuration, never in browser code or Git.
-- Main birth reading and the separately gated `/question` Six Yao experience are implemented.
-- Zi Wei calculation is **not disabled**: it is calculated deterministically and supplied as a supporting lens for the overall reading. It is not meant to appear as a standalone technical report. Unknown birth time excludes hour-dependent Zi Wei claims.
-- Consent-based survey and prediction feedback now persist in Cloudflare D1.
-- D1 source and docs are deployed from the local working tree but are not yet committed/pushed to GitHub; see Git status below.
+- Production: <https://bazi-ai-prototype.wangxcep.workers.dev/>. Worker `bazi-ai-prototype`; last manual deployment `4c5d1260-49af-4d85-9bb4-cc87d1aac197` used `--keep-vars`.
+- Bilingual English/Chinese Next-style App Router on vinext/Vite and Cloudflare Workers. DeepSeek Flash calls are server-side using one `DEEPSEEK_API_KEY`; never expose the key to the browser or Git.
+- Birth reading: landing → date → time confidence/time → birth city confirmation → phased result. Report chapters: Overview, Looking Back, Looking Ahead, Character, Career, Relationships, Timing, Method. Looking Back opens first; later chapters generate in the background and must display truthful pending/failed states.
+- BaZi is primary; supported Zi Wei facts are integrated as a supporting lens, not a separate technical page. Birthplace is for location/time-zone processing, not inferred upbringing. Unknown birth hour must not produce hour-dependent claims.
+- Specific question: `/question` collects a question, timeframe, and six coin casts; the server derives a reproducible Six Yao/Na Jia chart and asks the same DeepSeek service to interpret it. It is separate from the birth report and is currently live, without an active beta flag or human-verification gate.
+- Report follow-up sends a short question plus bounded report context to `/api/followup`.
+- Explicit-consent survey and prediction-match feedback goes to Cloudflare D1 (`FEEDBACK_DB` → `ming-feedback`). The feedback API does not accept birth date, name, city, or chart details. There is no user account, real payment/entitlement, email delivery, or server-side saved-reading history. Jade Pass `666` is a demo gate only.
+- Result PDF is browser print/save-as-PDF, not email delivery. Fixed-result dates `1000-01-01` and `1000-01-02` remain in source but `ENABLE_TEST_FIXTURES=false`; they do not bypass AI.
+- This is an entertainment/self-reflection prototype, not scientific validation or medical, legal, investment, or safety advice. Preserve conditional language and the distinction between calculated chart facts and model interpretation.
 
-## User journey and result structure
+## UI/UX change boundary
 
-1. The landing page introduces the reading and lets the visitor select English or Chinese.
-2. The visitor enters date, chooses Exact / Approximate / Unknown time, then enters and confirms a birth city. City plus country helps disambiguate names.
-3. The server resolves a canonical place, coordinates, and IANA time zone, calculates chart facts, and requests the selected locale from DeepSeek Flash.
-4. Results are phased and navigable in-page: Overview, Looking Back, Looking Ahead, Character, Career, Relationships, Timing, and Method. The overview carries the global two-line summary; later sections should lead with their own page-specific takeaway rather than repeat it.
-5. Each result should put the practical conclusion first and make traditional reasoning secondary/expandable. The Method section explains the tradition in beginner-friendly terms.
+| Area | Safe to explore locally | Preserve for a visual experiment |
+| --- | --- | --- |
+| Landing/branding | Typography, colour, imagery, spacing, hero hierarchy, button treatment, subtle motion in `LandingPage`, `SiteHeader`, `app/globals.css` | Both primary entries (birth reading and specific question), locale choice, links, truthful claims |
+| Intake | Layout, labels/hints, progress display, control styling and transitions in `app/page.tsx` | Date/time values, Exact/Approximate/Unknown semantics, wheel input behaviour, city confirmation, optional name/gender, consent, validation, `submitReading`, request payload |
+| Reading result | Card composition, navigation placement, visual hierarchy, expandable rationale styling, loading/empty/error presentation, mobile layout | Section list/order/content, `Reading`/`PhaseResponse` shapes, `requestReadingPhase`/`continueReading`, pending/failed state, saved-reading recovery, feedback consent, PDF action, Jade Pass demo, follow-up request |
+| Six Yao page | Coin animation/look, chart presentation, question-form layout, responsive result styling in `app/question/page.tsx` | Six-cast state, cryptographic coin generation, cast time/time zone, deterministic chart facts, session recovery, validation, `/api/iching` payload |
+| Server/data | Usually no edits | `app/api/**`, `lib/bazi/**`, `lib/ziwei/**`, `lib/iching.ts`, `lib/deepseek.ts`, `lib/geocode.ts`, `lib/request-guard.ts`, D1 migrations/bindings, prompts, schemas, limits, privacy, secrets |
 
-The date/time wheel supports touch and mouse input. Hour/minute values loop; minute defaults to 30; wheel interaction should not scroll the page. The fixed MING/home mark returns to the introduction. Saved reading recovery is browser-local and temporary, not an account or server history.
+Changing JSX in a mixed logic/UI file is fine, but keep handlers, state, types, data transformations, locale keys, and API contracts intact. Do not remove disclosure or consent text to make a screen cleaner. Respect reduced-motion preferences; preserve keyboard focus, contrast, screen-reader labels, and touch targets. Avoid heavy new dependencies/assets without checking mobile cost.
 
-## Traditional calculation and interpretation
+`components/turnstile-field.tsx`, `lib/turnstile.ts`, and `tests/turnstile.test.mjs` are dormant. On 2026-10-19, active Turnstile UI and server checks were removed from `/api/interpret`, `/api/iching`, and `/api/followup` because completed verification could still yield a generic 403. Old Cloudflare Turnstile settings do **not** mean live flows need CAPTCHA. Do not reconnect these files during styling.
 
-### BaZi
+## Code map
 
-- Chart pillars and timing signals are calculated in `lib/bazi/`; the model must treat these server facts as authoritative.
-- Birthplace is used for location/time-zone handling; it is not evidence of where a person grew up, lives, studied, or worked.
-- Exact / approximate / unknown birth-time confidence affects which claims are allowed. Unknown time must not be filled with a guessed hour.
-- Event retrospection should use varied, checkable life-stage hypotheses rather than repeating generic school/work/social-circle language. This remains an open quality problem; synthetic tests cannot prove personal accuracy.
+- `app/page.tsx`: landing, intake, report state/navigation, phased loading, print/PDF, feedback UI. It is a large mixed file; make small scoped visual edits and review diffs carefully.
+- `app/question/page.tsx`: Six Yao interaction/result; `components/birth-wheel.tsx`: touch/mouse/keyboard date and time wheel; `components/reading-follow-up.tsx`: report-context question UI.
+- `app/globals.css`: design, responsive and print rules; preserve print and touch/scroll fixes.
+- `app/api/interpret/route.ts`, `app/api/iching/route.ts`, `app/api/followup/route.ts`: AI request/response contracts.
+- `lib/deepseek.ts`, `lib/bazi/`, `lib/ziwei/`, `lib/iching.ts`: interpretation and deterministic calculations.
+- `app/api/feedback/route.ts`, `migrations/`: consented D1 data flow.
+- `README.md`: setup/deployment. `PRODUCT_REDESIGN_ROADMAP.md`, `LIUYAO_EXPERIMENT_SPEC.md`, `READING_EVALUATION.md`: background and content-validation work, not instructions to replace the current UI.
 
-### Zi Wei Dou Shu
+## Experiment and QA loop
 
-- `lib/ziwei/calculate.ts` contains deterministic chart calculation under a named convention and has regression tests, including comparison against `iztro@2.6.2` for non-leap charts.
-- The current product choice is to merge only supported Zi Wei signals into the overall reading. Do not restore an old separate customer-facing Zi Wei report or claim that the method is practitioner-certified.
-- Unknown birth hour produces an incomplete chart; do not invent 命宫 or other hour-dependent placements.
-- Practitioner review of convention choices remains useful before making strong accuracy claims.
+1. Capture current landing, intake, phased result, `/question`, and follow-up in both languages. Keep text/data constant for comparisons. A browser-local saved birth reading reduces repeated AI calls; Six Yao uses tab-scoped `sessionStorage`. Never commit private readings or API keys as fixtures.
+2. Build 2–3 distinct local visual directions on isolated branches/worktrees. Change visual tokens/components first, then responsive layout and motion. Preserve the information architecture and report wording.
+3. Review near 360/390px phone, 768px tablet, and desktop. Test touch scrolling/date-time wheel, keyboard navigation, reduced motion, Chinese wrapping, focus states, print/PDF, every report chapter, and pending/failure states.
+4. Run `npm run build`, `npm run test:unit`, and `npx tsc --noEmit` after each candidate. Full `npm run lint` has pre-existing findings in unrelated UI primitives/chart code; separate those from new findings. Introduce no new lint/type/build errors.
+5. On a chosen design, test one known birth flow and one Six Yao question plus feedback consent and follow-up. Ask the owner to review **before** push/deploy. If approved, keep GitHub/Worker in sync and smoke-test production.
 
-### Six Yao / I Ching
+Local start: Node.js 22.13+, `npm install`, `npm run dev`. Vite prints a current LAN URL for phone testing on the same Wi-Fi. Keep local secrets only in ignored `.env.local`/`.dev.vars`, starting from `.env.example`. Never put a DeepSeek key in `NEXT_PUBLIC_*` or frontend code.
 
-- `/question` collects one question, a timeframe, and six three-coin lines. `lib/iching.ts` deterministically derives the hexagrams and Na Jia structure; AI interprets supplied facts and cannot choose or alter the cast.
-- Its production API is gated by `QUESTION_BETA_ENABLED` and requires Turnstile configuration; the public entry is separately controlled by `NEXT_PUBLIC_QUESTION_BETA_ENABLED` at build time. Confirm deployed variables and hostname/token flow before describing it as open to the public.
-- The current implementation does not calculate every school-specific layer (for example, a practitioner-validated useful spirit or all month/day-strength rules). See `LIUYAO_EXPERIMENT_SPEC.md`; do not imply otherwise.
+## Verification and deployment caution
 
-## Fixtures, model behavior, and safety
+Commit `7c84514` removed active Turnstile checks. Build, TypeScript, and 23 unit tests passed. Production POSTs **without** a verification token returned HTTP 200 with AI output for `/api/iching`, `/api/interpret` (`past` phase), and `/api/followup`. This verifies API wiring, not predictive accuracy or every browser/device path.
 
-- The fixed results for `1000-01-01` and `1000-01-02` are retained as QA fixtures, but `ENABLE_TEST_FIXTURES` is currently `false`. The dates go through the normal place/chart/model path; they are not instant saved results now.
-- All model calls run server-side. No local generated reading should be substituted when the provider fails; during evaluation, surface provider/schema errors clearly.
-- Model output is checked against the expected response contract, with a schema-repair attempt for malformed output. Timeouts, empty results, and invalid output should remain diagnosable.
-- Request guards cap JSON payloads and attach request IDs. Rate limiting is controlled by `RATE_LIMIT_ENABLED` and is held in Worker-isolate memory; it is best-effort, not a shared/global abuse-control system. Keep Cloudflare-side protections in mind before broad public promotion.
-- The prototype Jade Pass (`666`) is a client-side demo gate, not payment or entitlement security.
-- The product is entertainment/self-reflection, not factual, scientific, medical, legal, financial, or safety advice. Do not say the model has discovered someone's history from their birth data.
+Production `RATE_LIMIT_ENABLED` was last observed as `false` during testing. Existing limits are per-isolate only if enabled, not global abuse control. Before broad promotion, add non-interactive Cloudflare-side protection appropriate to AI cost without accidentally restoring CAPTCHA.
 
-## Cloudflare D1 feedback storage
-
-- Production database: `ming-feedback`.
-- Worker binding: `FEEDBACK_DB`.
-- Region: `OC` (Oceania). Database ID: `8f5be188-1330-490a-8055-efe07658f9c5`.
-- Schema: `migrations/0001_create_feedback_submissions.sql`, applied remotely.
-- `POST /api/feedback` stores survey and prediction feedback only when the user has opted in. It stores the request ID, feedback type/section, permitted answer fields, optional comment, locale, and timestamp.
-- The feedback endpoint intentionally does not accept birth date, name, city, or chart data. Avoid asking users to put sensitive personal details in free text.
-- A production smoke test wrote a synthetic consented survey, read it back from D1, then deleted that exact test row. No smoke-test row remains.
-- There is no public feedback-reading/admin endpoint, scheduled retention job, or email delivery yet. Decide retention/export access controls before accumulating substantial free-text feedback.
-
-Useful D1 checks from the repository root:
-
-```sh
-npx wrangler d1 migrations list FEEDBACK_DB --remote --config dist/server/wrangler.json
-npx wrangler d1 info FEEDBACK_DB --config dist/server/wrangler.json --json
-```
-
-Do not create a second database or run destructive SQL against production to troubleshoot routine issues.
-
-## Current files
-
-- `app/page.tsx` — landing/intake flow, phased report, navigation, feedback and language UI.
-- `components/birth-wheel.tsx` — birth date/time wheel.
-- `app/api/interpret/route.ts` — chart calculation, validation, and phased AI interpretation.
-- `app/api/feedback/route.ts` — feedback validation and D1 persistence.
-- `app/api/iching/route.ts`, `app/question/page.tsx` — gated Six Yao experience.
-- `lib/bazi/`, `lib/ziwei/`, `lib/iching.ts` — deterministic chart/hexagram rules.
-- `lib/deepseek.ts` — DeepSeek Flash request, prompt, timeout, output validation/repair.
-- `lib/geocode.ts` and `app/api/place/route.ts` — place lookup and confirmation.
-- `migrations/` — D1 schema migrations.
-- `vite.config.ts`, `.openai/hosting.json` — Worker/build and D1 binding source configuration.
-- `README.md` — concise project overview, local commands, and deployment/D1 setup.
-
-## Local setup and checks
-
-Use Node.js 22.13 or newer. Install from the existing lockfile and create an ignored `.env.local` / `.dev.vars` from `.env.example` for local secrets. Never commit or share real API keys.
-
-```sh
-npm install
-npm run dev
-npm run build
-npm run test:unit
-npx tsc --noEmit
-npm run lint
-```
-
-Vite is configured to bind `0.0.0.0` for LAN testing. Use the current Network URL printed by `npm run dev`; a saved `192.168.x.x` address can change. The phone and computer must share Wi-Fi, and Windows Firewall must permit Node.js on Private networks.
-
-## Verification and interpretation of evidence
-
-Latest D1 change (2026-10-19):
-
-- `npm run build` passed.
-- All 22 unit tests passed.
-- `npx tsc --noEmit` passed.
-- Targeted lint for `app/api/feedback/route.ts` and `vite.config.ts` passed.
-- `git diff --check` passed.
-- Wrangler dry-run showed `env.FEEDBACK_DB (ming-feedback)` on the Worker.
-- Remote schema migration and production feedback write/read/delete smoke test passed.
-- Full `npm run lint` still reports pre-existing findings in UI primitives and chart code; keep this separate from the D1 change.
-
-Prior live/synthetic browser runs and public-biography exercises are recorded in `READING_EVALUATION.md`, `PUBLIC_BIO_BENCHMARK.md`, and the experiment specs. They test mechanics and wording, not validated predictive accuracy. Physical-phone coverage and a diverse consented user cohort remain outstanding.
-
-## Git and deployment
-
-The latest Cloudflare Worker deployment created by this task is version `d0403fdf-e8d9-483d-9a66-fd594e20c873` at `https://bazi-ai-prototype.wangxcep.workers.dev/`. Deployment used `--keep-vars` to preserve Cloudflare-managed runtime variables and secrets.
-
-The current working tree has D1/documentation changes that have **not yet been committed or pushed**. These include `.openai/hosting.json`, `vite.config.ts`, `app/api/feedback/route.ts`, the initial migration, `README.md`, and this handover. GitHub / a Git-connected Cloudflare build may therefore still contain the previous source. Sync the repository before relying on a future automatic Git deployment.
-
-Build and deploy from the project root with:
+When a production deployment is appropriate:
 
 ```sh
 npm run build
 npx wrangler deploy --config dist/server/wrangler.json --keep-vars
 ```
 
-Never omit `--keep-vars` in the established deployment flow unless you intentionally plan and verify all Cloudflare variables/secrets first.
+`--keep-vars` preserves dashboard-managed runtime variables. Confirm target Worker, D1 binding, and environment first; never delete production feedback data. Git-connected builds can follow a push, so verify the final Worker version and site.
 
-## Recommended next steps
+## Open work outside this visual task
 
-1. Review and commit/push the local D1 source and documentation so GitHub matches the deployed Worker.
-2. Confirm whether `/question` should be public beta or remain gated; verify its Cloudflare flags, Turnstile hostname, and real-token/replay behavior before enabling it.
-3. Run a real consented questionnaire with a few testers and inspect responses privately via Wrangler; do not create a public unauthenticated feedback-read endpoint.
-4. Decide retention and export controls for D1 free-text responses before collecting meaningful volume.
-5. Continue prediction-quality work with a diverse, consented age cohort. Separate chart-signal strength from measured user agreement and avoid unsupported precision.
-6. Track full-repository lint cleanup and practitioner review as separate workstreams.
-
-Reference documents: `PRODUCT_REDESIGN_ROADMAP.md`, `READING_EVALUATION.md`, `BETA_TESTER_SCRIPT.md`, `LIUYAO_EXPERIMENT_SPEC.md`, `ZIWEI_EXPERIMENT_SPEC.md`, and `PUBLIC_BIO_BENCHMARK.md`.
+Real consented users across ages/cultures are still needed to assess specificity and usefulness; synthetic biographies and AI self-evaluation do not establish predictive accuracy. Six Yao does not implement every school-specific layer (e.g. month/day strength and automatic 用神 selection). D1 feedback retention/export controls, proper payment/access control, and email are future work, not part of the next UI exploration.

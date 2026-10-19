@@ -1,12 +1,12 @@
 # MING content and experience redesign
 
-Status: updated 2026-10-19. The main overview/topic-page layout, bottom navigation, collapsible rationale, plain-language Method explanation, retrospective feedback target, and phased AI reading are implemented. Zi Wei is calculated and integrated as a supporting lens in the overall reading; the Six Yao question flow is implemented behind production beta/bot-protection gates. The main remaining work is diverse real-user validation, prediction distinctiveness, mobile/device review, and deciding when to open the Six Yao beta. This roadmap keeps outstanding gates; it is not a claim that every product goal is complete.
+Status: updated 2026-10-20. The main overview/topic-page layout, bottom navigation, collapsible rationale, plain-language Method explanation, retrospective feedback target, and phased AI reading are implemented. Zi Wei is integrated as a supporting lens; the Six Yao question flow is live without an active beta flag or Turnstile gate. The next agreed workstream is local UI/UX style exploration **without changing content or functional contracts**; use [HANDOVER.md](./HANDOVER.md) for exact change boundaries. Diverse real-user validation, prediction distinctiveness, and physical-device review remain open. This is not a claim that every product goal is complete.
 
-October 18–19 progress: the prompt and age-band candidate selection were revised; Overview is separate from topic pages; bottom navigation and collapsible rationale are in place; the Method page begins with a plain-language, non-scientific seasonal-map analogy. Synthetic Chinese and English readings and 390px mobile flows have been exercised. Retrospective claims now have specific feedback targets and a cannot-judge option, but repeated runs can still reuse responsibility/relationship scenes. Zi Wei's deterministic chart is now passed into the overall interpretation as a supporting lens rather than shown as a separate technical report. The deterministic three-coin question flow and its tests are implemented behind production beta and Turnstile gates. D1 now stores consented feedback. Human validation, physical-phone review, full bilingual regression, and the question-beta release gate remain open. See [READING_EVALUATION.md](./READING_EVALUATION.md), [BETA_TESTER_SCRIPT.md](./BETA_TESTER_SCRIPT.md), [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md), and [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md).
+October 18–19 progress: the prompt and age-band candidate selection were revised; Overview is separate from topic pages; bottom navigation and collapsible rationale are in place; the Method page begins with a plain-language, non-scientific seasonal-map analogy. Synthetic Chinese and English readings and 390px mobile flows have been exercised. Retrospective claims now have specific feedback targets and a cannot-judge option, but repeated runs can still reuse responsibility/relationship scenes. Zi Wei's deterministic chart supports the overall interpretation. The deterministic three-coin question flow and tests are implemented, and D1 stores consented feedback. Turnstile was removed from active reading flows; production API smoke tests without a token passed. Human validation, physical-phone review, full bilingual regression, and non-interactive abuse protection remain open. See [READING_EVALUATION.md](./READING_EVALUATION.md), [BETA_TESTER_SCRIPT.md](./BETA_TESTER_SCRIPT.md), [LIUYAO_EXPERIMENT_SPEC.md](./LIUYAO_EXPERIMENT_SPEC.md), and [ZIWEI_EXPERIMENT_SPEC.md](./ZIWEI_EXPERIMENT_SPEC.md).
 
 ## Product objective
 
-Make the first reading easier to understand, less repetitive, and more useful across ages and countries. Validate actual user value for the existing BaZi-led reading, integrated Zi Wei clues, and gated Six Yao question flow before making accuracy claims or widening public access.
+Make the first reading easier to understand, less repetitive, and more useful across ages and countries. Validate actual user value for the existing BaZi-led reading, integrated Zi Wei clues, and Six Yao question flow before making accuracy claims or widening promotion.
 
 ## Interpretation principles
 
@@ -52,10 +52,10 @@ Gate: no supplied fact masquerades as a prediction; no adjacent generic transiti
 
 Gate: a new user can read the entire result without repeatedly scrolling to the top; Chinese mode has no unexplained English content; rationale is optional, accessible, and usable on mobile.
 
-### 3. Question-based Liu Yao beta: validate and gate access
+### 3. Question-based Liu Yao: validate the live experiment
 
 - The separate `/question` flow and deterministic three-coin / Na Jia chart calculation are implemented. Keep this distinct from the birth-chart report because it answers a user-authored question.
-- Confirm the deployed public-entry/API flags and Turnstile configuration; keep it gated until a novice usability check and real-token success/replay verification are complete.
+- The old public-entry/API beta flags and Turnstile checks are no longer active. A no-token production API request succeeded; the remaining release tasks are novice usability testing and non-interactive abuse protection before wider promotion.
 - Make the mechanism and calculation boundary transparent; do not imply a human expert, hidden statistical database, or complete school-specific Liu Yao judgement if none exists.
 - Test whether first-time users understand the cast, answer, uncertainty, and limits before widening access.
 
