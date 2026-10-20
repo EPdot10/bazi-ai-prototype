@@ -6,8 +6,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowDown, ArrowUpRight, MoveRight } from 'lucide-react';
 
-gsap.registerPlugin(useGSAP, ScrollTrigger);
-
 type Locale = 'en' | 'zh';
 
 const pillars = [
@@ -73,6 +71,7 @@ export function EditorialLanding({
 
   useGSAP(
     () => {
+      gsap.registerPlugin(ScrollTrigger);
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
       const intro = gsap.timeline({ defaults: { ease: 'power3.out' } });
