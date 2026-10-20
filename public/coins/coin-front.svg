@@ -1,31 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title">
-  <title id="title">古钱正面示意</title>
+  <title id="title">半两古钱有字面</title>
   <defs>
-    <radialGradient id="metal" cx="34%" cy="26%" r="75%">
-      <stop offset="0" stop-color="#f4d69a"/>
-      <stop offset=".32" stop-color="#c99c55"/>
-      <stop offset=".73" stop-color="#966b37"/>
-      <stop offset="1" stop-color="#503b25"/>
+    <radialGradient id="bronze" cx="34%" cy="27%" r="78%">
+      <stop offset="0" stop-color="#d4b57a"/>
+      <stop offset=".34" stop-color="#ad844d"/>
+      <stop offset=".72" stop-color="#806039"/>
+      <stop offset="1" stop-color="#4c3927"/>
     </radialGradient>
-    <linearGradient id="lip" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#f6dfad"/>
-      <stop offset=".5" stop-color="#9b6d36"/>
-      <stop offset="1" stop-color="#51351c"/>
+    <linearGradient id="rim" x1=".1" y1=".05" x2=".9" y2=".95">
+      <stop stop-color="#dfc38b"/>
+      <stop offset=".48" stop-color="#8e693e"/>
+      <stop offset="1" stop-color="#493522"/>
     </linearGradient>
-    <mask id="cut"><rect width="240" height="240" fill="white"/><rect x="96" y="96" width="48" height="48" rx="2" fill="black"/></mask>
+    <filter id="cast" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="12" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values=".25 0 0 0 0  0 .19 0 0 0  0 0 .11 0 0  0 0 0 .22 0" result="grain"/>
+      <feBlend in="SourceGraphic" in2="grain" mode="multiply"/>
+    </filter>
+    <mask id="cut"><rect width="240" height="240" fill="white"/><rect x="94" y="94" width="52" height="52" rx="1" fill="black"/></mask>
   </defs>
-  <g mask="url(#cut)">
-    <circle cx="120" cy="120" r="113" fill="#3b3023"/>
-    <circle cx="120" cy="120" r="110" fill="url(#metal)" stroke="url(#lip)" stroke-width="7"/>
-    <circle cx="120" cy="120" r="99" fill="none" stroke="#f4d89e" stroke-opacity=".55" stroke-width="2"/>
-    <circle cx="120" cy="120" r="91" fill="none" stroke="#51391f" stroke-opacity=".65" stroke-width="3"/>
-    <circle cx="120" cy="120" r="79" fill="none" stroke="#f1cc89" stroke-opacity=".35" stroke-width="1.5"/>
-    <rect x="89" y="89" width="62" height="62" rx="3" fill="#51381e" stroke="#e3bc75" stroke-width="3"/>
-    <rect x="94" y="94" width="52" height="52" rx="2" fill="none" stroke="#f4dba8" stroke-opacity=".55" stroke-width="2"/>
-    <g fill="#4f351c" stroke="#e6bb74" stroke-width=".4" font-family="Songti SC, STSong, SimSun, serif" font-size="29" font-weight="700" text-anchor="middle">
-      <text x="120" y="76">乾</text><text x="120" y="190">隆</text>
-      <text x="63" y="130">寶</text><text x="177" y="130">通</text>
+  <g mask="url(#cut)" filter="url(#cast)">
+    <circle cx="120" cy="120" r="113" fill="#443426"/>
+    <circle cx="120" cy="120" r="109" fill="url(#bronze)" stroke="url(#rim)" stroke-width="7"/>
+    <circle cx="120" cy="120" r="99" fill="none" stroke="#dfc68f" stroke-opacity=".45" stroke-width="2"/>
+    <circle cx="120" cy="120" r="91" fill="none" stroke="#5d452c" stroke-opacity=".5" stroke-width="2.5"/>
+    <path d="M39 76c17-23 38-36 64-42M169 38c17 9 30 21 40 37M36 158c9 22 24 39 45 50M158 210c22-8 38-22 50-42" fill="none" stroke="#ecd39b" stroke-linecap="round" stroke-opacity=".2" stroke-width="3"/>
+    <path d="M48 126c10 4 15 9 20 17M175 65c-6 8-9 16-9 24M68 187c8-5 15-6 24-5M181 147c-8 4-13 10-16 18" fill="none" stroke="#4f3924" stroke-linecap="round" stroke-opacity=".28" stroke-width="4"/>
+    <rect x="87" y="87" width="66" height="66" rx="2" fill="#795936" stroke="#d2af72" stroke-width="3"/>
+    <rect x="92" y="92" width="56" height="56" rx="1" fill="none" stroke="#4d3825" stroke-width="2"/>
+    <g fill="#4c3521" stroke="#cfad72" stroke-opacity=".55" stroke-width=".8" font-family="STKaiti, KaiTi, Songti SC, STSong, serif" font-size="44" font-weight="700" text-anchor="middle">
+      <text x="55" y="136">兩</text>
+      <text x="184" y="136">半</text>
     </g>
   </g>
-  <rect x="96" y="96" width="48" height="48" rx="2" fill="none" stroke="#3b2817" stroke-width="3"/>
+  <rect x="94" y="94" width="52" height="52" rx="1" fill="none" stroke="#44301f" stroke-width="3"/>
 </svg>
