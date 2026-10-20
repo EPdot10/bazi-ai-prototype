@@ -3,6 +3,7 @@
 import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
+import { WindParticles } from '@/components/editorial/wind-particles';
 import {
   castCoinLine,
   deriveCoinReading,
@@ -682,6 +683,7 @@ export default function QuestionPage() {
               <span className="oracle-stage-count">{String(throws.length).padStart(2, '0')} <i>/</i> 06</span>
             </div>
             <div className="oracle-coin-board">
+              <WindParticles variant="casting" />
               <div className="oracle-board-meta"><span>MING / CASTING STUDIO</span><span>{isZh ? '每次投掷记录一爻' : 'ONE CAST, ONE LINE'}</span></div>
               <button
                 className="oracle-toss-target"
