@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { BirthWheel, type BirthWheelValue } from '@/components/birth-wheel';
+import { EditorialLanding } from '@/components/editorial/editorial-landing';
 import { ReadingFollowUp } from '@/components/reading-follow-up';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -468,7 +469,11 @@ export default function Home() {
   const [birthPlace, setBirthPlace] = useState('');
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('undisclosed');
-  const [locale, setLocale] = useState<ReadingLocale>('en');
+  const [locale, setLocale] = useState<ReadingLocale>('zh');
+
+  useEffect(() => {
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+  }, [locale]);
   const [confirmedPlace, setConfirmedPlace] = useState<
     Reading['resolvedPlace'] | null
   >(null);
@@ -720,7 +725,7 @@ export default function Home() {
   const copy = locale === 'zh' ? intakeCopy.zh : intakeCopy.en;
 
   return (
-    <main className="min-h-screen bg-[#f2efe8] text-[#181714]">
+    <main className="site-shell min-h-screen bg-[#f2efe8] text-[#181714]">
       <SiteHeader
         locale={locale}
         onLocaleChange={setLocale}
@@ -734,7 +739,7 @@ export default function Home() {
           onReset={resetReading}
         />
       ) : !hasStarted ? (
-        <LandingPage locale={locale} onBegin={() => setHasStarted(true)} />
+        <EditorialLanding locale={locale} onBegin={() => setHasStarted(true)} />
       ) : (
         <section className="mx-auto grid max-w-[1280px] lg:grid-cols-[0.82fr_1.18fr]">
           <div className="hidden flex-col justify-between border-b border-black/10 px-6 py-14 sm:px-10 sm:py-20 lg:flex lg:min-h-[calc(100vh-5rem)] lg:border-r lg:border-b-0 lg:px-14 lg:py-24">
@@ -749,18 +754,18 @@ export default function Home() {
               </p>
               <h1 className="max-w-xl font-serif text-[clamp(3.5rem,6.5vw,6.7rem)] leading-[0.9] font-medium tracking-[-0.055em]">
                 {locale === 'zh'
-                  ? '从故事开始的地方开始。'
-                  : 'Begin where your story began.'}
+                  ? '先把时间，写在纸上。'
+                  : 'Start with the moment you were born.'}
               </h1>
               <p className="mt-8 max-w-md font-serif text-2xl leading-8 text-black/72">
                 {locale === 'zh'
-                  ? '看看中国传统命理如何描述你的人生结构。'
-                  : 'Discover the patterns Chinese astrology sees in your life.'}
+                  ? '日期、时辰与城市，是这份命盘的起点。'
+                  : 'Date, time, and city are the first lines of this chart.'}
               </p>
               <p className="mt-4 max-w-md text-sm leading-7 text-black/55">
                 {locale === 'zh'
-                  ? '设定出生的日期与城市，MING 会把古老的中国方法转化为一份安静、现代的结构反思。'
-                  : 'Set the moment and city of your birth. MING translates an old Chinese method into a quiet, modern reflection on the pattern you carry.'}
+                  ? '接下来只需三步。我们会展示排盘依据，再展开个人解读。'
+                  : 'Three steps from here. We show the chart first, then the personal reading.'}
               </p>
               <div className="mt-10 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
                 <span className="h-px w-10 bg-[#9d3027]/55" />
@@ -803,8 +808,8 @@ export default function Home() {
               </p>
               <p className="mt-3 max-w-sm font-serif text-3xl leading-9">
                 {locale === 'zh'
-                  ? '看看中国传统命理如何描述你的人生结构。'
-                  : 'Discover the patterns Chinese astrology sees in your life.'}
+                  ? '从你的出生时刻开始。'
+                  : 'Start with your birth moment.'}
               </p>
             </div>
             <form
@@ -1217,136 +1222,6 @@ export default function Home() {
   );
 }
 
-function LandingPage({
-  locale,
-  onBegin,
-}: {
-  locale: ReadingLocale;
-  onBegin: () => void;
-}) {
-  const isZh = locale === 'zh';
-  return (
-    <section className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[1280px] items-center gap-14 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20 lg:px-14 lg:py-24">
-      <div className="animate-rise max-w-2xl">
-        <p className="mb-7 text-[10px] font-semibold tracking-[0.24em] text-[#9d3027] uppercase">
-          {isZh ? '四柱 · 一个出生时刻' : 'Four pillars · one moment in time'}
-        </p>
-        <h1 className="max-w-3xl font-serif text-[clamp(3.5rem,8vw,7.4rem)] leading-[0.88] font-medium tracking-[-0.06em]">
-          {isZh ? '读懂时刻' : 'Read the pattern'}
-          <span className="block text-[#9d3027]">
-            {isZh ? '之下的结构。' : 'beneath the moment.'}
-          </span>
-        </h1>
-        <p className="mt-9 max-w-xl font-serif text-2xl leading-9 text-black/70 sm:text-3xl sm:leading-10">
-          {isZh
-            ? '用出生日期、时间和城市，看看中国传统命理如何描述你的节奏与平衡。'
-            : 'Discover what your birth date, time, and city reveal through an old Chinese system of timing and balance.'}
-        </p>
-        <p className="mt-5 max-w-lg text-sm leading-7 text-black/52">
-          {isZh
-            ? 'MING 将八字转化为清晰、个人化的反思，帮助你回看性格、事业、关系与已经走过的阶段。'
-            : 'MING turns BaZi into a clear, personal reflection on your character, work, relationships, and the chapters you have already lived.'}
-        </p>
-        <div className="mt-10 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-          <Button
-            className="glow-control group flex min-h-24 w-full items-center justify-between gap-3 rounded-none border border-[#9d3027] bg-[#9d3027] px-4 py-4 text-left text-white shadow-[0_12px_28px_rgb(157_48_39_/_16%)] transition-all duration-200 hover:border-[#7f251f] hover:bg-[#7f251f] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#9d3027] sm:px-5"
-            onClick={onBegin}
-            type="button"
-          >
-            <span className="grid gap-1.5">
-              <span className="text-sm font-semibold tracking-[0.06em]">
-                {isZh ? '人生详解' : 'Full Life Reading'}
-              </span>
-              <span className="text-xs leading-5 text-white/78">
-                {isZh
-                  ? '回看过去，了解性格、事业与未来'
-                  : 'Past patterns, character, work, and what lies ahead'}
-              </span>
-            </span>
-            <ArrowUpRight className="size-4 shrink-0 text-white transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </Button>
-          <a
-            className="glow-control group flex min-h-24 w-full items-center justify-between gap-3 border border-[#354a42] bg-[#354a42] px-4 py-4 text-white shadow-[0_12px_28px_rgb(53_74_66_/_16%)] transition-all duration-200 hover:border-[#293c35] hover:bg-[#293c35] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#354a42] sm:px-5"
-            href={`/question?lang=${locale}`}
-          >
-            <span className="grid gap-1.5">
-              <span className="text-sm font-semibold tracking-[0.06em]">
-                {isZh ? '具体解答' : 'Ask One Question'}
-              </span>
-              <span className="text-xs leading-5 text-white/78">
-                {isZh
-                  ? '聚焦你此刻最关心的一件事'
-                  : 'Focus on the one thing on your mind now'}
-              </span>
-            </span>
-            <ArrowUpRight className="size-4 shrink-0 text-white transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </a>
-        </div>
-        <p className="mt-3 text-xs text-black/38">
-          {isZh
-            ? '首次人生详解免费 · 无需注册'
-            : 'Your first full reading is free · no account required'}
-        </p>
-        <div className="mt-14 flex items-center gap-3 text-[10px] font-semibold tracking-[0.16em] text-black/38 uppercase">
-          <span className="h-px w-10 bg-[#9d3027]/55" />
-          {isZh
-            ? '不是预言 · 是一份可核对的结构'
-            : 'No prophecy · a pattern to consider'}
-        </div>
-      </div>
-
-      <div className="animate-rise-delayed relative mx-auto w-full max-w-md lg:justify-self-end">
-        <div className="absolute -inset-8 rounded-full bg-[#9d3027]/[0.04] blur-3xl" />
-        <div className="relative border border-black/10 bg-white/30 p-6 shadow-[0_24px_80px_rgb(55_35_22_/_6%)] sm:p-8">
-          <div className="flex items-center justify-between border-b border-black/10 pb-5">
-            <div>
-              <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-                {isZh ? '你的起点' : 'Your starting point'}
-              </p>
-              <p className="mt-2 font-serif text-2xl">
-                {isZh ? '三个信息，一张命盘。' : 'Three details. One map.'}
-              </p>
-            </div>
-            <span className="grid size-12 place-items-center border border-[#9d3027]/30 font-serif text-2xl text-[#9d3027]">
-              命
-            </span>
-          </div>
-          <div className="divide-y divide-black/10">
-            {(isZh
-              ? [
-                  ['01', '日期', '故事开始的那一天'],
-                  ['02', '时间', '一天之中的节奏'],
-                  ['03', '城市', '确定当地时间的地点'],
-                ]
-              : [
-                  ['01', 'Date', 'The day your story began'],
-                  ['02', 'Time', 'The rhythm within the day'],
-                  ['03', 'City', 'The place that sets the clock'],
-                ]
-            ).map(([number, title, description]) => (
-              <div className="flex gap-5 py-6" key={number}>
-                <span className="pt-1 text-[10px] font-semibold tracking-[0.16em] text-[#9d3027]">
-                  {number}
-                </span>
-                <div>
-                  <p className="font-serif text-xl">{title}</p>
-                  <p className="mt-1 text-sm leading-6 text-black/45">
-                    {description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="border-t border-black/10 pt-5 text-xs leading-5 text-black/40">
-            {isZh
-              ? '准确时间会带来更多细节；不知道时辰也可以开始。'
-              : 'Exact time gives more detail. Unknown is still a valid way to begin.'}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function SiteHeader({
   locale,
@@ -1533,7 +1408,7 @@ function ReadingResult({
   }
 
   return (
-    <div className="animate-rise mx-auto max-w-[1180px] px-6 py-12 sm:px-10 sm:py-16">
+    <div className="reading-result animate-rise mx-auto max-w-[1180px] px-6 py-12 sm:px-10 sm:py-16">
       <div className="mb-8 flex items-center justify-between gap-4">
         <button
           className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.16em] text-black/42 uppercase transition hover:gap-3 hover:text-[#9d3027]"
@@ -1560,6 +1435,28 @@ function ReadingResult({
         </div>
       </div>
 
+      <label className="result-mobile-select">
+        <span>{locale === 'zh' ? '解读章节' : 'READING CHAPTER'}</span>
+        <select
+          aria-label={locale === 'zh' ? '选择解读章节' : 'Choose reading chapter'}
+          onChange={(event) => selectTab(event.target.value as ResultView)}
+          value={view}
+        >
+          {tabs.map((tab) => (
+            <option
+              disabled={
+                tab.value !== 'overview' &&
+                tab.value !== 'method' &&
+                !completedPhases.has(tab.value)
+              }
+              key={tab.value}
+              value={tab.value}
+            >
+              {tab.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <nav
         aria-label={locale === 'zh' ? '解读章节' : 'Reading sections'}
         className="result-tabs mb-10 flex snap-x snap-mandatory overflow-x-auto border-y border-black/10"

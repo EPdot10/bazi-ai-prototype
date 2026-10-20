@@ -187,7 +187,7 @@ function NajiaTable({
 
 export default function QuestionPage() {
   const [chosenLocale, setChosenLocale] = useState<Locale | null>(null);
-  const locale = chosenLocale ?? 'en';
+  const locale = chosenLocale ?? 'zh';
   const [question, setQuestion] = useState('');
   const [timeframe, setTimeframe] = useState<
     'month' | 'quarter' | 'year' | 'open'
@@ -202,6 +202,10 @@ export default function QuestionPage() {
   const answerRef = useRef<HTMLElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const shakeLockRef = useRef(false);
+
+  useEffect(() => {
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+  }, [locale]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -402,7 +406,7 @@ export default function QuestionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f2efe8] text-[#1b1a17]">
+    <main className="question-shell min-h-screen bg-[#f2efe8] text-[#1b1a17]">
       <header className="mx-auto flex h-20 max-w-[1160px] items-center justify-between border-b border-black/10 px-6 sm:px-10">
         <Link
           className="flex items-center gap-3 font-serif text-xl tracking-[0.16em]"
@@ -497,16 +501,19 @@ export default function QuestionPage() {
             </h1>
             <p className="mt-7 max-w-xl text-base leading-8 text-black/57">
               {isZh
-                ? '专注一个当下可行动的问题。每次点击，摇动三枚铜钱并记录一爻；六次后从下往上形成卦象。结果提供思考角度，不替你做决定。'
-                : 'Focus on one actionable question. Each tap shakes three coins and records one line; after six casts, the hexagram is built from the bottom up. It offers perspective, not a decision.'}
+                ? '写下此刻最想厘清的一件事，再亲手摇出六爻。'
+                : 'Write down the one thing you want to clarify, then cast six lines by hand.'}
             </p>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-black/46">
-              {isZh
-                ? '系统会按选定的纳甲规则排出本卦结构，AI 只解释这些已计算的事实；目前不计算月建日辰旺衰，也不会替你自动选用神。'
-                : 'The app computes the core Na Jia chart using a declared convention; AI interprets those facts only. Month/day strength and automatic useful-spirit selection are not yet included.'}
-            </p>
+            <details className="question-method mt-5 max-w-xl border-t border-black/10 pt-4 text-sm text-black/55">
+              <summary className="cursor-pointer">{isZh ? '这份解读如何工作' : 'How this reading works'}</summary>
+              <p className="mt-3 leading-6">
+                {isZh
+                  ? '每次点击模拟摇动三枚铜钱并记录一爻，六次后自下而上形成卦象。系统按选定的纳甲规则排出结构，AI 解释已计算的事实；本版不计算月建日辰旺衰，也不自动选用神。结果提供思考角度，不替你做决定。'
+                  : 'Each tap casts three coins and records one line. Six casts build the hexagram from the bottom up. The app calculates its Na Jia structure and AI interprets those facts; month/day strength and automatic useful-spirit selection are not included. The result offers perspective, not a decision.'}
+              </p>
+            </details>
             <label
-              className="mt-12 block text-xs font-semibold tracking-[0.16em] uppercase"
+              className="mt-8 block text-xs font-semibold tracking-[0.16em] uppercase"
               htmlFor="iching-question"
             >
               {isZh ? '你想问什么？' : 'Your question'}
@@ -529,8 +536,8 @@ export default function QuestionPage() {
             />
             <p className="mt-2 text-xs leading-5 text-black/40">
               {isZh
-                ? '请勿输入姓名或敏感资料。此标签页会暂存进度，可随时清除；提交后问题和卦象会发送给 AI 服务。起卦后如需改问题，请先重新起卦。'
-                : 'Avoid names and sensitive details. This tab temporarily saves your progress; you can clear it. On submission, your question and cast go to an AI service. Start again to change the question.'}
+                ? '请勿输入姓名或敏感资料。提交后，问题与卦象会发送给 AI 服务；此页暂存的进度可以随时清除。'
+                : 'Avoid names and sensitive details. On submission, the question and cast go to an AI service. You can clear progress saved in this tab.'}
             </p>
 
             <label
