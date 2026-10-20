@@ -67,6 +67,43 @@ function HexagramLines({
   );
 }
 
+function coinFacesForLine(line: CoinLine | undefined, castCount: number) {
+  if (line === undefined) return [true, false, true];
+  const heads = line - 6;
+  return [0, 1, 2].map((index) => (index + castCount) % 3 < heads);
+}
+
+function CoinSet({
+  faces,
+  shaking = false,
+  waiting = false,
+}: {
+  faces: boolean[];
+  shaking?: boolean;
+  waiting?: boolean;
+}) {
+  return (
+    <span className={`oracle-coins ${shaking ? 'is-shaking' : ''} ${waiting ? 'is-waiting' : ''}`} aria-hidden="true">
+      {faces.map((front, index) => (
+        <span className="oracle-coin-slot" key={index}>
+          <span className={`oracle-coin ${front ? 'is-front' : 'is-back'}`}>
+            <span className="oracle-coin-face oracle-coin-front" />
+            <span className="oracle-coin-face oracle-coin-back" />
+          </span>
+          <span className="oracle-coin-shadow" />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+const lineNames: Record<CoinLine, { zh: string; en: string }> = {
+  6: { zh: '老阴 · 变爻', en: 'Old yin · changing' },
+  7: { zh: '少阳', en: 'Young yang' },
+  8: { zh: '少阴', en: 'Young yin' },
+  9: { zh: '老阳 · 变爻', en: 'Old yang · changing' },
+};
+
 const elementLabel = (element: Hexagram['palaceElement'], isZh: boolean) =>
   isZh
     ? ({ wood: '木', fire: '火', earth: '土', metal: '金', water: '水' })[
@@ -202,6 +239,7 @@ export default function QuestionPage() {
   const answerRef = useRef<HTMLElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const shakeLockRef = useRef(false);
+  const trayStartXRef = useRef<number | null>(null);
 
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
@@ -299,6 +337,9 @@ export default function QuestionPage() {
     throws.length === 6 && castContext
       ? deriveCoinReading(throws, castContext)
       : null;
+  const latestLine = throws.at(-1);
+  const visibleCoinFaces = coinFacesForLine(latestLine, throws.length);
+  const canCast = question.trim().length >= 8 && throws.length < 6 && !pending && !shaking;
   async function requestReading() {
     if (!cast || question.trim().length < 8 || pending) return;
     setPending(true);
@@ -386,7 +427,8 @@ export default function QuestionPage() {
       });
     }
     setShaking(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    const animationMs = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 120 : 900;
+    await new Promise((resolve) => setTimeout(resolve, animationMs));
     setThrows((current) =>
       current.length < 6 ? [...current, castCoinLine()] : current,
     );
@@ -442,16 +484,7 @@ export default function QuestionPage() {
           aria-busy="true"
           className="mx-auto grid min-h-[calc(100dvh-5rem)] max-w-[760px] content-center px-6 py-16 text-center sm:px-10"
         >
-          <div
-            aria-hidden="true"
-            className="coin-shake mx-auto flex items-center justify-center gap-3"
-          >
-            {[0, 1, 2].map((coin) => (
-              <span className="coin-token" key={coin}>
-                易
-              </span>
-            ))}
-          </div>
+          <CoinSet faces={visibleCoinFaces} waiting />
           <p className="mt-10 text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
             {isZh ? '六爻解读 · 正在分析' : 'Six-line reading · in progress'}
           </p>
@@ -481,45 +514,55 @@ export default function QuestionPage() {
           </p>
         </section>
       ) : (
-      <div className="mx-auto max-w-[1160px] px-6 pb-24 pt-14 sm:px-10 sm:pt-20">
+      <div className="oracle-content mx-auto max-w-[1260px] px-6 pb-24 pt-10 sm:px-10 sm:pt-14">
         <Link
-          className="inline-flex items-center gap-2 text-xs text-black/45 hover:text-[#9d3027]"
+          className="oracle-back inline-flex items-center gap-2 text-xs text-black/45 hover:text-[#9d3027]"
           href="/"
         >
           <ArrowLeft className="size-4" />
           {isZh ? '返回首页' : 'Back to home'}
         </Link>
-        <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.82fr)] lg:gap-24">
-          <div>
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#9d3027] uppercase">
-              {isZh
-                ? '三币易经起卦 · 六爻实验'
-                : 'Three-coin I Ching · six-line experiment'}
-            </p>
-            <h1 className="mt-5 font-serif text-[clamp(3.2rem,7vw,6.5rem)] leading-[0.95] tracking-[-0.06em]">
-              {isZh ? '问一个具体的问题。' : 'Ask one clear question.'}
+        <section className="oracle-intro" aria-labelledby="oracle-title">
+          <div className="oracle-intro-copy">
+            <p className="oracle-kicker">MING / {isZh ? '六爻问事' : 'SIX-LINE CASTING'} <span>01 — 06</span></p>
+            <h1 id="oracle-title">
+              {isZh ? <>一事一问，<br /><em>六爻成卦。</em></> : <>One question.<br /><em>Six lines.</em></>}
             </h1>
-            <p className="mt-7 max-w-xl text-base leading-8 text-black/57">
+            <p className="oracle-intro-lede">
               {isZh
-                ? '写下此刻最想厘清的一件事，再亲手摇出六爻。'
-                : 'Write down the one thing you want to clarify, then cast six lines by hand.'}
+                ? '把此刻在意的事说清楚。三枚铜钱投六次，每一次留下一个爻；从下向上，渐渐看见问题的形状。'
+                : 'Give one question your full attention. Cast three coins six times; each cast becomes a line. Read from the bottom upward, the pattern takes shape.'}
             </p>
-            <details className="question-method mt-5 max-w-xl border-t border-black/10 pt-4 text-sm text-black/55">
-              <summary className="cursor-pointer">{isZh ? '这份解读如何工作' : 'How this reading works'}</summary>
-              <p className="mt-3 leading-6">
-                {isZh
-                  ? '每次点击模拟摇动三枚铜钱并记录一爻，六次后自下而上形成卦象。系统按选定的纳甲规则排出结构，AI 解释已计算的事实；本版不计算月建日辰旺衰，也不自动选用神。结果提供思考角度，不替你做决定。'
-                  : 'Each tap casts three coins and records one line. Six casts build the hexagram from the bottom up. The app calculates its Na Jia structure and AI interprets those facts; month/day strength and automatic useful-spirit selection are not included. The result offers perspective, not a decision.'}
-              </p>
-            </details>
+            <a className="oracle-intro-link" href="#oracle-form">{isZh ? '开始起卦' : 'Begin the cast'} <ArrowRight className="size-4" /></a>
+          </div>
+          <div className="oracle-intro-diagram" aria-hidden="true">
+            <div className="oracle-diagram-number">六</div>
+            <div className="oracle-diagram-lines">
+              {[0, 1, 2, 3, 4, 5].map((index) => <span className={index % 3 === 1 ? 'is-split' : ''} key={index} />)}
+            </div>
+            <span className="oracle-diagram-caption">THREE COINS / SIX LINES</span>
+          </div>
+        </section>
+        <section className="oracle-logic" aria-label={isZh ? '六爻起卦的三个步骤' : 'Three steps to a six-line cast'}>
+          <div><span>01 / {isZh ? '定一问' : 'FORM THE QUESTION'}</span><p>{isZh ? '聚焦一件你能观察、能行动的事。' : 'Focus on one thing you can observe and act on.'}</p></div>
+          <div><span>02 / {isZh ? '投三钱' : 'CAST THREE COINS'}</span><p>{isZh ? '正面记 3，背面记 2；一次成一爻。' : 'Heads count 3, tails 2. One cast makes one line.'}</p></div>
+          <div><span>03 / {isZh ? '自下而上' : 'BUILD UPWARD'}</span><p>{isZh ? '六次成卦；6 与 9 标记变化。' : 'Six casts form the hexagram; 6 and 9 mark change.'}</p></div>
+        </section>
+        <div className="oracle-workspace">
+          <div className="oracle-form" id="oracle-form">
+            <div className="oracle-form-head">
+              <span>01 / {isZh ? '写下你的问题' : 'YOUR QUESTION'}</span>
+              <h2>{isZh ? '先把问题说清。' : 'Begin with clarity.'}</h2>
+              <p>{isZh ? '具体一些，会更容易把解读带回现实。' : 'A precise question makes the reading easier to use.'}</p>
+            </div>
             <label
-              className="mt-8 block text-xs font-semibold tracking-[0.16em] uppercase"
+              className="oracle-field-label mt-8 block text-xs font-semibold tracking-[0.16em] uppercase"
               htmlFor="iching-question"
             >
               {isZh ? '你想问什么？' : 'Your question'}
             </label>
             <textarea
-              className="mt-4 min-h-36 w-full resize-y border border-black/15 bg-white/45 p-5 text-base leading-7 outline-none transition-colors focus:border-[#9d3027]"
+              className="oracle-textarea mt-4 min-h-36 w-full resize-y border border-black/15 bg-white/45 p-5 text-base leading-7 outline-none transition-colors focus:border-[#9d3027]"
               id="iching-question"
               maxLength={280}
               disabled={throws.length > 0 || pending || shaking}
@@ -541,13 +584,13 @@ export default function QuestionPage() {
             </p>
 
             <label
-              className="mt-7 block text-xs font-semibold tracking-[0.16em] uppercase"
+              className="oracle-field-label mt-7 block text-xs font-semibold tracking-[0.16em] uppercase"
               htmlFor="iching-timeframe"
             >
               {isZh ? '你关心的时间范围' : 'Timeframe you have in mind'}
             </label>
             <select
-              className="mt-3 min-h-12 w-full border border-black/15 bg-white/45 px-4 text-sm outline-none focus:border-[#9d3027]"
+              className="oracle-select mt-3 min-h-12 w-full border border-black/15 bg-white/45 px-4 text-sm outline-none focus:border-[#9d3027]"
               id="iching-timeframe"
               disabled={throws.length > 0 || pending || shaking}
               onChange={(event) => {
@@ -566,28 +609,8 @@ export default function QuestionPage() {
               <option value="open">{isZh ? '不限定时间' : 'Open-ended'}</option>
             </select>
 
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <button
-                className="inline-flex min-h-12 items-center gap-3 bg-[#1b1a17] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#9d3027] disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={
-                  question.trim().length < 8 || throws.length === 6 || pending || shaking
-                }
-                onClick={castNextLine}
-                type="button"
-              >
-                {shaking
-                  ? isZh
-                    ? '铜钱摇动中…'
-                    : 'Shaking the coins…'
-                  : throws.length === 6
-                  ? isZh
-                    ? '六爻已完成'
-                    : 'Six lines complete'
-                  : isZh
-                    ? `摇第 ${throws.length + 1} 爻`
-                    : `Shake for line ${throws.length + 1}`}
-                <ArrowRight className="size-4" />
-              </button>
+            <div className="oracle-form-actions mt-8 flex flex-wrap items-center gap-3">
+              <p>{isZh ? '写完后，点击或滑动右侧铜钱开始。' : 'When ready, tap or swipe the coins to begin.'}</p>
               {throws.length > 0 ? (
                 <button
                   disabled={shaking}
@@ -608,35 +631,11 @@ export default function QuestionPage() {
                 {isZh ? '清除此页记录' : 'Clear this session'}
               </button>
             </div>
-            <p aria-live="polite" className="mt-4 text-sm text-black/50">
-              {isZh
-                ? `已完成 ${throws.length} / 6 爻 · 从下往上记录`
-                : `${throws.length} / 6 lines · building bottom up`}
-            </p>
-            <ol
-              aria-label={isZh ? '起卦进度' : 'Casting progress'}
-              className="mt-4 flex max-w-sm items-center gap-2"
-            >
-              {Array.from({ length: 6 }, (_, index) => (
-                <li
-                  aria-label={
-                    isZh
-                      ? `第 ${index + 1} 爻${throws.length > index ? '已完成' : ''}`
-                      : `Line ${index + 1}${throws.length > index ? ', complete' : ''}`
-                  }
-                  aria-current={throws.length === index ? 'step' : undefined}
-                  className={`grid size-8 shrink-0 place-items-center rounded-full border text-[10px] tabular-nums transition-colors ${throws.length > index ? 'border-[#9d3027] bg-[#9d3027] text-white' : 'border-black/15 text-black/40'}`}
-                  key={index}
-                >
-                  {index + 1}
-                </li>
-              ))}
-            </ol>
             {cast ? (
-              <div className="mt-9">
+              <div className="oracle-submit-wrap mt-9">
                 <button
                   ref={submitRef}
-                  className="mt-6 min-h-12 bg-[#9d3027] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase disabled:opacity-50"
+                  className="oracle-submit min-h-12 bg-[#9d3027] px-6 text-xs font-semibold tracking-[0.12em] text-white uppercase disabled:opacity-50"
                   disabled={pending || shaking}
                   onClick={requestReading}
                   type="button"
@@ -646,8 +645,9 @@ export default function QuestionPage() {
                       ? '正在解读卦象…'
                       : 'Interpreting the cast…'
                     : isZh
-                      ? '开始 AI 解读'
-                      : 'Begin AI interpretation'}
+                      ? '阅读这枚卦象的解读'
+                      : 'Read this cast'}
+                  <ArrowRight className="size-4" />
                 </button>
               </div>
             ) : null}
@@ -658,64 +658,78 @@ export default function QuestionPage() {
             ) : null}
           </div>
 
-          <div className="self-start border border-black/10 bg-white/35 p-6 shadow-[0_20px_80px_rgb(55_35_22_/_5%)] sm:p-9">
-            <div className="flex items-center justify-between border-b border-black/10 pb-5">
-              <p className="text-[10px] font-semibold tracking-[0.2em] text-[#9d3027] uppercase">
-                {isZh ? '你的卦象' : 'Your cast'}
-              </p>
-              <span className="font-serif text-3xl text-[#9d3027]">卦</span>
+          <div className="oracle-stage self-start">
+            <div className="oracle-stage-head">
+              <div><span>02 / {isZh ? '亲手起卦' : 'CAST THE LINES'}</span><h2>{isZh ? '三钱，六投。' : 'Three coins. Six casts.'}</h2></div>
+              <span className="oracle-stage-count">{String(throws.length).padStart(2, '0')} <i>/</i> 06</span>
             </div>
-            <div
-              aria-hidden="true"
-              className={`mx-auto mt-8 flex items-center justify-center gap-3 ${shaking ? 'coin-shake' : ''}`}
-            >
-              {[0, 1, 2].map((coin) => (
-                <span className="coin-token" key={coin}>
-                  易
+            <div className="oracle-coin-board">
+              <div className="oracle-board-meta"><span>MING / CASTING STUDIO</span><span>{isZh ? '每次投掷记录一爻' : 'ONE CAST, ONE LINE'}</span></div>
+              <button
+                className="oracle-toss-target"
+                disabled={!canCast}
+                onClick={castNextLine}
+                onPointerDown={(event) => {
+                  trayStartXRef.current = event.clientX;
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  if (trayStartXRef.current === null) return;
+                  const delta = Math.max(-30, Math.min(30, event.clientX - trayStartXRef.current));
+                  event.currentTarget.style.setProperty('--oracle-drag', `${delta}px`);
+                }}
+                onPointerUp={(event) => {
+                  if (trayStartXRef.current !== null && Math.abs(event.clientX - trayStartXRef.current) > 38) void castNextLine();
+                  trayStartXRef.current = null;
+                  event.currentTarget.style.removeProperty('--oracle-drag');
+                }}
+                onPointerCancel={(event) => {
+                  trayStartXRef.current = null;
+                  event.currentTarget.style.removeProperty('--oracle-drag');
+                }}
+                type="button"
+                aria-label={throws.length === 6 ? isZh ? '六爻已完成' : 'Six lines complete' : isZh ? `摇三枚铜钱，记录第 ${throws.length + 1} 爻` : `Shake three coins for line ${throws.length + 1}`}
+              >
+                <CoinSet faces={visibleCoinFaces} shaking={shaking} />
+                <span className="oracle-toss-instruction">
+                  {shaking
+                    ? isZh ? '铜钱翻转中' : 'Coins in motion'
+                    : throws.length === 6
+                      ? isZh ? '六爻已成' : 'Cast complete'
+                      : question.trim().length < 8
+                        ? isZh ? '先写下你的问题' : 'Write your question first'
+                        : isZh ? `点击或左右滑动 · 摇第 ${throws.length + 1} 爻` : `Tap or swipe · cast line ${throws.length + 1}`}
+                  {canCast ? <ArrowRight className="size-4" /> : null}
                 </span>
-              ))}
+              </button>
+              <div className="oracle-face-legend"><span><i className="is-front" />{isZh ? '正面 3' : 'Heads 3'}</span><span><i className="is-back" />{isZh ? '背面 2' : 'Tails 2'}</span></div>
             </div>
-            <p aria-live="polite" className="mt-4 text-center text-xs text-black/45">
+            <p className="oracle-result-live" aria-live="polite">
               {shaking
-                ? isZh
-                  ? '三枚铜钱摇动中…'
-                  : 'The coins are moving…'
-                : throws.length === 6
-                  ? isZh
-                    ? '卦象已成，确认后开始 AI 解读'
-                    : 'Cast complete — begin the interpretation when ready'
-                  : isZh
-                    ? '点击一次摇卦，记录一爻'
-                    : 'Tap once to cast and record one line'}
+                ? isZh ? '正在起爻…' : 'Casting the line…'
+                : latestLine
+                  ? `${isZh ? `第 ${throws.length} 爻` : `Line ${throws.length}`} · ${lineNames[latestLine][locale]} · ${isZh ? '正面' : 'heads'} ${latestLine - 6} / ${isZh ? '背面' : 'tails'} ${9 - latestLine}`
+                  : isZh ? '铜钱正反各有其象，投出后会在这里揭晓。' : 'Both faces have their place. Your cast will appear here.'}
             </p>
-            <div className="mt-8 space-y-4">
+            <div className="oracle-lines-heading"><span>03 / {isZh ? '卦象自下而上' : 'FROM THE BOTTOM UP'}</span><span>{isZh ? `${throws.length} / 6 已完成` : `${throws.length} / 6 complete`}</span></div>
+            <ol className="oracle-lines" aria-label={isZh ? '起卦进度，自上而下显示' : 'Casting progress, displayed top to bottom'}>
               {Array.from({ length: 6 }, (_, index) => {
                 const throwIndex = 5 - index;
                 const line = throws[throwIndex];
                 return (
-                  <div
-                    className="flex items-center justify-between border-b border-black/8 pb-3"
+                  <li
+                    className={`oracle-line-row ${line ? 'is-complete' : ''} ${line === 6 || line === 9 ? 'is-moving' : ''} ${throws.length === throwIndex ? 'is-next' : ''}`}
                     key={index}
+                    aria-label={isZh ? `第 ${throwIndex + 1} 爻：${line ? lineNames[line].zh : '未投'}` : `Line ${throwIndex + 1}: ${line ? lineNames[line].en : 'not cast'}`}
                   >
-                    <span className="text-xs text-black/40">
-                      {isZh ? `第 ${throwIndex + 1} 爻` : `Line ${throwIndex + 1}`}
-                    </span>
-                    <span className="font-serif text-lg">
-                      {line
-                        ? line === 6 || line === 8
-                          ? '– –'
-                          : '——'
-                        : '· · ·'}
-                    </span>
-                    <span className="w-24 shrink-0 text-right text-xs text-[#9d3027]">
-                      {line
-                        ? `${line}${line === 6 || line === 9 ? (isZh ? ' · 变' : ' · moving') : ''}`
-                        : ''}
-                    </span>
-                  </div>
+                    <span className="oracle-line-index">0{throwIndex + 1}</span>
+                    <span className={`oracle-line-glyph ${line === 6 || line === 8 ? 'is-broken' : ''}`}><i /><i /></span>
+                    <span className="oracle-line-name">{line ? lineNames[line][locale] : throws.length === throwIndex ? isZh ? '下一爻' : 'Next line' : '—'}</span>
+                    <span className="oracle-line-value">{line ?? '·'}</span>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
             {cast ? (
               <div className="mt-10 flex flex-wrap items-start gap-10 border-t border-black/10 pt-8">
                 <div>
@@ -762,11 +776,12 @@ export default function QuestionPage() {
                 </p>
               </div>
             ) : null}
-            <p className="mt-10 text-xs leading-6 text-black/40">
-              {isZh
-                ? '约定：三枚硬币正面记 3，反面记 2；6、9 为变爻。第一掷是最下方一爻。排盘使用常见八宫纳甲、六亲生克和六神日干起例；流派存在差异。本版本暂不判断月建日辰旺衰、空破合冲，也不自动选用神。'
-                : 'Method: heads count 3, tails 2; totals 6 and 9 are moving. The first cast is the bottom line. The chart uses a common Ba Gong/Na Jia, six-kin, and day-stem six-spirit convention; schools vary. Month/day strength, clashes, voids, and automatic useful-spirit selection are not implemented yet.'}
-            </p>
+            <details className="oracle-method-detail">
+              <summary>{isZh ? '排盘约定与解读边界' : 'Method and limits'}</summary>
+              <p>{isZh
+                ? '正面记 3，背面记 2；6、9 为变爻。第一投是最下方一爻。排盘使用常见八宫纳甲、六亲生克和六神日干起例；流派存在差异。本版不判断月建日辰旺衰、空破合冲，也不自动选用神。AI 依据已计算的卦象结构提供思考角度，不替你做决定。'
+                : 'Heads count 3, tails 2; totals 6 and 9 are moving. The first cast is the bottom line. The chart uses a common Ba Gong/Na Jia, six-kin, and day-stem six-spirit convention; schools vary. Month/day strength, clashes, voids, and automatic useful-spirit selection are not implemented. AI offers a perspective on calculated chart facts, not a decision.'}</p>
+            </details>
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cormorant_Garamond, Manrope } from 'next/font/google';
 import './globals.css';
 import './editorial-v2.css';
+import './question-v2.css';
 
 const sans = Manrope({ variable: '--font-sans-site', subsets: ['latin'] });
 const heading = Cormorant_Garamond({
