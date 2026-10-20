@@ -63,6 +63,9 @@
 .oracle-logic > div + div { padding-left: 30px; border-left: 1px solid var(--oracle-rule); }
 .oracle-logic span { color: var(--oracle-red); }
 .oracle-logic p { max-width: 270px; margin-top: 14px; color: #42443e; font-size: 14px; line-height: 1.7; }
+.oracle-disclaimer { display: grid; grid-template-columns: minmax(120px, .32fr) minmax(0, 1fr); gap: 30px; align-items: start; border-bottom: 1px solid var(--oracle-rule); padding: 22px 0 24px; }
+.oracle-disclaimer span { color: var(--oracle-red); font-family: var(--font-sans-site), sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.oracle-disclaimer p { max-width: 790px; color: #666862; font-size: 12px; line-height: 1.85; }
 
 .oracle-workspace { display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: clamp(55px, 8vw, 130px); padding-top: clamp(60px, 6vw, 92px); }
 .oracle-form { min-width: 0; scroll-margin-top: 90px; }
@@ -172,6 +175,8 @@
   .oracle-logic > div + div { padding-left: 0; border-top: 1px solid var(--oracle-rule); border-left: 0; }
   .oracle-logic p { margin-top: 0; font-size: 12px; }
   .oracle-logic span { font-size: 9px; letter-spacing: .07em; }
+  .oracle-disclaimer { grid-template-columns: 1fr; gap: 8px; padding: 18px 0 20px; }
+  .oracle-disclaimer p { font-size: 11px; line-height: 1.75; }
   .oracle-workspace { gap: 42px; padding-top: 48px; }
   .oracle-form-head h2 { font-size: 34px; }
   .oracle-stage { box-shadow: 7px 7px 0 #e7e5dc; }

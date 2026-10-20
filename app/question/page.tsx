@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import {
@@ -16,6 +16,12 @@ import {
 
 type Locale = 'en' | 'zh';
 const sessionKey = 'ming:question-session:v1';
+
+function navigateHome(event: MouseEvent<HTMLAnchorElement>) {
+  event.preventDefault();
+  window.location.assign('/');
+}
+
 interface Answer {
   answer: string;
   conditions: string;
@@ -453,6 +459,8 @@ export default function QuestionPage() {
         <Link
           className="flex items-center gap-3 font-serif text-xl tracking-[0.16em]"
           href="/"
+          onClick={navigateHome}
+          prefetch={false}
         >
           <span className="grid size-8 place-items-center bg-[#9d3027] text-sm text-white">
             命
@@ -518,6 +526,8 @@ export default function QuestionPage() {
         <Link
           className="oracle-back inline-flex items-center gap-2 text-xs text-black/45 hover:text-[#9d3027]"
           href="/"
+          onClick={navigateHome}
+          prefetch={false}
         >
           <ArrowLeft className="size-4" />
           {isZh ? '返回首页' : 'Back to home'}
@@ -545,9 +555,17 @@ export default function QuestionPage() {
         </section>
         <section className="oracle-logic" aria-label={isZh ? '六爻起卦的三个步骤' : 'Three steps to a six-line cast'}>
           <div><span>01 / {isZh ? '定一问' : 'FORM THE QUESTION'}</span><p>{isZh ? '聚焦一件你能观察、能行动的事。' : 'Focus on one thing you can observe and act on.'}</p></div>
-          <div><span>02 / {isZh ? '投三钱' : 'CAST THREE COINS'}</span><p>{isZh ? '正面记 3，背面记 2；一次成一爻。' : 'Heads count 3, tails 2. One cast makes one line.'}</p></div>
-          <div><span>03 / {isZh ? '自下而上' : 'BUILD UPWARD'}</span><p>{isZh ? '六次成卦；6 与 9 标记变化。' : 'Six casts form the hexagram; 6 and 9 mark change.'}</p></div>
+          <div><span>02 / {isZh ? '投三钱' : 'CAST THREE COINS'}</span><p>{isZh ? '心中想着你想问的事，分六次投出三枚钱币。' : 'Hold your question in mind and cast the three coins six times.'}</p></div>
+          <div><span>03 / {isZh ? '得推断' : 'READ THE PATTERN'}</span><p>{isZh ? '六次结果组成卦象，从中得到一份可供参考的推断。' : 'The six results form a hexagram and a perspective to consider.'}</p></div>
         </section>
+        <aside className="oracle-disclaimer" aria-label={isZh ? '娱乐声明' : 'Reading notice'}>
+          <span>{isZh ? '使用提示' : 'READING NOTE'}</span>
+          <p>
+            {isZh
+              ? '本功能仅供娱乐与自我观察，不是精准预测，也不能替代你的判断。建议只问一件具体的小事；常言天机不可泄露，不必事事求算，人生仍要由你亲自体验与选择。'
+              : 'For entertainment and reflection only. This is not a precise prediction or a substitute for your judgment. Ask about one small, specific matter; not every part of life needs to be calculated. Your life remains yours to experience and choose.'}
+          </p>
+        </aside>
         <div className="oracle-workspace">
           <div className="oracle-form" id="oracle-form">
             <div className="oracle-form-head">
