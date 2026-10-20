@@ -5,7 +5,6 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowDown, ArrowUpRight, MoveRight } from 'lucide-react';
-import { WindParticles } from './wind-particles';
 
 type Locale = 'en' | 'zh';
 
@@ -141,7 +140,6 @@ export function EditorialLanding({
   return (
     <div className={`ed-page ${isZh ? 'ed-zh' : 'ed-en'}`} ref={root}>
       <section className="ed-hero" aria-labelledby="ed-hero-title">
-        <WindParticles variant="paper" />
         <div className="ed-hero-copy">
           <div className="ed-kicker ed-hero-support">
             <span className="ed-kicker-line" />
@@ -182,7 +180,6 @@ export function EditorialLanding({
         </div>
 
         <div className="ed-hero-art ed-chart-frame" ref={chart}>
-          <WindParticles variant="chart" />
           <div className="ed-chart-topline">
             <span>{isZh ? '四柱 · 命盘结构' : 'FOUR PILLARS · CHART ANATOMY'}</span>
             <span>01 / 04</span>

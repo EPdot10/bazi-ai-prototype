@@ -42,8 +42,6 @@ body::before { display: none; }
 .ed-page a { -webkit-tap-highlight-color: transparent; }
 .ed-page button:focus-visible,
 .ed-page a:focus-visible { outline: 2px solid var(--ed-red); outline-offset: 4px; }
-.wind-particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; user-select: none; }
-.wind-particles canvas { display: block; width: 100%; height: 100%; }
 .ed-section-index,
 .ed-kicker,
 .ed-chart-topline,
@@ -82,12 +80,6 @@ body::before { display: none; }
   background: #e7e6e0;
   content: '';
   pointer-events: none;
-}
-.ed-hero > .wind-particles--paper {
-  z-index: 0;
-  opacity: .7;
-  -webkit-mask-image: linear-gradient(90deg, transparent 8%, transparent 30%, black 48%, black 60%, transparent 84%);
-  mask-image: linear-gradient(90deg, transparent 8%, transparent 30%, black 48%, black 60%, transparent 84%);
 }
 .ed-hero-copy { position: relative; z-index: 1; align-self: center; min-width: 0; }
 .ed-kicker { display: flex; align-items: center; gap: 14px; color: var(--ed-red); }
@@ -140,7 +132,6 @@ body::before { display: none; }
 
 .ed-hero-art {
   position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-self: center;
@@ -149,13 +140,6 @@ body::before { display: none; }
   background: #1b1d1b;
   box-shadow: 18px 18px 0 #e4e3dc;
 }
-.ed-hero-art > .wind-particles--chart {
-  z-index: 0;
-  opacity: .82;
-  -webkit-mask-image: linear-gradient(180deg, transparent, black 15%, black 85%, transparent);
-  mask-image: linear-gradient(180deg, transparent, black 15%, black 85%, transparent);
-}
-.ed-hero-art > :not(.wind-particles) { position: relative; z-index: 1; }
 .ed-hero-art::before {
   position: absolute;
   inset: 0;
@@ -282,11 +266,6 @@ body::before { display: none; }
 @media (max-width: 800px) {
   .ed-hero { display: flex; flex-direction: column; gap: 50px; min-height: unset; padding-top: 62px; padding-bottom: 100px; }
   .ed-hero::before { display: none; }
-  .ed-hero > .wind-particles--paper {
-    opacity: .45;
-    -webkit-mask-image: radial-gradient(ellipse at 76% 34%, black, transparent 62%);
-    mask-image: radial-gradient(ellipse at 76% 34%, black, transparent 62%);
-  }
   .ed-hero-title { font-size: clamp(60px, 11vw, 96px); }
   .ed-zh .ed-hero-title { font-size: clamp(55px, 9vw, 78px); }
   .ed-hero-art { width: min(100%, 620px); min-height: 500px; align-self: center; }
