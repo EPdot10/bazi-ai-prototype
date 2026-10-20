@@ -110,7 +110,7 @@
 .oracle-face-legend i.is-back { background: #9a7240; box-shadow: inset 0 0 0 1px #6b4b28; }
 
 .oracle-coins { display: flex; align-items: center; justify-content: center; gap: clamp(9px, 2vw, 18px); width: 100%; perspective: 900px; transform: translateX(var(--oracle-drag, 0px)); transition: transform .18s ease-out; }
-.oracle-coin-slot { position: relative; display: block; width: clamp(68px, 7.4vw, 99px); flex: 0 0 auto; padding-bottom: 10px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+.oracle-coin-slot { position: relative; display: block; width: clamp(80px, 8.5vw, 118px); flex: 0 0 auto; padding-bottom: 10px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
 .oracle-coin-slot:nth-child(1) { transform: rotate(-10deg) translateY(4px); }
 .oracle-coin-slot:nth-child(2) { transform: translateY(-8px); }
 .oracle-coin-slot:nth-child(3) { transform: rotate(9deg) translateY(4px); }
@@ -184,7 +184,7 @@
   .oracle-stage-head h2 { font-size: 27px; }
   .oracle-stage-count { font-size: 28px; }
   .oracle-toss-target { min-height: 215px; }
-  .oracle-coin-slot { width: clamp(68px, 22vw, 92px); }
+  .oracle-coin-slot { width: clamp(64px, 21vw, 92px); }
   .oracle-result-live { padding-inline: 18px; }
   .oracle-lines-heading { padding-inline: 18px; }
   .oracle-lines { padding-inline: 18px; }
